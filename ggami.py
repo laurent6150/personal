@@ -114,7 +114,7 @@ with col_title:
     st.markdown("# 🐕 까미 병원비 정산")
 with col_refresh:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄", help="새로고침"):
+    if st.button("🔄 새로고침"):
         st.cache_resource.clear()
         st.rerun()
 
