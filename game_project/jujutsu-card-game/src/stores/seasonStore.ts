@@ -1,5 +1,5 @@
 // ========================================
-// 시즌 & 리그 스토어 - 랜덤 크루 & 연속 시즌 지원
+// 시즌 & 리그 스토어 - MVP v3: 버그 수정 + 개선
 // ========================================
 
 import { create } from 'zustand';
@@ -9,25 +9,23 @@ import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID } from '../data/ai
 
 interface SeasonState {
   // 게임 상태
-  isInitialized: boolean;       // 첫 크루 선택 완료 여부
-  playerCrew: string[];         // 플레이어 선택 크루 (5장)
-  currentAICrews: AICrew[];     // 현재 시즌 AI 크루 (랜덤 배정)
+  isInitialized: boolean;
+  playerCrew: string[];
+  currentAICrews: AICrew[];
 
   // 시즌 데이터
   currentSeason: Season | null;
   seasonHistory: SeasonHistory[];
 
   // 액션
-  initializeGame: (playerCrew: string[]) => void;  // 첫 게임 시작 (크루 선택)
-  startNewSeason: () => void;                      // 시즌 시작/다음 시즌
+  initializeGame: (playerCrew: string[]) => void;
+  startNewSeason: () => void;
   playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => void;
   getNextMatch: () => LeagueMatch | null;
   getCurrentStandings: () => LeagueStanding[];
   endSeason: () => void;
   getPlayerRank: () => number;
-
-  // 새로 시작 (리셋)
-  resetGame: () => void;                           // 모든 데이터 초기화
+  resetGame: () => void;
   getAICrewById: (crewId: string) => AICrew | null;
 }
 
@@ -85,12 +83,12 @@ function generateInitialStandings(aiCrews: AICrew[]): LeagueStanding[] {
 
 // AI 경기 시뮬레이션
 function simulateAIMatch(): { homeScore: number; awayScore: number } {
-  const homeScore = Math.floor(Math.random() * 4); // 0-3
-  const awayScore = Math.floor(Math.random() * 4); // 0-3
+  const homeScore = Math.floor(Math.random() * 4);
+  const awayScore = Math.floor(Math.random() * 4);
   return { homeScore, awayScore };
 }
 
-// 순위표 업데이트
+// 순위표 업데이트 (불변성 유지)
 function updateStandings(
   standings: LeagueStanding[],
   homeId: string,
@@ -102,6 +100,8 @@ function updateStandings(
     if (standing.crewId === homeId) {
       const isWin = homeScore > awayScore;
       const isDraw = homeScore === awayScore;
+      const newGoalsFor = standing.goalsFor + homeScore;
+      const newGoalsAgainst = standing.goalsAgainst + awayScore;
       return {
         ...standing,
         played: standing.played + 1,
@@ -109,14 +109,16 @@ function updateStandings(
         draws: standing.draws + (isDraw ? 1 : 0),
         losses: standing.losses + (!isWin && !isDraw ? 1 : 0),
         points: standing.points + (isWin ? 3 : isDraw ? 1 : 0),
-        goalsFor: standing.goalsFor + homeScore,
-        goalsAgainst: standing.goalsAgainst + awayScore,
-        goalDifference: standing.goalsFor + homeScore - standing.goalsAgainst - awayScore
+        goalsFor: newGoalsFor,
+        goalsAgainst: newGoalsAgainst,
+        goalDifference: newGoalsFor - newGoalsAgainst
       };
     }
     if (standing.crewId === awayId) {
       const isWin = awayScore > homeScore;
       const isDraw = homeScore === awayScore;
+      const newGoalsFor = standing.goalsFor + awayScore;
+      const newGoalsAgainst = standing.goalsAgainst + homeScore;
       return {
         ...standing,
         played: standing.played + 1,
@@ -124,12 +126,21 @@ function updateStandings(
         draws: standing.draws + (isDraw ? 1 : 0),
         losses: standing.losses + (!isWin && !isDraw ? 1 : 0),
         points: standing.points + (isWin ? 3 : isDraw ? 1 : 0),
-        goalsFor: standing.goalsFor + awayScore,
-        goalsAgainst: standing.goalsAgainst + homeScore,
-        goalDifference: standing.goalsFor + awayScore - standing.goalsAgainst - homeScore
+        goalsFor: newGoalsFor,
+        goalsAgainst: newGoalsAgainst,
+        goalDifference: newGoalsFor - newGoalsAgainst
       };
     }
     return standing;
+  });
+}
+
+// 순위표 정렬
+function sortStandings(standings: LeagueStanding[]): LeagueStanding[] {
+  return [...standings].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+    return b.goalsFor - a.goalsFor;
   });
 }
 
@@ -149,14 +160,11 @@ export const useSeasonStore = create<SeasonState>()(
           return;
         }
 
-        // AI 크루 랜덤 생성 (플레이어 카드 제외)
-        const aiCrews = generateAICrewsForSeason();
-        setAICrews(aiCrews);
-
         set({
           isInitialized: true,
           playerCrew,
-          currentAICrews: aiCrews
+          currentAICrews: [],
+          currentSeason: null
         });
       },
 
@@ -169,7 +177,7 @@ export const useSeasonStore = create<SeasonState>()(
           return;
         }
 
-        // 매 시즌마다 AI 크루 랜덤 재배정
+        // AI 크루 랜덤 재배정
         const aiCrews = generateAICrewsForSeason();
         setAICrews(aiCrews);
 
@@ -184,29 +192,54 @@ export const useSeasonStore = create<SeasonState>()(
           currentMatchIndex: 0
         };
 
+        console.log('[Season] 새 시즌 시작:', newSeasonNumber, '경기 수:', newSeason.matches.length);
+
         set({
           currentSeason: newSeason,
           currentAICrews: aiCrews
         });
       },
 
-      // 경기 결과 기록
+      // 경기 결과 기록 - 버그 수정
       playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => {
         const { currentSeason } = get();
-        if (!currentSeason) return;
 
-        // 해당 상대와의 경기 찾기
+        if (!currentSeason) {
+          console.error('[playMatch] 현재 시즌이 없습니다');
+          return;
+        }
+
+        console.log('[playMatch] 경기 기록 시작:', {
+          opponentCrewId,
+          playerScore,
+          opponentScore,
+          matchCount: currentSeason.matches.length
+        });
+
+        // 해당 상대와의 미진행 경기 찾기
         const matchIndex = currentSeason.matches.findIndex(
           m => !m.played &&
             m.homeCrewId === PLAYER_CREW_ID &&
             m.awayCrewId === opponentCrewId
         );
-        if (matchIndex === -1) return;
+
+        if (matchIndex === -1) {
+          console.error('[playMatch] 경기를 찾을 수 없습니다:', {
+            opponentCrewId,
+            availableMatches: currentSeason.matches
+              .filter(m => !m.played && m.homeCrewId === PLAYER_CREW_ID)
+              .map(m => m.awayCrewId)
+          });
+          return;
+        }
 
         const match = currentSeason.matches[matchIndex];
         const result: MatchResult = playerScore > opponentScore ? 'WIN'
           : playerScore < opponentScore ? 'LOSE' : 'DRAW';
 
+        console.log('[playMatch] 경기 결과:', result, '매치 인덱스:', matchIndex);
+
+        // 경기 목록 업데이트
         const updatedMatches = [...currentSeason.matches];
         updatedMatches[matchIndex] = {
           ...match,
@@ -216,14 +249,16 @@ export const useSeasonStore = create<SeasonState>()(
           played: true
         };
 
-        // 순위표 업데이트
+        // 순위표 업데이트 (플레이어 경기)
         let updatedStandings = updateStandings(
           currentSeason.standings,
-          match.homeCrewId,
-          match.awayCrewId,
+          PLAYER_CREW_ID,
+          opponentCrewId,
           playerScore,
           opponentScore
         );
+
+        console.log('[playMatch] 플레이어 순위 업데이트 완료');
 
         // AI 경기들 시뮬레이션 (플레이어 경기 후 AI 경기 2개 진행)
         let aiMatchCount = 0;
@@ -251,20 +286,24 @@ export const useSeasonStore = create<SeasonState>()(
         }
 
         // 순위표 정렬
-        updatedStandings.sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points;
-          if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-          return b.goalsFor - a.goalsFor;
-        });
+        const sortedStandings = sortStandings(updatedStandings);
 
-        set({
-          currentSeason: {
-            ...currentSeason,
-            matches: updatedMatches,
-            standings: updatedStandings,
-            currentMatchIndex: currentSeason.currentMatchIndex + 1
-          }
-        });
+        // 플레이어 순위 확인
+        const playerStanding = sortedStandings.find(s => s.crewId === PLAYER_CREW_ID);
+        console.log('[playMatch] 플레이어 현재 상태:', playerStanding);
+
+        // 새로운 시즌 상태 생성
+        const newSeason: Season = {
+          ...currentSeason,
+          matches: updatedMatches,
+          standings: sortedStandings,
+          currentMatchIndex: currentSeason.currentMatchIndex + 1
+        };
+
+        // 상태 업데이트
+        set({ currentSeason: newSeason });
+
+        console.log('[playMatch] 시즌 상태 업데이트 완료');
       },
 
       getNextMatch: () => {
@@ -320,15 +359,11 @@ export const useSeasonStore = create<SeasonState>()(
         }
 
         // 순위표 최종 정렬
-        updatedStandings.sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points;
-          if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-          return b.goalsFor - a.goalsFor;
-        });
+        const sortedStandings = sortStandings(updatedStandings);
 
-        const champion = updatedStandings[0].crewId;
-        const playerStanding = updatedStandings.find(s => s.crewId === PLAYER_CREW_ID)!;
-        const playerRank = updatedStandings.findIndex(s => s.crewId === PLAYER_CREW_ID) + 1;
+        const champion = sortedStandings[0].crewId;
+        const playerStanding = sortedStandings.find(s => s.crewId === PLAYER_CREW_ID)!;
+        const playerRank = sortedStandings.findIndex(s => s.crewId === PLAYER_CREW_ID) + 1;
 
         // 히스토리 저장
         const newHistory: SeasonHistory = {
@@ -342,7 +377,7 @@ export const useSeasonStore = create<SeasonState>()(
           currentSeason: {
             ...currentSeason,
             matches: updatedMatches,
-            standings: updatedStandings,
+            standings: sortedStandings,
             status: 'COMPLETED',
             champion
           },
@@ -367,7 +402,8 @@ export const useSeasonStore = create<SeasonState>()(
       }
     }),
     {
-      name: 'jujutsu-season-storage'
+      name: 'jujutsu-season-storage',
+      version: 2 // 버전 업데이트로 기존 데이터 마이그레이션
     }
   )
 );

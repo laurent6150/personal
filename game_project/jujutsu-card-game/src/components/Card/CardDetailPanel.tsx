@@ -11,9 +11,10 @@ interface CardDetailPanelProps {
   card: CharacterCard | null;
   arena?: Arena | null;
   onClose?: () => void;
+  compact?: boolean;
 }
 
-export function CardDetailPanel({ card, arena, onClose }: CardDetailPanelProps) {
+export function CardDetailPanel({ card, arena, onClose, compact = false }: CardDetailPanelProps) {
   if (!card) return null;
 
   const attrInfo = ATTRIBUTES[card.attribute];
@@ -29,6 +30,69 @@ export function CardDetailPanel({ card, arena, onClose }: CardDetailPanelProps) 
     if (effect.target === 'ALL') return true;
     return effect.target === card.attribute;
   }) ?? [];
+
+  // Compact 모드 (대전 화면 우측 패널용)
+  if (compact) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-bg-card/80 rounded-lg border border-white/10 p-3"
+      >
+        {/* 헤더 (컴팩트) */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{attrInfo.icon}</span>
+            <div>
+              <h3 className="font-bold text-sm text-text-primary">{card.name.ko}</h3>
+              <p className="text-xs text-text-secondary">{card.name.ja}</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <GradeBadge grade={card.grade} size="sm" />
+            <AttributeBadge attribute={card.attribute} size="sm" />
+          </div>
+        </div>
+
+        {/* 스탯 미니 */}
+        <div className="flex gap-2 mb-2 text-xs">
+          <span className="text-red-400">ATK {card.baseStats.atk}</span>
+          <span className="text-blue-400">DEF {card.baseStats.def}</span>
+          <span className="text-yellow-400">SPD {card.baseStats.spd}</span>
+        </div>
+
+        {/* 고유 기술 (컴팩트) */}
+        <div className="bg-black/30 rounded p-2 mb-2">
+          <div className="text-xs font-bold text-accent mb-1">
+            【{card.skill.name}】
+          </div>
+          <p className="text-xs text-text-secondary line-clamp-2">
+            {card.skill.description}
+          </p>
+        </div>
+
+        {/* 상성 (컴팩트) */}
+        <div className="flex gap-2 text-xs">
+          {strongAgainst.length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-win">👊</span>
+              {strongAgainst.map(attr => (
+                <span key={attr} className="text-win">{ATTRIBUTES[attr].icon}</span>
+              ))}
+            </div>
+          )}
+          {weakAgainst.length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-lose">💀</span>
+              {weakAgainst.map(attr => (
+                <span key={attr} className="text-lose">{ATTRIBUTES[attr].icon}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <AnimatePresence>

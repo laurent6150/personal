@@ -1,8 +1,9 @@
 // ========================================
 // 시즌 허브 - 메인 화면 (크루 선택 + 시즌 진행)
+// MVP v3: 등급 제한 추가
 // ========================================
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
@@ -10,7 +11,16 @@ import { PLAYER_CREW_ID } from '../data/aiCrews';
 import { ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
 import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
-import type { LeagueStanding } from '../types';
+import type { LeagueStanding, Grade } from '../types';
+
+// 등급별 최대 선택 가능 수
+const GRADE_LIMITS: Record<Grade, number> = {
+  'S': 1,
+  'A': 2,
+  'B': 5,
+  'C': 5,
+  'D': 5
+};
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
@@ -50,12 +60,52 @@ export function SeasonHub({
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // 현재 선택된 카드들의 등급별 개수
+  const selectedGradeCounts = useMemo(() => {
+    const counts: Record<Grade, number> = { 'S': 0, 'A': 0, 'B': 0, 'C': 0, 'D': 0 };
+    for (const cardId of selectedCards) {
+      const char = CHARACTERS_BY_ID[cardId];
+      if (char) {
+        counts[char.grade]++;
+      }
+    }
+    return counts;
+  }, [selectedCards]);
+
+  // 특정 카드를 선택할 수 있는지 확인
+  const canSelectCard = (cardId: string): { canSelect: boolean; reason?: string } => {
+    if (selectedCards.includes(cardId)) {
+      return { canSelect: true }; // 이미 선택된 카드는 해제 가능
+    }
+    if (selectedCards.length >= 5) {
+      return { canSelect: false, reason: '5장 선택 완료' };
+    }
+
+    const char = CHARACTERS_BY_ID[cardId];
+    if (!char) return { canSelect: false, reason: '카드를 찾을 수 없음' };
+
+    const currentCount = selectedGradeCounts[char.grade];
+    const limit = GRADE_LIMITS[char.grade];
+
+    if (currentCount >= limit) {
+      return {
+        canSelect: false,
+        reason: `${char.grade}등급은 최대 ${limit}장까지 선택 가능`
+      };
+    }
+
+    return { canSelect: true };
+  };
+
   // 카드 선택 토글
   const toggleCardSelection = (cardId: string) => {
     if (selectedCards.includes(cardId)) {
       setSelectedCards(prev => prev.filter(id => id !== cardId));
-    } else if (selectedCards.length < 5) {
-      setSelectedCards(prev => [...prev, cardId]);
+    } else {
+      const { canSelect } = canSelectCard(cardId);
+      if (canSelect) {
+        setSelectedCards(prev => [...prev, cardId]);
+      }
     }
   };
 
@@ -96,12 +146,25 @@ export function SeasonHub({
         >
           <div className="bg-bg-card rounded-xl p-6 border border-white/10 mb-6">
             <h2 className="text-xl font-bold text-text-primary mb-2">크루 선택</h2>
-            <p className="text-text-secondary mb-4">
+            <p className="text-text-secondary mb-2">
               시즌에서 사용할 5장의 카드를 선택하세요. ({selectedCards.length}/5)
             </p>
 
+            {/* 등급 제한 안내 */}
+            <div className="flex flex-wrap gap-2 mb-4 text-xs">
+              <span className="px-2 py-1 rounded bg-grade-s/20 text-grade-s border border-grade-s/30">
+                S등급: {selectedGradeCounts['S']}/{GRADE_LIMITS['S']}
+              </span>
+              <span className="px-2 py-1 rounded bg-grade-a/20 text-grade-a border border-grade-a/30">
+                A등급: {selectedGradeCounts['A']}/{GRADE_LIMITS['A']}
+              </span>
+              <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
+                B/C/D등급: 제한 없음
+              </span>
+            </div>
+
             {/* 선택된 카드 미리보기 */}
-            <div className="flex gap-2 mb-6 min-h-[100px] p-4 bg-black/20 rounded-lg">
+            <div className="flex gap-2 mb-6 min-h-[100px] p-4 bg-black/20 rounded-lg overflow-x-auto">
               {selectedCards.map((cardId) => {
                 const char = CHARACTERS_BY_ID[cardId];
                 return char ? (
@@ -109,7 +172,7 @@ export function SeasonHub({
                     key={cardId}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="cursor-pointer"
+                    className="cursor-pointer flex-shrink-0"
                     onClick={() => toggleCardSelection(cardId)}
                   >
                     <CardDisplay character={char} size="sm" isSelected />
@@ -119,7 +182,7 @@ export function SeasonHub({
               {Array.from({ length: 5 - selectedCards.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="w-20 h-28 rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center"
+                  className="w-20 h-28 rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
                 >
                   <span className="text-text-secondary text-xs">?</span>
                 </div>
@@ -130,15 +193,19 @@ export function SeasonHub({
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-[400px] overflow-y-auto p-2">
               {ALL_CHARACTERS.map(char => {
                 const isSelected = selectedCards.includes(char.id);
+                const { canSelect, reason } = canSelectCard(char.id);
+                const isDisabled = !canSelect && !isSelected;
+
                 return (
                   <motion.div
                     key={char.id}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`cursor-pointer transition-all ${
-                      isSelected ? 'opacity-50' : ''
-                    } ${selectedCards.length >= 5 && !isSelected ? 'opacity-30 pointer-events-none' : ''}`}
-                    onClick={() => toggleCardSelection(char.id)}
+                    whileHover={!isDisabled ? { scale: 1.05 } : undefined}
+                    whileTap={!isDisabled ? { scale: 0.95 } : undefined}
+                    className={`relative cursor-pointer transition-all ${
+                      isSelected ? 'ring-2 ring-accent' : ''
+                    } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    onClick={() => !isDisabled && toggleCardSelection(char.id)}
+                    title={reason}
                   >
                     <CardDisplay
                       character={char}
@@ -147,6 +214,13 @@ export function SeasonHub({
                       showStats={false}
                       showSkill={false}
                     />
+                    {isDisabled && reason && (
+                      <div className="absolute inset-0 flex items-end justify-center pb-2">
+                        <span className="text-[10px] bg-black/80 px-1 rounded text-red-400">
+                          {char.grade}등급 제한
+                        </span>
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}

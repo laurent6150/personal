@@ -1,19 +1,19 @@
 // ========================================
-// 대전 화면 - MVP v2 개선
+// 대전 화면 - MVP v3: 새 레이아웃 + 턴제 전투
 // ========================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBattle } from '../../hooks/useBattle';
 import { CardDisplay } from '../Card/CardDisplay';
-import { CardSelector } from '../Card/CardSelector';
 import { CardDetailPanel } from '../Card/CardDetailPanel';
 import { ArenaDisplay } from './ArenaDisplay';
-import { BattleNarration } from './BattleNarration';
+import { TurnBattleModal } from './TurnBattleModal';
 import { Button } from '../UI/Button';
 import { ExitConfirmModal } from '../UI/ExitConfirmModal';
 import { WIN_SCORE } from '../../data/constants';
 import { CHARACTERS_BY_ID } from '../../data';
+import type { CharacterCard } from '../../types';
 
 interface BattleEndResult {
   won: boolean;
@@ -26,7 +26,10 @@ interface BattleScreenProps {
   onReturnToMenu: () => void;
   onBattleEnd?: (result: BattleEndResult) => void;
   opponentName?: string;
+  opponentCrew?: string[];
 }
+
+type BattlePhase = 'SELECT' | 'REVEAL' | 'BATTLE' | 'RESULT';
 
 export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: BattleScreenProps) {
   const {
@@ -36,8 +39,6 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     currentScore,
     currentRound,
     currentArena,
-    playerAvailableCards,
-    aiRemainingCardCount,
     selectedCardId,
     selectedCard,
     isAnimating,
@@ -51,9 +52,23 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
 
   const hasCalledBattleEnd = useRef(false);
   const [showExitModal, setShowExitModal] = useState(false);
-  const [showNarration, setShowNarration] = useState(false);
-  const [pendingResult, setPendingResult] = useState<typeof roundResultInfo>(null);
+  const [battlePhase, setBattlePhase] = useState<BattlePhase>('SELECT');
+  const [revealedAiCard, setRevealedAiCard] = useState<CharacterCard | null>(null);
+  const [showTurnBattle, setShowTurnBattle] = useState(false);
 
+  // 플레이어 전체 크루 (세션에서)
+  const playerCrewCards = useMemo(() => {
+    if (!session) return [];
+    return session.player.crew.map(id => CHARACTERS_BY_ID[id]).filter(Boolean) as CharacterCard[];
+  }, [session]);
+
+  // AI 전체 크루 (세션에서)
+  const aiCrewCards = useMemo(() => {
+    if (!session) return [];
+    return session.ai.crew.map(id => CHARACTERS_BY_ID[id]).filter(Boolean) as CharacterCard[];
+  }, [session]);
+
+  // 선택된 카드 정보
   const selectedCardData = selectedCardId ? CHARACTERS_BY_ID[selectedCardId] : null;
 
   // 게임 종료 콜백
@@ -75,13 +90,13 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     }
   }, [isGameOver]);
 
-  // 라운드 결과가 나오면 나레이션 표시
+  // 라운드 결과 처리
   useEffect(() => {
-    if (roundResultInfo && !showNarration && !pendingResult) {
-      setPendingResult(roundResultInfo);
-      setShowNarration(true);
+    if (roundResultInfo && battlePhase === 'BATTLE') {
+      // 턴제 전투 모달 표시
+      setShowTurnBattle(true);
     }
-  }, [roundResultInfo, showNarration, pendingResult]);
+  }, [roundResultInfo, battlePhase]);
 
   const handleExit = () => {
     setShowExitModal(false);
@@ -97,9 +112,29 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     onReturnToMenu();
   };
 
-  const handleNarrationComplete = () => {
-    setShowNarration(false);
-    setPendingResult(null);
+  // 대결 버튼 클릭 → 상대 카드 공개
+  const handleRevealOpponent = async () => {
+    if (!selectedCardId) return;
+
+    // 라운드 실행하여 AI 카드 선택
+    const result = await executeRound();
+    if (result) {
+      const aiCard = CHARACTERS_BY_ID[result.aiCardId];
+      setRevealedAiCard(aiCard || null);
+      setBattlePhase('REVEAL');
+    }
+  };
+
+  // 전투 시작 버튼 클릭
+  const handleStartBattle = () => {
+    setBattlePhase('BATTLE');
+  };
+
+  // 턴제 전투 완료
+  const handleTurnBattleComplete = () => {
+    setShowTurnBattle(false);
+    setRevealedAiCard(null);
+    setBattlePhase('SELECT');
     continueGame();
   };
 
@@ -161,20 +196,6 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             </motion.div>
           )}
 
-          {gameEndResult?.levelUps && gameEndResult.levelUps.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="bg-accent/20 border border-accent/50 rounded-lg p-3 mb-4"
-            >
-              <div className="text-accent font-bold">레벨 업!</div>
-              <div className="text-sm text-text-secondary">
-                {gameEndResult.levelUps.length}장의 카드가 레벨 업했습니다
-              </div>
-            </motion.div>
-          )}
-
           <div className="space-y-3">
             <Button onClick={handleReturnToMenuClick} variant="primary" className="w-full">
               시즌 허브로
@@ -186,7 +207,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className="min-h-screen flex flex-col relative overflow-hidden">
       {/* 모달들 */}
       <ExitConfirmModal
         isOpen={showExitModal}
@@ -194,14 +215,92 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
         onCancel={() => setShowExitModal(false)}
       />
 
+      {/* 턴제 전투 모달 */}
       <AnimatePresence>
-        {showNarration && pendingResult && (
-          <BattleNarration
-            playerCard={CHARACTERS_BY_ID[pendingResult.playerCardId]!}
-            aiCard={CHARACTERS_BY_ID[pendingResult.aiCardId]!}
-            result={pendingResult}
-            onComplete={handleNarrationComplete}
+        {showTurnBattle && roundResultInfo && (
+          <TurnBattleModal
+            playerCard={CHARACTERS_BY_ID[roundResultInfo.playerCardId]!}
+            aiCard={CHARACTERS_BY_ID[roundResultInfo.aiCardId]!}
+            result={roundResultInfo}
+            arena={currentArena}
+            onComplete={handleTurnBattleComplete}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 상대 카드 공개 모달 */}
+      <AnimatePresence>
+        {battlePhase === 'REVEAL' && revealedAiCard && selectedCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="text-center"
+            >
+              <div className="text-2xl text-text-secondary mb-6">상대가 카드를 공개합니다!</div>
+
+              <div className="flex items-center justify-center gap-8 mb-8">
+                {/* 내 카드 */}
+                <div className="text-center">
+                  <div className="text-sm text-text-secondary mb-2">당신</div>
+                  <CardDisplay character={selectedCard} size="lg" isSelected />
+                  <div className="mt-2 text-sm">
+                    <span className={`px-2 py-1 rounded ${
+                      selectedCard.attribute === revealedAiCard.attribute ? 'bg-yellow-500/20 text-yellow-400' :
+                      getAttributeAdvantage(selectedCard.attribute, revealedAiCard.attribute) ? 'bg-green-500/20 text-green-400' :
+                      'bg-red-500/20 text-red-400'
+                    }`}>
+                      {selectedCard.attribute}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-4xl text-accent font-bold">VS</div>
+
+                {/* 상대 카드 */}
+                <motion.div
+                  initial={{ rotateY: 180, opacity: 0 }}
+                  animate={{ rotateY: 0, opacity: 1 }}
+                  transition={{ duration: 0.6 }}
+                  className="text-center"
+                >
+                  <div className="text-sm text-text-secondary mb-2">상대</div>
+                  <CardDisplay character={revealedAiCard} size="lg" />
+                  <div className="mt-2 text-sm">
+                    <span className={`px-2 py-1 rounded ${
+                      selectedCard.attribute === revealedAiCard.attribute ? 'bg-yellow-500/20 text-yellow-400' :
+                      getAttributeAdvantage(revealedAiCard.attribute, selectedCard.attribute) ? 'bg-green-500/20 text-green-400' :
+                      'bg-red-500/20 text-red-400'
+                    }`}>
+                      {revealedAiCard.attribute}
+                    </span>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* 속성 상성 표시 */}
+              <div className="mb-6 text-sm">
+                {getAttributeAdvantage(selectedCard.attribute, revealedAiCard.attribute) && (
+                  <span className="text-green-400">속성 유리!</span>
+                )}
+                {getAttributeAdvantage(revealedAiCard.attribute, selectedCard.attribute) && (
+                  <span className="text-red-400">속성 불리!</span>
+                )}
+                {selectedCard.attribute === revealedAiCard.attribute && (
+                  <span className="text-yellow-400">속성 동일</span>
+                )}
+              </div>
+
+              <Button onClick={handleStartBattle} variant="primary" size="lg">
+                ⚔️ 전투 시작!
+              </Button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -220,44 +319,82 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl mx-auto px-4 pt-4"
+        className="w-full px-4 pt-4"
       >
-        <div className="flex items-center justify-between bg-bg-card rounded-xl p-4 border border-white/10">
+        <div className="max-w-6xl mx-auto flex items-center justify-between bg-bg-card rounded-xl p-3 border border-white/10">
           <div className="text-center flex-1">
             <div className="text-sm text-text-secondary">당신</div>
-            <div className="text-4xl font-bold text-win">{currentScore.player}</div>
+            <div className="text-3xl font-bold text-win">{currentScore.player}</div>
           </div>
 
-          <div className="text-center px-6">
+          <div className="text-center px-4">
             <div className="text-sm text-text-secondary">라운드</div>
-            <div className="text-2xl font-bold text-accent">{currentRound} / 5</div>
+            <div className="text-xl font-bold text-accent">{currentRound} / 5</div>
             <div className="text-xs text-text-secondary">{WIN_SCORE}점 선승</div>
           </div>
 
           <div className="text-center flex-1">
             <div className="text-sm text-text-secondary">{opponentName || 'AI'}</div>
-            <div className="text-4xl font-bold text-lose">{currentScore.ai}</div>
+            <div className="text-3xl font-bold text-lose">{currentScore.ai}</div>
           </div>
         </div>
       </motion.div>
 
-      {/* 메인 컨텐츠 영역 */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        {/* 경기장 */}
-        {currentArena && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full max-w-2xl mb-4"
-          >
-            <ArenaDisplay arena={currentArena} size="md" />
-          </motion.div>
-        )}
+      {/* 메인 3열 레이아웃 */}
+      <div className="flex-1 flex p-4 gap-4 max-w-7xl mx-auto w-full">
+        {/* 좌측: 내 크루 */}
+        <div className="w-32 flex-shrink-0">
+          <div className="text-sm text-text-secondary mb-2 text-center">내 크루</div>
+          <div className="space-y-2">
+            {playerCrewCards.map(card => {
+              const isUsed = session.player.usedCards.includes(card.id);
+              const isSelected = selectedCardId === card.id;
+              const isAvailable = !isUsed && battlePhase === 'SELECT';
 
-        {/* 대결 영역 */}
-        <div className="w-full max-w-4xl mb-4">
-          <div className="flex items-center justify-center gap-4 md:gap-8">
-            {/* 플레이어 카드 */}
+              return (
+                <motion.div
+                  key={card.id}
+                  whileHover={isAvailable ? { scale: 1.05 } : undefined}
+                  whileTap={isAvailable ? { scale: 0.95 } : undefined}
+                  className={`cursor-pointer transition-all ${
+                    isUsed ? 'opacity-30 grayscale' : ''
+                  } ${isSelected ? 'ring-2 ring-accent' : ''} ${
+                    !isAvailable && !isUsed ? 'pointer-events-none' : ''
+                  }`}
+                  onClick={() => isAvailable && selectCard(card.id)}
+                >
+                  <CardDisplay
+                    character={card}
+                    size="sm"
+                    isSelected={isSelected}
+                    showStats={false}
+                    showSkill={false}
+                  />
+                  {isUsed && (
+                    <div className="text-[10px] text-center text-text-secondary mt-1">사용됨</div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 중앙: 경기장 + VS */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* 경기장 */}
+          {currentArena && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="w-full max-w-lg mb-4"
+            >
+              <ArenaDisplay arena={currentArena} size="md" />
+            </motion.div>
+          )}
+
+          {/* 대결 영역 */}
+          <div className="flex items-center justify-center gap-6 mb-4">
+            {/* 플레이어 선택 카드 */}
             <div className="text-center">
               <div className="text-sm text-text-secondary mb-2">당신의 카드</div>
               {selectedCard ? (
@@ -269,68 +406,89 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   <CardDisplay character={selectedCard} size="md" isSelected />
                 </motion.div>
               ) : (
-                <div className="w-36 md:w-44 h-52 md:h-60 rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center">
-                  <span className="text-text-secondary text-sm text-center px-2">
-                    아래에서<br />카드 선택
+                <div className="w-32 h-44 rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center">
+                  <span className="text-text-secondary text-xs text-center px-2">
+                    좌측에서<br />카드 선택
                   </span>
                 </div>
               )}
             </div>
 
             {/* VS + 대결 버튼 */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="text-4xl md:text-5xl font-bold text-accent">VS</div>
+            <div className="flex flex-col items-center gap-3">
+              <div className="text-3xl font-bold text-accent">VS</div>
               <Button
-                onClick={() => executeRound()}
-                disabled={!selectedCardId || isAnimating}
+                onClick={handleRevealOpponent}
+                disabled={!selectedCardId || isAnimating || battlePhase !== 'SELECT'}
                 size="lg"
                 isLoading={isAnimating}
-                className="px-8"
               >
-                {isAnimating ? '대결 중...' : '⚔️ 대결!'}
+                {isAnimating ? '...' : '⚔️ 대결!'}
               </Button>
             </div>
 
-            {/* AI 카드 */}
+            {/* AI 카드 (뒷면) */}
             <div className="text-center">
-              <div className="text-sm text-text-secondary mb-2">
-                상대 (남은: {aiRemainingCardCount})
-              </div>
-              <div className="w-36 md:w-44 h-52 md:h-60 rounded-xl bg-bg-card border-2 border-white/20 flex items-center justify-center">
-                <span className="text-5xl">🎴</span>
+              <div className="text-sm text-text-secondary mb-2">상대 카드</div>
+              <div className="w-32 h-44 rounded-xl bg-gradient-to-br from-purple-900 to-purple-700 border-2 border-purple-500/50 flex items-center justify-center shadow-lg">
+                <span className="text-4xl">🎴</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 카드 선택 영역 */}
-        <div className="w-full max-w-5xl">
-          <CardSelector
-            cards={playerAvailableCards}
-            selectedCardId={selectedCardId}
-            usedCardIds={session.player.usedCards}
-            onSelect={selectCard}
-            disabled={isAnimating}
-          />
-        </div>
+        {/* 우측: 상대 크루 + 카드 상세 */}
+        <div className="w-48 flex-shrink-0 flex flex-col">
+          <div className="text-sm text-text-secondary mb-2 text-center">상대 크루</div>
+          <div className="flex flex-wrap gap-1 justify-center mb-4">
+            {aiCrewCards.map(card => {
+              const isUsed = session.ai.usedCards.includes(card.id);
 
-        {/* 카드 상세 정보 (하단 가로 배치) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-3xl mt-4"
-        >
-          {selectedCardData ? (
-            <CardDetailPanel card={selectedCardData} arena={currentArena} />
-          ) : (
-            <div className="bg-bg-card/30 rounded-xl border border-dashed border-white/10 p-4 text-center">
-              <span className="text-text-secondary text-sm">
-                👆 카드를 선택하면 상세 정보가 표시됩니다
-              </span>
-            </div>
-          )}
-        </motion.div>
+              return (
+                <div
+                  key={card.id}
+                  className={`transition-all ${isUsed ? 'opacity-30 grayscale' : ''}`}
+                >
+                  <CardDisplay
+                    character={card}
+                    size="sm"
+                    showStats={false}
+                    showSkill={false}
+                  />
+                  {isUsed && (
+                    <div className="text-[10px] text-center text-text-secondary">사용됨</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 카드 상세 정보 */}
+          <div className="flex-1">
+            <div className="text-sm text-text-secondary mb-2 text-center">카드 정보</div>
+            {selectedCardData ? (
+              <CardDetailPanel card={selectedCardData} arena={currentArena} compact />
+            ) : (
+              <div className="bg-bg-card/30 rounded-lg border border-dashed border-white/10 p-3 text-center h-full flex items-center justify-center">
+                <span className="text-text-secondary text-xs">
+                  카드를 선택하면<br />정보가 표시됩니다
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+// 속성 상성 체크
+function getAttributeAdvantage(attacker: string, defender: string): boolean {
+  const advantages: Record<string, string[]> = {
+    'PHYSICAL': ['CURSE'],
+    'CURSE': ['SOUL'],
+    'SOUL': ['BARRIER'],
+    'BARRIER': ['PHYSICAL'],
+  };
+  return advantages[attacker]?.includes(defender) || false;
 }
