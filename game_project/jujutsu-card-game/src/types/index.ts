@@ -18,26 +18,119 @@ export interface Stats {
   hp: number;    // 체력
 }
 
-// 스킬 효과 타입
-export type SkillEffectType =
-  | 'STAT_MODIFY'      // 스탯 수정
-  | 'DAMAGE_MODIFY'    // 데미지 배율 수정
-  | 'IGNORE_DEFENSE'   // 방어력 무시
-  | 'SPEED_CONTROL'    // 속도 제어
-  | 'HP_DRAIN'         // HP 흡수/데미지
-  | 'SKILL_NULLIFY'    // 스킬 무효화
-  | 'CRITICAL';        // 크리티컬
+// ========================================
+// 새로운 기술 시스템
+// ========================================
 
-// 스킬 효과
+// 기술 효과 타입
+export type SkillEffectType =
+  // === 새로운 기술 시스템 ===
+  | 'DAMAGE'              // 단일 데미지
+  | 'MULTI_HIT'           // 다단 히트
+  | 'TRUE_DAMAGE'         // 방어 무시 데미지
+  | 'DAMAGE_REDUCE'       // 데미지 감소
+  | 'DODGE'               // 회피
+  | 'HEAL'                // 회복
+  | 'STUN'                // 기절 (행동 불가)
+  | 'BURN'                // 화상 (도트 데미지)
+  | 'POISON_EXPLOSION'    // 독 폭발
+  | 'SLOW'                // 속도 감소
+  | 'KNOCKBACK'           // 넉백 (턴 스킵)
+  | 'SLEEP'               // 수면
+  | 'BLIND'               // 시야 차단
+  | 'STAT_BOOST'          // 스탯 강화
+  | 'DRAIN'               // 흡수
+  | 'SUMMON_DAMAGE'       // 소환물 데미지
+  | 'SUMMON'              // 소환
+  | 'COPY_ATTACK'         // 복제 공격
+  | 'CHARGE'              // 게이지 충전
+  | 'CRITICAL_ATTACK'     // 크리티컬 공격
+  | 'CRITICAL_GUARANTEED' // 확정 크리티컬
+  | 'RATIO_DAMAGE'        // 비율 데미지
+  | 'CONTINUOUS_DAMAGE'   // 지속 데미지
+  | 'SKILL_NULLIFY'       // 스킬 무효화
+  | 'INSTANT_KILL_OR_DAMAGE' // 즉사 또는 데미지
+  | 'INSTANT_DAMAGE'      // 즉발 데미지
+  | 'AOE_DAMAGE'          // 광역 데미지
+  | 'WEAPON_CHANGE'       // 무기 교체
+  | 'WEAKNESS_FIND'       // 약점 발견
+  | 'SACRIFICE_ATTACK'    // 희생 공격
+  | 'SWAP_ATTACK'         // 위치 교환 공격
+  | 'CLONE'               // 분신
+  | 'DOMAIN'              // 영역전개
+  | 'REFLECT_DAMAGE'      // 데미지 반사
+  | 'MULTI_SUMMON'        // 다중 소환
+  | 'TRANSFORM'           // 변신
+  // === 레거시 (기존 전투 시스템 호환) ===
+  | 'STAT_MODIFY'         // 스탯 수정
+  | 'DAMAGE_MODIFY'       // 데미지 배율 수정
+  | 'IGNORE_DEFENSE'      // 방어력 무시
+  | 'SPEED_CONTROL'       // 속도 제어
+  | 'HP_DRAIN'            // HP 흡수/데미지
+  | 'CRITICAL';           // 크리티컬
+
+// 기술 효과 상세
 export interface SkillEffect {
   type: SkillEffectType;
-  trigger: 'ALWAYS' | 'PROBABILITY';
+  value?: number | { stat: keyof Stats; amount: number };  // 레거시 호환
+  hits?: number;              // 다단히트 횟수
+  duration?: number;          // 지속 시간 (턴)
+  dotDamage?: number;         // 도트 데미지
+  critRate?: number;          // 크리티컬 확률
+  multiplier?: number;        // 배율
+  healPercent?: number;       // 회복 비율
+  atkBonus?: number;          // 공격력 보너스
+  defBonus?: number;          // 방어력 보너스
+  spdBonus?: number;          // 속도 보너스
+  chance?: number;            // 발동 확률
+  selfDamage?: number;        // 자해 데미지
+  selfDefReduce?: number;     // 자신 방어력 감소
+  ignoreDefense?: boolean;    // 방어 무시
+  ignoreBarrier?: boolean;    // 결계 무시
+  reflectPercent?: number;    // 반사 비율
+  skillSeal?: boolean;        // 스킬 봉인
+  threshold?: number;         // 즉사 체력 기준
+  damage?: number;            // 추가 데미지
+  summonBoost?: number;       // 소환물 강화
+  guaranteed_first?: boolean; // 선공 보장
+  element?: 'FIRE' | 'ICE' | 'LIGHTNING' | 'DARK'; // 원소
+  range?: 'SHORT' | 'MEDIUM' | 'LONG'; // 사거리
+  count?: number;             // 분신 수
+  gaugeBonus?: number;        // 게이지 보너스
+  extra?: string;             // 추가 효과
+
+  // 레거시 호환용 (기존 전투 시스템)
+  trigger?: 'ALWAYS' | 'PROBABILITY';
   probability?: number;
-  value: number | { stat: keyof Stats; amount: number };
-  target: 'SELF' | 'ENEMY';
+  target?: 'SELF' | 'ENEMY';
 }
 
-// 스킬
+// 기본기 타입
+export type BasicSkillType = 'ATTACK' | 'DEFENSE' | 'UTILITY';
+
+// 기본기
+export interface BasicSkill {
+  id: string;
+  name: string;
+  description: string;
+  type: BasicSkillType;
+  effect: SkillEffect;
+}
+
+// 필살기
+export interface UltimateSkill {
+  id: string;
+  name: string;
+  description: string;
+  effect: SkillEffect;
+  gaugeRequired: number;  // 필요 게이지 (보통 100)
+  unlockCondition?: {
+    type: 'LEVEL' | 'ACHIEVEMENT';
+    value: number | string;
+  };
+}
+
+// 레거시 스킬 (기존 호환용)
 export interface Skill {
   name: string;
   description: string;
@@ -86,7 +179,14 @@ export interface CharacterCard {
   imageUrl: string;
   baseStats: Stats;
   growthStats: { primary: keyof Stats; secondary: keyof Stats };
+
+  // 레거시 스킬 (기존 호환용)
   skill: Skill;
+
+  // 새로운 기술 시스템
+  basicSkills: BasicSkill[];      // 기본기 (3개)
+  ultimateSkill: UltimateSkill;   // 필살기 (영역전개 등)
+
   achievements: Achievement[];
 }
 
@@ -110,6 +210,46 @@ export interface CombatStats extends Stats {
   attribute: Attribute;
   skillEffect?: SkillEffect;
   cardId: string;
+}
+
+// 전투 유닛 상태 (새 전투 시스템)
+export interface BattleUnit {
+  card: CharacterCard;
+  currentHp: number;
+  maxHp: number;
+  ultimateGauge: number;  // 0-100
+  statusEffects: StatusEffect[];
+  buffs: Buff[];
+}
+
+// 상태이상
+export interface StatusEffect {
+  type: 'STUN' | 'BURN' | 'POISON' | 'SLEEP' | 'BLIND' | 'SLOW';
+  duration: number;
+  value?: number;  // 도트 데미지 등
+}
+
+// 버프/디버프
+export interface Buff {
+  type: 'ATK' | 'DEF' | 'SPD';
+  value: number;
+  duration: number;
+}
+
+// 턴 전투 결과
+export interface TurnResult {
+  turn: number;
+  attackerCardId: string;
+  defenderCardId: string;
+  skillUsed: BasicSkill | UltimateSkill;
+  damage: number;
+  isCritical: boolean;
+  isUltimate: boolean;
+  statusApplied?: StatusEffect;
+  attackerHpAfter: number;
+  defenderHpAfter: number;
+  attackerGaugeAfter: number;
+  defenderGaugeAfter: number;
 }
 
 // 경기장 효과 타입

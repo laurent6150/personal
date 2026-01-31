@@ -430,11 +430,11 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'jujutsu-card-game-player',
-      version: 2, // 등급 체계 변경 (S/A/B/C → 특급/1급/준1급/2급)
+      version: 3, // 기술 시스템 개편
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Player Store] 마이그레이션:', version, '->', 2);
-        // 버전 1 이하의 데이터는 리셋 (등급 체계 변경)
-        if (version < 2) {
+        console.log('[Player Store] 마이그레이션:', version, '->', 3);
+        // 버전 2 이하의 데이터는 리셋 (기술 시스템 개편)
+        if (version < 3) {
           console.log('[Player Store] 등급 체계 변경으로 데이터 리셋');
           return { player: createInitialPlayerData() };
         }
