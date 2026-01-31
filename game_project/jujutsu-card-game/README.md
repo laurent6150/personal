@@ -1,73 +1,122 @@
-# React + TypeScript + Vite
+# 영역전개 - 주술회전 카드 배틀 게임
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+주술회전(呪術廻戦)을 기반으로 한 전략 카드 배틀 게임입니다.
 
-Currently, two official plugins are available:
+## 게임 소개
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+5장의 카드로 크루를 구성하고, AI 상대와 5라운드 대전을 펼치는 카드 배틀 게임입니다. 각 라운드마다 경기장이 바뀌며, 속성 상성과 경기장 효과를 활용한 전략적인 플레이가 핵심입니다.
 
-## React Compiler
+## 주요 기능
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 캐릭터 카드 (20장)
+- **S등급 (3장)**: 고죠 사토루, 료멘 스쿠나, 켄자쿠
+- **A등급 (7장)**: 후시구로 토지, 나나미 켄토, 죠고, 하나미, 초소, 오쿠츠 유타, 토도 아오이
+- **B등급 (6장)**: 이타도리 유지, 후시구로 메구미, 마히토, 메이메이, 이누마키 토게, 젠인 마키
+- **C등급 (4장)**: 쿠기사키 노바라, 이노 타쿠마, 판다, 니시미야 모모
 
-## Expanding the ESLint configuration
+### 6속성 상성 시스템
+- **결계(BARRIER)** > 저주(CURSE) > 육체(BODY) > 사거리(RANGE) > 혼백(SOUL) > 반전(CONVERT) > 결계
+- 유리한 속성: 1.5배 데미지
+- 불리한 속성: 0.7배 데미지
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 10개의 경기장
+각 경기장마다 고유한 효과가 적용됩니다:
+- 속성 강화/약화
+- 스탯 수정
+- 특수 규칙 (속도 역전, 속성 무효화, 스킬 봉인 등)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 15개의 장비 아이템
+- **전설**: 육안, 무한의 반지, 복마전신 부적, 저주령 조작
+- **영웅**: 천역봉인, 7:3 단도, 불씨벌레
+- **희귀**: 어긋나는 권, 영혼 수호구, 영역 증폭기
+- **일반**: 저주력 핵, 수호 부적, 신속의 부적, 공격의 부적, 활력의 반지
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 성장 시스템
+- 대전 결과에 따른 경험치 획득
+- 레벨업 시 주성장/부성장 스탯 +2
+- 업적 달성을 통한 아이템 해금
+- 카드별 전적 기록
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### AI 난이도
+- **쉬움**: 완전 랜덤 선택
+- **보통**: 경기장 유리한 카드 우선
+- **어려움**: 상황에 맞는 전략적 선택
+
+## 기술 스택
+
+- **프레임워크**: React 18 + TypeScript
+- **빌드 도구**: Vite
+- **상태 관리**: Zustand (LocalStorage 영속성)
+- **스타일링**: Tailwind CSS v4
+- **애니메이션**: Framer Motion
+
+## 설치 및 실행
+
+```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
+npm run dev
+
+# 프로덕션 빌드
+npm run build
+
+# 빌드 미리보기
+npm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 프로젝트 구조
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/
+│   ├── Battle/       # 대전 화면 컴포넌트
+│   ├── Card/         # 카드 표시/선택 컴포넌트
+│   └── UI/           # 공통 UI 컴포넌트
+├── data/
+│   ├── characters.ts # 캐릭터 데이터 (20장)
+│   ├── arenas.ts     # 경기장 데이터 (10개)
+│   ├── items.ts      # 아이템 데이터 (15개)
+│   ├── achievements.ts # 업적 데이터
+│   └── constants.ts  # 상수 정의
+├── hooks/
+│   └── useBattle.ts  # 대전 진행 커스텀 훅
+├── pages/
+│   ├── MainMenu.tsx  # 메인 메뉴
+│   ├── CrewManager.tsx # 크루 관리
+│   ├── Collection.tsx  # 카드 컬렉션
+│   ├── CardDetail.tsx  # 카드 상세/장비
+│   ├── Profile.tsx     # 프로필/업적
+│   └── Settings.tsx    # 설정
+├── stores/
+│   ├── gameStore.ts  # 게임 세션 상태
+│   └── playerStore.ts # 플레이어 데이터 (영속성)
+├── types/
+│   └── index.ts      # TypeScript 타입 정의
+└── utils/
+    ├── attributeSystem.ts # 속성 상성 계산
+    ├── battleCalculator.ts # 대전 계산 로직
+    └── aiLogic.ts    # AI 카드 선택 로직
+```
+
+## 게임 규칙
+
+### 크루 구성
+- 5장의 카드로 크루 구성
+- 등급 제한: S등급 최대 1장, A등급 최대 2장
+
+### 대전 진행
+1. 5라운드 진행 (3점 선승제)
+2. 매 라운드 랜덤 경기장 선정
+3. 플레이어와 AI가 각각 카드 선택
+4. 속도(SPD)가 높은 쪽이 선공
+5. 데미지 공식: `(ATK × 속성배율 × CE배율 × 경기장보너스) - DEF`
+
+### 승리 조건
+- 먼저 3점을 획득하면 승리
+- 5라운드 종료 시 점수가 높은 쪽 승리
+
+## 라이선스
+
+이 프로젝트는 팬 프로젝트이며, 주술회전의 모든 캐릭터와 관련 자산은 아쿠타미 게게 및 슈에이샤의 소유입니다.
