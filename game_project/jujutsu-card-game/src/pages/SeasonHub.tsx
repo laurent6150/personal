@@ -15,11 +15,12 @@ import type { LeagueStanding, Grade } from '../types';
 
 // 등급별 최대 선택 가능 수
 const GRADE_LIMITS: Record<Grade, number> = {
-  'S': 1,
-  'A': 2,
-  'B': 5,
-  'C': 5,
-  'D': 5
+  '특급': 1,
+  '1급': 2,
+  '준1급': 5,
+  '2급': 5,
+  '준2급': 5,
+  '3급': 5
 };
 
 interface SeasonHubProps {
@@ -62,7 +63,7 @@ export function SeasonHub({
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
-    const counts: Record<Grade, number> = { 'S': 0, 'A': 0, 'B': 0, 'C': 0, 'D': 0 };
+    const counts: Record<Grade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of selectedCards) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) {
@@ -153,13 +154,13 @@ export function SeasonHub({
             {/* 등급 제한 안내 */}
             <div className="flex flex-wrap gap-2 mb-4 text-xs">
               <span className="px-2 py-1 rounded bg-grade-s/20 text-grade-s border border-grade-s/30">
-                S등급: {selectedGradeCounts['S']}/{GRADE_LIMITS['S']}
+                특급: {selectedGradeCounts['특급'] || 0}/{GRADE_LIMITS['특급']}
               </span>
               <span className="px-2 py-1 rounded bg-grade-a/20 text-grade-a border border-grade-a/30">
-                A등급: {selectedGradeCounts['A']}/{GRADE_LIMITS['A']}
+                1급: {selectedGradeCounts['1급'] || 0}/{GRADE_LIMITS['1급']}
               </span>
               <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
-                B/C/D등급: 제한 없음
+                준1급/2급: 제한 없음
               </span>
             </div>
 

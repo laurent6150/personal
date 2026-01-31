@@ -104,7 +104,7 @@ export const usePlayerStore = create<PlayerState>()(
         }
 
         // 등급 제한 체크
-        const gradeCounts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
         for (const cardId of crew) {
           const char = CHARACTERS_BY_ID[cardId];
           if (char) {
@@ -112,8 +112,8 @@ export const usePlayerStore = create<PlayerState>()(
           }
         }
 
-        if (gradeCounts.S > 1) return false; // S등급은 1장까지
-        if (gradeCounts.A > 2) return false; // A등급은 2장까지
+        if (gradeCounts['특급'] > 1) return false; // 특급은 1장까지
+        if (gradeCounts['1급'] > 2) return false; // 1급은 2장까지
 
         set({
           player: {
@@ -162,14 +162,14 @@ export const usePlayerStore = create<PlayerState>()(
         if (!char) return false;
 
         // 등급 제한 체크
-        const gradeCounts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
         for (const cardId of tempCrew) {
           const c = CHARACTERS_BY_ID[cardId];
           if (c) gradeCounts[c.grade]++;
         }
         gradeCounts[char.grade]++;
 
-        if (gradeCounts.S > 1 || gradeCounts.A > 2) return false;
+        if (gradeCounts['특급'] > 1 || gradeCounts['1급'] > 2) return false;
 
         const newCrew = [...player.currentCrew];
         newCrew[index] = newCardId;
@@ -264,7 +264,7 @@ export const usePlayerStore = create<PlayerState>()(
           // 경험치 계산
           const expResult = calculateExpReward(
             cardWon,
-            'B', // 상대 등급 (간략화)
+            '준1급', // 상대 등급 (간략화)
             char.grade,
             newWinStreak,
             false // 퍼펙트 승리 여부
@@ -416,21 +416,30 @@ export const usePlayerStore = create<PlayerState>()(
         const char = CHARACTERS_BY_ID[cardId];
         if (!char) return false;
 
-        const gradeCounts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
         for (const crewCardId of player.currentCrew) {
           const c = CHARACTERS_BY_ID[crewCardId];
           if (c) gradeCounts[c.grade]++;
         }
 
-        if (char.grade === 'S' && gradeCounts.S >= 1) return false;
-        if (char.grade === 'A' && gradeCounts.A >= 2) return false;
+        if (char.grade === '특급' && gradeCounts['특급'] >= 1) return false;
+        if (char.grade === '1급' && gradeCounts['1급'] >= 2) return false;
 
         return true;
       }
     }),
     {
       name: 'jujutsu-card-game-player',
-      version: 1
+      version: 2, // 등급 체계 변경 (S/A/B/C → 특급/1급/준1급/2급)
+      migrate: (persistedState: unknown, version: number) => {
+        console.log('[Player Store] 마이그레이션:', version, '->', 2);
+        // 버전 1 이하의 데이터는 리셋 (등급 체계 변경)
+        if (version < 2) {
+          console.log('[Player Store] 등급 체계 변경으로 데이터 리셋');
+          return { player: createInitialPlayerData() };
+        }
+        return persistedState as PlayerState;
+      }
     }
   )
 );

@@ -156,8 +156,9 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     );
   }
 
-  // 게임 종료 화면
-  if (isGameOver) {
+  // 게임 종료 화면 (전투 모달이 열려있으면 대기)
+  // 마지막 라운드 전투 로그를 먼저 보여준 후 게임 종료 화면으로 이동
+  if (isGameOver && !showTurnBattle && battlePhase === 'SELECT') {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -301,9 +302,11 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                 )}
               </div>
 
-              <Button onClick={handleStartBattle} variant="primary" size="lg">
-                ⚔️ 전투 시작!
-              </Button>
+              <div className="flex justify-center">
+                <Button onClick={handleStartBattle} variant="primary" size="lg">
+                  ⚔️ 전투 시작!
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -463,11 +466,11 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                     </div>
                     <div className="flex gap-2 items-center">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        selectedCardData.grade === 'S' ? 'bg-yellow-500/20 text-yellow-400' :
-                        selectedCardData.grade === 'A' ? 'bg-purple-500/20 text-purple-400' :
-                        selectedCardData.grade === 'B' ? 'bg-blue-500/20 text-blue-400' :
+                        selectedCardData.grade === '특급' ? 'bg-yellow-500/20 text-yellow-400' :
+                        selectedCardData.grade === '1급' ? 'bg-purple-500/20 text-purple-400' :
+                        selectedCardData.grade === '준1급' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-gray-500/20 text-gray-400'
-                      }`}>{selectedCardData.grade}등급</span>
+                      }`}>{selectedCardData.grade}</span>
                     </div>
                   </div>
 

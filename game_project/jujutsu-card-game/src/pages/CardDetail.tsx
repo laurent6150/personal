@@ -104,10 +104,10 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
           <div className={`
             relative w-full aspect-[3/4] rounded-xl overflow-hidden mb-4
             bg-gradient-to-br
-            ${character.grade === 'S' ? 'from-grade-s/30 to-grade-s/10' : ''}
-            ${character.grade === 'A' ? 'from-grade-a/30 to-grade-a/10' : ''}
-            ${character.grade === 'B' ? 'from-grade-b/30 to-grade-b/10' : ''}
-            ${character.grade === 'C' ? 'from-grade-c/30 to-grade-c/10' : ''}
+            ${character.grade === '특급' ? 'from-grade-s/30 to-grade-s/10' : ''}
+            ${character.grade === '1급' ? 'from-grade-a/30 to-grade-a/10' : ''}
+            ${character.grade === '준1급' ? 'from-grade-b/30 to-grade-b/10' : ''}
+            ${character.grade === '2급' ? 'from-grade-c/30 to-grade-c/10' : ''}
           `}>
             <div className="absolute top-4 left-4 flex gap-2">
               <GradeBadge grade={character.grade} />

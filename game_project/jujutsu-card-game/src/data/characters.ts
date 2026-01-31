@@ -11,12 +11,12 @@ const getPlaceholderImage = (name: string, attribute: keyof typeof ATTRIBUTES): 
   return `https://via.placeholder.com/200x280/${color}/FFFFFF?text=${encodeURIComponent(name)}`;
 };
 
-// S등급 (특급) - 3장
+// 특급 - 3장
 const S_GRADE: CharacterCard[] = [
   {
     id: "gojo_satoru",
     name: { ko: "고죠 사토루", ja: "五条悟", en: "Gojo Satoru" },
-    grade: "S",
+    grade: "특급",
     attribute: "BARRIER",
     imageUrl: getPlaceholderImage("고죠", "BARRIER"),
     baseStats: { atk: 20, def: 18, spd: 20, ce: 25, hp: 17 },
@@ -51,7 +51,7 @@ const S_GRADE: CharacterCard[] = [
   {
     id: "ryomen_sukuna",
     name: { ko: "료멘 스쿠나", ja: "両面宿儺", en: "Ryomen Sukuna" },
-    grade: "S",
+    grade: "특급",
     attribute: "CURSE",
     imageUrl: getPlaceholderImage("스쿠나", "CURSE"),
     baseStats: { atk: 25, def: 15, spd: 18, ce: 22, hp: 20 },
@@ -79,7 +79,7 @@ const S_GRADE: CharacterCard[] = [
   {
     id: "kenjaku",
     name: { ko: "켄자쿠", ja: "羂索", en: "Kenjaku" },
-    grade: "S",
+    grade: "특급",
     attribute: "SOUL",
     imageUrl: getPlaceholderImage("켄자쿠", "SOUL"),
     baseStats: { atk: 18, def: 16, spd: 17, ce: 24, hp: 20 },
@@ -111,7 +111,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "fushiguro_toji",
     name: { ko: "후시구로 토지", ja: "伏黒甚爾", en: "Fushiguro Toji" },
-    grade: "A",
+    grade: "1급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("토지", "BODY"),
     baseStats: { atk: 22, def: 14, spd: 19, ce: 0, hp: 18 },
@@ -139,7 +139,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "nanami_kento",
     name: { ko: "나나미 켄토", ja: "七海建人", en: "Nanami Kento" },
-    grade: "A",
+    grade: "1급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("나나미", "BODY"),
     baseStats: { atk: 18, def: 16, spd: 15, ce: 18, hp: 17 },
@@ -168,7 +168,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "jogo",
     name: { ko: "죠고", ja: "漏瑚", en: "Jogo" },
-    grade: "A",
+    grade: "1급",
     attribute: "CONVERT",
     imageUrl: getPlaceholderImage("죠고", "CONVERT"),
     baseStats: { atk: 20, def: 12, spd: 16, ce: 22, hp: 16 },
@@ -196,7 +196,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "hanami",
     name: { ko: "하나미", ja: "花御", en: "Hanami" },
-    grade: "A",
+    grade: "1급",
     attribute: "CONVERT",
     imageUrl: getPlaceholderImage("하나미", "CONVERT"),
     baseStats: { atk: 16, def: 18, spd: 14, ce: 20, hp: 18 },
@@ -216,7 +216,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "choso",
     name: { ko: "쵸소", ja: "脹相", en: "Choso" },
-    grade: "A",
+    grade: "1급",
     attribute: "CURSE",
     imageUrl: getPlaceholderImage("쵸소", "CURSE"),
     baseStats: { atk: 18, def: 15, spd: 17, ce: 19, hp: 17 },
@@ -236,7 +236,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "yuta_okkotsu",
     name: { ko: "오코츠 유타", ja: "乙骨憂太", en: "Yuta Okkotsu" },
-    grade: "A",
+    grade: "1급",
     attribute: "CURSE",
     imageUrl: getPlaceholderImage("유타", "CURSE"),
     baseStats: { atk: 19, def: 15, spd: 16, ce: 23, hp: 17 },
@@ -256,7 +256,7 @@ const A_GRADE: CharacterCard[] = [
   {
     id: "todo_aoi",
     name: { ko: "토도 아오이", ja: "東堂葵", en: "Todo Aoi" },
-    grade: "A",
+    grade: "1급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("토도", "BODY"),
     baseStats: { atk: 20, def: 14, spd: 16, ce: 16, hp: 18 },
@@ -281,7 +281,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "itadori_yuji",
     name: { ko: "이타도리 유지", ja: "虎杖悠仁", en: "Itadori Yuji" },
-    grade: "B",
+    grade: "준1급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("이타도리", "BODY"),
     baseStats: { atk: 16, def: 13, spd: 18, ce: 12, hp: 17 },
@@ -310,7 +310,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "fushiguro_megumi",
     name: { ko: "후시구로 메구미", ja: "伏黒恵", en: "Fushiguro Megumi" },
-    grade: "B",
+    grade: "준1급",
     attribute: "RANGE",
     imageUrl: getPlaceholderImage("메구미", "RANGE"),
     baseStats: { atk: 14, def: 12, spd: 16, ce: 18, hp: 15 },
@@ -330,7 +330,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "mahito",
     name: { ko: "마히토", ja: "真人", en: "Mahito" },
-    grade: "B",
+    grade: "준1급",
     attribute: "SOUL",
     imageUrl: getPlaceholderImage("마히토", "SOUL"),
     baseStats: { atk: 15, def: 10, spd: 15, ce: 20, hp: 18 },
@@ -350,7 +350,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "mei_mei",
     name: { ko: "메이메이", ja: "冥冥", en: "Mei Mei" },
-    grade: "B",
+    grade: "준1급",
     attribute: "RANGE",
     imageUrl: getPlaceholderImage("메이메이", "RANGE"),
     baseStats: { atk: 15, def: 13, spd: 14, ce: 17, hp: 16 },
@@ -370,7 +370,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "inumaki_toge",
     name: { ko: "이누마키 토게", ja: "狗巻棘", en: "Inumaki Toge" },
-    grade: "B",
+    grade: "준1급",
     attribute: "CURSE",
     imageUrl: getPlaceholderImage("이누마키", "CURSE"),
     baseStats: { atk: 12, def: 11, spd: 17, ce: 19, hp: 14 },
@@ -391,7 +391,7 @@ const B_GRADE: CharacterCard[] = [
   {
     id: "maki_zenin",
     name: { ko: "젠인 마키", ja: "禪院真希", en: "Maki Zenin" },
-    grade: "B",
+    grade: "준1급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("마키", "BODY"),
     baseStats: { atk: 17, def: 14, spd: 16, ce: 5, hp: 16 },
@@ -415,7 +415,7 @@ const C_GRADE: CharacterCard[] = [
   {
     id: "kugisaki_nobara",
     name: { ko: "쿠기사키 노바라", ja: "釘崎野薔薇", en: "Kugisaki Nobara" },
-    grade: "C",
+    grade: "2급",
     attribute: "RANGE",
     imageUrl: getPlaceholderImage("노바라", "RANGE"),
     baseStats: { atk: 13, def: 10, spd: 14, ce: 15, hp: 14 },
@@ -435,7 +435,7 @@ const C_GRADE: CharacterCard[] = [
   {
     id: "ino_takuma",
     name: { ko: "이노 타쿠마", ja: "猪野琢真", en: "Ino Takuma" },
-    grade: "C",
+    grade: "2급",
     attribute: "CURSE",
     imageUrl: getPlaceholderImage("이노", "CURSE"),
     baseStats: { atk: 12, def: 11, spd: 13, ce: 14, hp: 14 },
@@ -455,7 +455,7 @@ const C_GRADE: CharacterCard[] = [
   {
     id: "panda",
     name: { ko: "판다", ja: "パンダ", en: "Panda" },
-    grade: "C",
+    grade: "2급",
     attribute: "BODY",
     imageUrl: getPlaceholderImage("판다", "BODY"),
     baseStats: { atk: 14, def: 14, spd: 12, ce: 10, hp: 16 },
@@ -475,7 +475,7 @@ const C_GRADE: CharacterCard[] = [
   {
     id: "nishimiya_momo",
     name: { ko: "니시미야 모모", ja: "西宮桃", en: "Nishimiya Momo" },
-    grade: "C",
+    grade: "2급",
     attribute: "RANGE",
     imageUrl: getPlaceholderImage("모모", "RANGE"),
     baseStats: { atk: 10, def: 9, spd: 16, ce: 13, hp: 12 },
@@ -511,13 +511,13 @@ export const CHARACTERS_BY_ID = ALL_CHARACTERS.reduce((acc, char) => {
 }, {} as Record<string, CharacterCard>);
 
 export const CHARACTERS_BY_GRADE = {
-  S: S_GRADE,
-  A: A_GRADE,
-  B: B_GRADE,
-  C: C_GRADE
+  '특급': S_GRADE,
+  '1급': A_GRADE,
+  '준1급': B_GRADE,
+  '2급': C_GRADE
 };
 
-// 초기 크루용 기본 캐릭터 ID (B, C등급에서 5장)
+// 초기 크루용 기본 캐릭터 ID (준1급, 2급에서 5장)
 export const STARTER_CREW = [
   'itadori_yuji',
   'fushiguro_megumi',

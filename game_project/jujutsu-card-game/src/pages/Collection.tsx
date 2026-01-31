@@ -9,7 +9,7 @@ import { StatsDisplay } from '../components/UI/StatBar';
 import { GradeBadge, AttributeBadge } from '../components/UI/Badge';
 import type { CharacterCard } from '../types';
 
-type FilterGrade = 'S' | 'A' | 'B' | 'C' | 'ALL';
+type FilterGrade = '특급' | '1급' | '준1급' | '2급' | 'ALL';
 
 interface CollectionProps {
   onBack: () => void;
@@ -21,7 +21,7 @@ export function Collection({ onBack, onViewCard }: CollectionProps) {
   const [selectedGrade, setSelectedGrade] = useState<FilterGrade>('ALL');
   const [selectedCard, setSelectedCard] = useState<CharacterCard | null>(null);
 
-  const grades: FilterGrade[] = ['ALL', 'S', 'A', 'B', 'C'];
+  const grades: FilterGrade[] = ['ALL', '특급', '1급', '준1급', '2급'];
 
   const filteredCards: CharacterCard[] = selectedGrade === 'ALL'
     ? ALL_CHARACTERS
@@ -52,7 +52,7 @@ export function Collection({ onBack, onViewCard }: CollectionProps) {
               variant={selectedGrade === grade ? 'primary' : 'ghost'}
               size="sm"
             >
-              {grade === 'ALL' ? '전체' : `${grade}등급`}
+              {grade === 'ALL' ? '전체' : grade}
             </Button>
           ))}
         </div>

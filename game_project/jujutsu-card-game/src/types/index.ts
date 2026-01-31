@@ -4,7 +4,7 @@
 
 // 기본 타입
 export type Attribute = 'BARRIER' | 'BODY' | 'CURSE' | 'SOUL' | 'CONVERT' | 'RANGE';
-export type Grade = 'S' | 'A' | 'B' | 'C' | 'D';
+export type Grade = '특급' | '1급' | '준1급' | '2급' | '준2급' | '3급';
 export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type ItemRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 export type Rarity = ItemRarity;

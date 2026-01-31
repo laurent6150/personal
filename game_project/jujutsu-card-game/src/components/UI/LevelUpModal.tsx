@@ -73,10 +73,10 @@ export function LevelUpModal({ isOpen, onClose, levelUps }: LevelUpModalProps) {
                     <div className={`
                       w-12 h-12 rounded-lg flex items-center justify-center
                       bg-gradient-to-br
-                      ${character.grade === 'S' ? 'from-grade-s/30 to-grade-s/10' : ''}
-                      ${character.grade === 'A' ? 'from-grade-a/30 to-grade-a/10' : ''}
-                      ${character.grade === 'B' ? 'from-grade-b/30 to-grade-b/10' : ''}
-                      ${character.grade === 'C' ? 'from-grade-c/30 to-grade-c/10' : ''}
+                      ${character.grade === '특급' ? 'from-grade-s/30 to-grade-s/10' : ''}
+                      ${character.grade === '1급' ? 'from-grade-a/30 to-grade-a/10' : ''}
+                      ${character.grade === '준1급' ? 'from-grade-b/30 to-grade-b/10' : ''}
+                      ${character.grade === '2급' ? 'from-grade-c/30 to-grade-c/10' : ''}
                     `}>
                       <GradeBadge grade={character.grade} size="sm" />
                     </div>

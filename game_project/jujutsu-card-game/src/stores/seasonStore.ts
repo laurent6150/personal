@@ -403,7 +403,22 @@ export const useSeasonStore = create<SeasonState>()(
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 2 // 버전 업데이트로 기존 데이터 마이그레이션
+      version: 3, // 버전 업데이트로 기존 데이터 마이그레이션
+      migrate: (persistedState: unknown, version: number) => {
+        console.log('[Season Store] 마이그레이션:', version, '->', 3);
+        // 버전 2 이하의 데이터는 리셋
+        if (version < 3) {
+          console.log('[Season Store] 구버전 데이터 리셋');
+          return {
+            isInitialized: false,
+            playerCrew: [],
+            currentAICrews: [],
+            currentSeason: null,
+            seasonHistory: []
+          };
+        }
+        return persistedState as SeasonState;
+      }
     }
   )
 );

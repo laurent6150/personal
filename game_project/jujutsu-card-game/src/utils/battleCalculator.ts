@@ -429,7 +429,7 @@ export function calculateExpReward(
   reasons.push(won ? '승리 +30' : '패배 +10');
 
   // 높은 등급 상대로 승리
-  const gradeOrder = ['D', 'C', 'B', 'A', 'S'];
+  const gradeOrder = ['3급', '준2급', '2급', '준1급', '1급', '특급'];
   const playerGradeIndex = gradeOrder.indexOf(playerGrade);
   const opponentGradeIndex = gradeOrder.indexOf(opponentGrade);
 
