@@ -5,13 +5,14 @@ import { CrewManager } from './pages/CrewManager';
 import { Collection } from './pages/Collection';
 import { CardDetail } from './pages/CardDetail';
 import { Profile } from './pages/Profile';
+import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import type { Difficulty } from './types';
 
-type Page = 'menu' | 'crew' | 'collection' | 'cardDetail' | 'profile' | 'battle';
+type Page = 'menu' | 'crew' | 'collection' | 'cardDetail' | 'profile' | 'settings' | 'battle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -70,6 +71,7 @@ function App() {
               onCrewManagement={() => setCurrentPage('crew')}
               onCollection={() => setCurrentPage('collection')}
               onProfile={() => setCurrentPage('profile')}
+              onSettings={() => setCurrentPage('settings')}
             />
           </motion.div>
         )}
@@ -121,6 +123,17 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
           >
             <Profile onBack={handleReturnToMenu} />
+          </motion.div>
+        )}
+
+        {currentPage === 'settings' && (
+          <motion.div
+            key="settings"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+          >
+            <Settings onBack={handleReturnToMenu} />
           </motion.div>
         )}
 

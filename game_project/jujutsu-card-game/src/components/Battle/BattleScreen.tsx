@@ -91,9 +91,44 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
             {isPlayerWin ? '승리!' : '패배'}
           </h1>
 
-          <p className="text-text-secondary mb-6">
+          <p className="text-text-secondary mb-4">
             최종 스코어: {currentScore.player} - {currentScore.ai}
           </p>
+
+          {/* 경험치 획득 정보 */}
+          {gameEndResult && gameEndResult.expGained && Object.keys(gameEndResult.expGained).length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-black/30 rounded-lg p-4 mb-4 text-left"
+            >
+              <h3 className="text-sm text-text-secondary mb-2">획득 경험치</h3>
+              <div className="space-y-1">
+                {Object.entries(gameEndResult.expGained).map(([cardId, exp]) => (
+                  <div key={cardId} className="flex justify-between text-sm">
+                    <span className="truncate">{cardId.replace(/_/g, ' ')}</span>
+                    <span className="text-win">+{exp} EXP</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* 레벨업 알림 */}
+          {gameEndResult && gameEndResult.levelUps && gameEndResult.levelUps.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-accent/20 border border-accent/50 rounded-lg p-3 mb-4"
+            >
+              <div className="text-accent font-bold">레벨 업!</div>
+              <div className="text-sm text-text-secondary">
+                {gameEndResult.levelUps.length}장의 카드가 레벨 업했습니다
+              </div>
+            </motion.div>
+          )}
 
           <div className="space-y-3">
             <Button onClick={() => rematch()} variant="primary" className="w-full">

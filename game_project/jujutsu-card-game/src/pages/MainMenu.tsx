@@ -10,9 +10,10 @@ interface MainMenuProps {
   onCrewManagement: () => void;
   onCollection: () => void;
   onProfile?: () => void;
+  onSettings?: () => void;
 }
 
-export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfile }: MainMenuProps) {
+export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfile, onSettings }: MainMenuProps) {
   const { player } = usePlayerStore();
 
   const crewCards = player.currentCrew
@@ -111,6 +112,12 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
         {onProfile && (
           <Button onClick={onProfile} variant="ghost" className="w-full">
             프로필
+          </Button>
+        )}
+
+        {onSettings && (
+          <Button onClick={onSettings} variant="ghost" className="w-full">
+            설정
           </Button>
         )}
       </motion.div>
