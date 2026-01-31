@@ -78,15 +78,19 @@ export function useBattle() {
     return session.ai.crew.length - session.ai.usedCards.length;
   }, [session]);
 
-  // 게임 시작
-  const handleStartGame = useCallback((difficulty: Difficulty) => {
+  // 게임 시작 (시즌에서 배정된 AI 크루 사용)
+  const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
     // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
     const crew = playerCrew.length === 5 ? playerCrew : player.currentCrew;
     if (crew.length !== 5) {
       console.error('크루가 5장이 아닙니다');
       return false;
     }
-    startGame(crew, difficulty);
+    if (aiCrew.length !== 5) {
+      console.error('AI 크루가 5장이 아닙니다');
+      return false;
+    }
+    startGame(crew, aiCrew, difficulty);
     return true;
   }, [playerCrew, player.currentCrew, startGame]);
 
@@ -155,13 +159,16 @@ export function useBattle() {
     return result;
   }, [session, endGame, processGameResult]);
 
-  // 재대전
+  // 재대전 (같은 AI 크루와 재대전)
   const handleRematch = useCallback((difficulty?: Difficulty) => {
     const diff = difficulty ?? session?.ai.difficulty ?? 'NORMAL';
+    const aiCrew = session?.ai.crew ?? [];
     setGameEndResult(null);
     resetGame();
-    handleStartGame(diff);
-  }, [session?.ai.difficulty, resetGame, handleStartGame]);
+    if (aiCrew.length === 5) {
+      handleStartGame(aiCrew, diff);
+    }
+  }, [session?.ai.difficulty, session?.ai.crew, resetGame, handleStartGame]);
 
   // 메인 메뉴로
   const handleReturnToMenu = useCallback(() => {

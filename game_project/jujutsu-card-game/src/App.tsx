@@ -35,7 +35,8 @@ function App() {
     const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
-    const success = startGame(opponent.difficulty);
+    // 시즌에서 배정된 AI 크루 사용 (카드 중복 방지)
+    const success = startGame(opponent.crew, opponent.difficulty);
     if (success) {
       setCurrentOpponent(opponentCrewId);
       setCurrentPage('battle');
