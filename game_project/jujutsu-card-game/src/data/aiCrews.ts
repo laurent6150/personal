@@ -46,20 +46,34 @@ export const AI_CREW_TEMPLATES: AICrewTemplate[] = [
   }
 ];
 
-// 랜덤 크루 생성 (5장 카드)
-export function generateRandomCrew(usedCards: string[] = []): string[] {
+// 랜덤 크루 생성 (카드 수 지정 가능, 부족 시 가능한 만큼만)
+export function generateRandomCrew(usedCards: string[] = [], count: number = 5): string[] {
   const availableCards = ALL_CHARACTER_IDS.filter(id => !usedCards.includes(id));
   const shuffled = [...availableCards].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 5);
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
-// 시즌용 AI 크루 생성 (모든 AI 팀에 랜덤 카드 배정)
-export function generateAICrewsForSeason(): AICrew[] {
-  const usedCards: string[] = [];
+// 시즌용 AI 크루 생성 (플레이어 크루 제외, 중복 방지)
+// 20캐릭터 - 5플레이어 = 15카드 / 5AI팀 = 3장씩 기본
+// 부족하면 카드 수를 줄여서 배분
+export function generateAICrewsForSeason(playerCrew: string[] = []): AICrew[] {
+  const usedCards: string[] = [...playerCrew]; // 플레이어 크루 먼저 제외
+  const totalAvailable = ALL_CHARACTER_IDS.length - playerCrew.length;
+  const aiTeamCount = AI_CREW_TEMPLATES.length;
 
-  return AI_CREW_TEMPLATES.map(template => {
-    const crew = generateRandomCrew(usedCards);
+  // 카드 배분 계산 (최대한 균등하게)
+  const cardsPerTeam = Math.floor(totalAvailable / aiTeamCount);
+  const extraCards = totalAvailable % aiTeamCount;
+
+  console.log(`[AI Crews] 총 ${totalAvailable}장 가용, ${aiTeamCount}팀에 각 ${cardsPerTeam}~${cardsPerTeam + 1}장 배분`);
+
+  return AI_CREW_TEMPLATES.map((template, index) => {
+    // 앞쪽 팀에 추가 카드 배분
+    const crewSize = index < extraCards ? cardsPerTeam + 1 : cardsPerTeam;
+    const crew = generateRandomCrew(usedCards, crewSize);
     usedCards.push(...crew);
+
+    console.log(`[AI Crew] ${template.name}: ${crew.length}장`);
 
     return {
       ...template,

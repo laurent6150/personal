@@ -170,15 +170,15 @@ export const useSeasonStore = create<SeasonState>()(
 
       // 시즌 시작 (첫 시즌 또는 다음 시즌)
       startNewSeason: () => {
-        const { isInitialized, seasonHistory } = get();
+        const { isInitialized, seasonHistory, playerCrew } = get();
 
         if (!isInitialized) {
           console.error('먼저 initializeGame을 호출하세요');
           return;
         }
 
-        // AI 크루 랜덤 재배정
-        const aiCrews = generateAICrewsForSeason();
+        // AI 크루 랜덤 재배정 (플레이어 크루 제외하여 중복 방지)
+        const aiCrews = generateAICrewsForSeason(playerCrew);
         setAICrews(aiCrews);
 
         const newSeasonNumber = seasonHistory.length + 1;
