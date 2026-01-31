@@ -13,9 +13,10 @@ type FilterGrade = 'S' | 'A' | 'B' | 'C' | 'ALL';
 
 interface CollectionProps {
   onBack: () => void;
+  onViewCard?: (cardId: string) => void;
 }
 
-export function Collection({ onBack }: CollectionProps) {
+export function Collection({ onBack, onViewCard }: CollectionProps) {
   const { player } = usePlayerStore();
   const [selectedGrade, setSelectedGrade] = useState<FilterGrade>('ALL');
   const [selectedCard, setSelectedCard] = useState<CharacterCard | null>(null);
@@ -164,6 +165,20 @@ export function Collection({ onBack }: CollectionProps) {
                   패: {player.ownedCards[selectedCard.id].stats.totalLosses}
                 </div>
               </div>
+            )}
+
+            {/* 상세 보기 버튼 */}
+            {onViewCard && player.ownedCards[selectedCard.id] && (
+              <Button
+                onClick={() => {
+                  setSelectedCard(null);
+                  onViewCard(selectedCard.id);
+                }}
+                variant="primary"
+                className="w-full"
+              >
+                상세 보기 / 장비 관리
+              </Button>
             )}
           </div>
         )}

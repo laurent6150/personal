@@ -9,9 +9,10 @@ interface MainMenuProps {
   onStartGame: (difficulty: Difficulty) => void;
   onCrewManagement: () => void;
   onCollection: () => void;
+  onProfile?: () => void;
 }
 
-export function MainMenu({ onStartGame, onCrewManagement, onCollection }: MainMenuProps) {
+export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfile }: MainMenuProps) {
   const { player } = usePlayerStore();
 
   const crewCards = player.currentCrew
@@ -106,6 +107,12 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection }: MainMe
         <Button onClick={onCollection} variant="ghost" className="w-full">
           컬렉션
         </Button>
+
+        {onProfile && (
+          <Button onClick={onProfile} variant="ghost" className="w-full">
+            프로필
+          </Button>
+        )}
       </motion.div>
 
       {/* 전적 */}

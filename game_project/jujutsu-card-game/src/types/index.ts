@@ -7,6 +7,7 @@ export type Attribute = 'BARRIER' | 'BODY' | 'CURSE' | 'SOUL' | 'CONVERT' | 'RAN
 export type Grade = 'S' | 'A' | 'B' | 'C' | 'D';
 export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type ItemRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+export type Rarity = ItemRarity;
 
 // 스탯 인터페이스
 export interface Stats {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useBattle } from '../../hooks/useBattle';
 import { CardDisplay } from '../Card/CardDisplay';
@@ -7,7 +8,18 @@ import { RoundResult } from './RoundResult';
 import { Button } from '../UI/Button';
 import { WIN_SCORE } from '../../data/constants';
 
-export function BattleScreen() {
+interface BattleEndResult {
+  won: boolean;
+  levelUps?: string[];
+  newAchievements?: string[];
+  expGained?: Record<string, number>;
+}
+
+interface BattleScreenProps {
+  onBattleEnd?: (result: BattleEndResult) => void;
+}
+
+export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
   const {
     session,
     isGameOver,
@@ -22,12 +34,36 @@ export function BattleScreen() {
     isAnimating,
     showResult,
     roundResultInfo,
+    gameEndResult,
     selectCard,
     executeRound,
     continueGame,
     rematch,
     returnToMenu
   } = useBattle();
+
+  // Track if we've already called onBattleEnd for this game
+  const hasCalledBattleEnd = useRef(false);
+
+  // Call onBattleEnd when game ends
+  useEffect(() => {
+    if (gameEndResult && onBattleEnd && !hasCalledBattleEnd.current) {
+      hasCalledBattleEnd.current = true;
+      onBattleEnd({
+        won: gameEndResult.won,
+        levelUps: gameEndResult.levelUps,
+        newAchievements: gameEndResult.newAchievements,
+        expGained: gameEndResult.expGained
+      });
+    }
+  }, [gameEndResult, onBattleEnd]);
+
+  // Reset the ref when starting a new game
+  useEffect(() => {
+    if (!isGameOver) {
+      hasCalledBattleEnd.current = false;
+    }
+  }, [isGameOver]);
 
   if (!session) {
     return null;

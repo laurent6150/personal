@@ -2,11 +2,18 @@
 // 대전 진행 커스텀 훅
 // ========================================
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import type { Difficulty, CharacterCard, RoundResult } from '../types';
+
+export interface GameEndResult {
+  won: boolean;
+  expGained: Record<string, number>;
+  levelUps: string[];
+  newAchievements: string[];
+}
 
 export function useBattle() {
   // Game store
@@ -31,6 +38,9 @@ export function useBattle() {
     player,
     processGameResult
   } = usePlayerStore();
+
+  // Game end result
+  const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
 
   // 게임 상태
   const isGameActive = session?.status === 'IN_PROGRESS';
@@ -112,7 +122,13 @@ export function useBattle() {
         session.rounds,
         session.ai.difficulty
       );
-      console.log('게임 결과 처리:', result);
+
+      setGameEndResult({
+        won,
+        expGained: result.expGained,
+        levelUps: result.levelUps,
+        newAchievements: result.newAchievements
+      });
     }
   }, [clearLastResult, isGameOver, session, processGameResult]);
 
@@ -137,12 +153,14 @@ export function useBattle() {
   // 재대전
   const handleRematch = useCallback((difficulty?: Difficulty) => {
     const diff = difficulty ?? session?.ai.difficulty ?? 'NORMAL';
+    setGameEndResult(null);
     resetGame();
     handleStartGame(diff);
   }, [session?.ai.difficulty, resetGame, handleStartGame]);
 
   // 메인 메뉴로
   const handleReturnToMenu = useCallback(() => {
+    setGameEndResult(null);
     resetGame();
   }, [resetGame]);
 
@@ -186,6 +204,7 @@ export function useBattle() {
     showResult,
     lastRoundResult,
     roundResultInfo,
+    gameEndResult,
 
     // 액션
     startGame: handleStartGame,
