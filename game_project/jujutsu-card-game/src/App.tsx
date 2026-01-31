@@ -1,35 +1,82 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { MainMenu } from './pages/MainMenu';
+import { CrewManager } from './pages/CrewManager';
+import { Collection } from './pages/Collection';
+import { BattleScreen } from './components/Battle/BattleScreen';
+import { useBattle } from './hooks/useBattle';
+import type { Difficulty } from './types';
+
+type Page = 'menu' | 'crew' | 'collection' | 'battle';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState<Page>('menu');
+  const { startGame, session } = useBattle();
+
+  const handleStartGame = (difficulty: Difficulty) => {
+    const success = startGame(difficulty);
+    if (success) {
+      setCurrentPage('battle');
+    }
+  };
+
+  const handleReturnToMenu = () => {
+    setCurrentPage('menu');
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen bg-gradient-to-br from-bg-primary to-bg-secondary">
+      <AnimatePresence mode="wait">
+        {currentPage === 'menu' && (
+          <motion.div
+            key="menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <MainMenu
+              onStartGame={handleStartGame}
+              onCrewManagement={() => setCurrentPage('crew')}
+              onCollection={() => setCurrentPage('collection')}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'crew' && (
+          <motion.div
+            key="crew"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+          >
+            <CrewManager onBack={handleReturnToMenu} />
+          </motion.div>
+        )}
+
+        {currentPage === 'collection' && (
+          <motion.div
+            key="collection"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+          >
+            <Collection onBack={handleReturnToMenu} />
+          </motion.div>
+        )}
+
+        {currentPage === 'battle' && session && (
+          <motion.div
+            key="battle"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <BattleScreen />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
-export default App
+export default App;
