@@ -1,12 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useBattle } from '../../hooks/useBattle';
 import { CardDisplay } from '../Card/CardDisplay';
 import { CardSelector } from '../Card/CardSelector';
+import { CardDetailPanel } from '../Card/CardDetailPanel';
 import { ArenaDisplay } from './ArenaDisplay';
 import { RoundResult } from './RoundResult';
 import { Button } from '../UI/Button';
+import { ExitConfirmModal } from '../UI/ExitConfirmModal';
 import { WIN_SCORE } from '../../data/constants';
+import { CHARACTERS_BY_ID } from '../../data';
 
 interface BattleEndResult {
   won: boolean;
@@ -44,6 +47,12 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
 
   // Track if we've already called onBattleEnd for this game
   const hasCalledBattleEnd = useRef(false);
+
+  // 나가기 모달 상태
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  // 선택된 카드의 상세 정보
+  const selectedCardData = selectedCardId ? CHARACTERS_BY_ID[selectedCardId] : null;
 
   // Call onBattleEnd when game ends
   useEffect(() => {
@@ -143,8 +152,25 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
     );
   }
 
+  // 나가기 처리
+  const handleExit = () => {
+    setShowExitModal(false);
+    // 패배로 처리하고 메뉴로 돌아감
+    if (onBattleEnd) {
+      onBattleEnd({ won: false });
+    }
+    returnToMenu();
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 relative">
+      {/* 나가기 확인 모달 */}
+      <ExitConfirmModal
+        isOpen={showExitModal}
+        onConfirm={handleExit}
+        onCancel={() => setShowExitModal(false)}
+      />
+
       {/* 라운드 결과 모달 */}
       {showResult && roundResultInfo && (
         <RoundResult
@@ -154,6 +180,17 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
           onContinue={continueGame}
         />
       )}
+
+      {/* 나가기 버튼 (좌상단) */}
+      <motion.button
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={() => setShowExitModal(true)}
+        className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-bg-card/80 backdrop-blur-sm rounded-lg border border-white/10 text-text-secondary hover:text-text-primary hover:border-white/30 transition-all"
+      >
+        <span>←</span>
+        <span className="text-sm">나가기</span>
+      </motion.button>
 
       {/* 스코어 헤더 */}
       <motion.div
@@ -226,15 +263,37 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
         </div>
       </div>
 
-      {/* 카드 선택 */}
-      <div className="max-w-4xl mx-auto mb-6">
-        <CardSelector
-          cards={playerAvailableCards}
-          selectedCardId={selectedCardId}
-          usedCardIds={session.player.usedCards}
-          onSelect={selectCard}
-          disabled={isAnimating}
-        />
+      {/* 카드 선택 + 상세 정보 패널 */}
+      <div className="max-w-5xl mx-auto mb-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* 카드 선택 영역 */}
+          <div className="flex-1">
+            <CardSelector
+              cards={playerAvailableCards}
+              selectedCardId={selectedCardId}
+              usedCardIds={session.player.usedCards}
+              onSelect={selectCard}
+              disabled={isAnimating}
+            />
+          </div>
+
+          {/* 카드 상세 정보 패널 */}
+          <div className="lg:w-80">
+            {selectedCardData ? (
+              <CardDetailPanel
+                card={selectedCardData}
+                arena={currentArena}
+              />
+            ) : (
+              <div className="bg-bg-card/50 rounded-xl border border-dashed border-white/20 p-6 text-center h-full flex items-center justify-center">
+                <div className="text-text-secondary">
+                  <div className="text-3xl mb-2">👆</div>
+                  <p className="text-sm">카드를 선택하면<br />상세 정보가 표시됩니다</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 대결 버튼 */}

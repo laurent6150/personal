@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { CharacterCard, PlayerCard } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { StatsDisplay } from '../UI/StatBar';
+import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
 
 interface CardDisplayProps {
   character: CharacterCard;
@@ -27,8 +29,18 @@ export function CardDisplay({
   showStats = true,
   showSkill = true
 }: CardDisplayProps) {
+  const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[character.attribute];
   const gradeInfo = GRADES[character.grade];
+
+  // 이미지 URL (실제 이미지 또는 폴백)
+  const imageUrl = imageError
+    ? getPlaceholderImage(character.name.ko, character.attribute)
+    : getCharacterImage(character.id, character.name.ko, character.attribute);
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   const sizes = {
     sm: { width: 'w-32', height: 'h-44', text: 'text-xs' },
@@ -78,10 +90,26 @@ export function CardDisplay({
 
       {/* 이미지 영역 */}
       <div
-        className="h-20 flex items-center justify-center text-4xl"
+        className="h-20 flex items-center justify-center overflow-hidden relative"
         style={{ backgroundColor: `${attrInfo.color}30` }}
       >
-        {attrInfo.icon}
+        {imageError ? (
+          // 폴백: 속성 아이콘
+          <span className="text-4xl">{attrInfo.icon}</span>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={character.name.ko}
+            className="w-full h-full object-cover"
+            onError={handleImageError}
+          />
+        )}
+        {/* 속성 아이콘 오버레이 (이미지가 있을 때) */}
+        {!imageError && (
+          <div className="absolute bottom-1 right-1 text-lg opacity-80 bg-black/30 rounded-full p-0.5">
+            {attrInfo.icon}
+          </div>
+        )}
       </div>
 
       {/* 이름 + 레벨 */}
