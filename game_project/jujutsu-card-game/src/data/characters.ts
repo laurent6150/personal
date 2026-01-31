@@ -502,6 +502,9 @@ export const ALL_CHARACTERS: CharacterCard[] = [
   ...C_GRADE
 ];
 
+// 전체 캐릭터 ID 목록
+export const ALL_CHARACTER_IDS: string[] = ALL_CHARACTERS.map(c => c.id);
+
 export const CHARACTERS_BY_ID = ALL_CHARACTERS.reduce((acc, char) => {
   acc[char.id] = char;
   return acc;

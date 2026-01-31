@@ -1,51 +1,89 @@
 // ========================================
-// AI 크루 데이터 (5개 팀)
+// AI 크루 데이터 (5개 팀) - 랜덤 크루 지원
 // ========================================
 
-import type { AICrew } from '../types';
+import type { AICrew, Difficulty } from '../types';
+import { ALL_CHARACTER_IDS } from './characters';
 
-export const AI_CREWS: AICrew[] = [
+// AI 팀 기본 정보 (크루 카드는 시즌 시작 시 랜덤 배정)
+export interface AICrewTemplate {
+  id: string;
+  name: string;
+  difficulty: Difficulty;
+  description: string;
+}
+
+export const AI_CREW_TEMPLATES: AICrewTemplate[] = [
   {
     id: 'curse_kings',
     name: '저주의 왕들',
     difficulty: 'HARD',
-    crew: ['ryomen_sukuna', 'jogo', 'hanami', 'mahito', 'choso'],
-    description: '스쿠나가 이끄는 저주의 군단'
+    description: '강력한 저주의 군단'
   },
   {
     id: 'jujutsu_high',
     name: '주술고전',
     difficulty: 'NORMAL',
-    crew: ['gojo_satoru', 'nanami_kento', 'mei_mei', 'ino_takuma', 'panda'],
-    description: '도쿄 주술고전 교직원 팀'
+    description: '도쿄 주술고전 정예 팀'
   },
   {
     id: 'zenin_clan',
     name: '젠인 가문',
     difficulty: 'NORMAL',
-    crew: ['fushiguro_toji', 'maki_zenin', 'fushiguro_megumi', 'nishimiya_momo', 'inumaki_toge'],
-    description: '젠인 가문과 연관된 실력자들'
+    description: '명문 젠인 가문의 실력자들'
   },
   {
     id: 'special_grade',
     name: '특급 집결',
     difficulty: 'HARD',
-    crew: ['kenjaku', 'yuta_okkotsu', 'todo_aoi', 'choso', 'jogo'],
-    description: '특급에 준하는 실력자들의 모임'
+    description: '특급에 준하는 실력자들'
   },
   {
     id: 'new_generation',
     name: '신세대',
     difficulty: 'EASY',
-    crew: ['itadori_yuji', 'fushiguro_megumi', 'kugisaki_nobara', 'panda', 'inumaki_toge'],
-    description: '주술고전 1학년 + 2학년'
+    description: '차세대 주술사들'
   }
 ];
 
-export const AI_CREWS_BY_ID = AI_CREWS.reduce((acc, crew) => {
-  acc[crew.id] = crew;
-  return acc;
-}, {} as Record<string, AICrew>);
+// 랜덤 크루 생성 (5장 카드)
+export function generateRandomCrew(usedCards: string[] = []): string[] {
+  const availableCards = ALL_CHARACTER_IDS.filter(id => !usedCards.includes(id));
+  const shuffled = [...availableCards].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 5);
+}
+
+// 시즌용 AI 크루 생성 (모든 AI 팀에 랜덤 카드 배정)
+export function generateAICrewsForSeason(): AICrew[] {
+  const usedCards: string[] = [];
+
+  return AI_CREW_TEMPLATES.map(template => {
+    const crew = generateRandomCrew(usedCards);
+    usedCards.push(...crew);
+
+    return {
+      ...template,
+      crew
+    };
+  });
+}
+
+// 현재 시즌의 AI 크루 (동적으로 생성됨)
+export let AI_CREWS: AICrew[] = AI_CREW_TEMPLATES.map(t => ({
+  ...t,
+  crew: [] // 초기값은 빈 배열, 시즌 시작 시 설정
+}));
+
+// AI 크루 업데이트 함수
+export function setAICrews(crews: AICrew[]) {
+  AI_CREWS = crews;
+  // BY_ID 맵도 업데이트
+  crews.forEach(crew => {
+    AI_CREWS_BY_ID[crew.id] = crew;
+  });
+}
+
+export const AI_CREWS_BY_ID: Record<string, AICrew> = {};
 
 // 플레이어 크루 ID (고정)
 export const PLAYER_CREW_ID = 'player';

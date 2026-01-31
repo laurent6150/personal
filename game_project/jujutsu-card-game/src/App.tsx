@@ -11,7 +11,6 @@ import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
-import { AI_CREWS_BY_ID } from './data/aiCrews';
 
 type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'profile' | 'settings' | 'battle';
 
@@ -29,11 +28,11 @@ function App() {
   const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
 
   const { startGame } = useBattle();
-  const { playMatch } = useSeasonStore();
+  const { playMatch, getAICrewById } = useSeasonStore();
 
   // 리그 매치 시작 (시즌 시스템용)
   const handleStartMatch = useCallback((opponentCrewId: string) => {
-    const opponent = AI_CREWS_BY_ID[opponentCrewId];
+    const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
     const success = startGame(opponent.difficulty);
@@ -41,7 +40,7 @@ function App() {
       setCurrentOpponent(opponentCrewId);
       setCurrentPage('battle');
     }
-  }, [startGame]);
+  }, [startGame, getAICrewById]);
 
   const handleReturnToSeasonHub = useCallback(() => {
     setCurrentPage('seasonHub');
@@ -162,7 +161,7 @@ function App() {
           >
             <BattleScreen
               onReturnToMenu={handleReturnToSeasonHub}
-              opponentName={currentOpponent ? AI_CREWS_BY_ID[currentOpponent]?.name : undefined}
+              opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
               onBattleEnd={(result) => {
                 // 리그 결과 기록
                 if (currentOpponent) {

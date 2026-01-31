@@ -1,36 +1,43 @@
 // ========================================
-// 시즌 & 리그 스토어
+// 시즌 & 리그 스토어 - 랜덤 크루 & 연속 시즌 지원
 // ========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Season, LeagueMatch, LeagueStanding, SeasonHistory, MatchResult } from '../types';
-import { AI_CREWS, PLAYER_CREW_ID } from '../data/aiCrews';
+import type { Season, LeagueMatch, LeagueStanding, SeasonHistory, MatchResult, AICrew } from '../types';
+import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID } from '../data/aiCrews';
 
 interface SeasonState {
+  // 게임 상태
+  isInitialized: boolean;       // 첫 크루 선택 완료 여부
+  playerCrew: string[];         // 플레이어 선택 크루 (5장)
+  currentAICrews: AICrew[];     // 현재 시즌 AI 크루 (랜덤 배정)
+
+  // 시즌 데이터
   currentSeason: Season | null;
   seasonHistory: SeasonHistory[];
 
   // 액션
-  startNewSeason: () => void;
-  playMatch: (matchId: string, playerScore: number, opponentScore: number) => void;
+  initializeGame: (playerCrew: string[]) => void;  // 첫 게임 시작 (크루 선택)
+  startNewSeason: () => void;                      // 시즌 시작/다음 시즌
+  playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => void;
   getNextMatch: () => LeagueMatch | null;
   getCurrentStandings: () => LeagueStanding[];
   endSeason: () => void;
   getPlayerRank: () => number;
-  getOpponentCrew: (matchId: string) => string | null;
+
+  // 새로 시작 (리셋)
+  resetGame: () => void;                           // 모든 데이터 초기화
+  getAICrewById: (crewId: string) => AICrew | null;
 }
 
-// 모든 크루 ID (플레이어 + AI 5팀)
-const ALL_CREW_IDS = [PLAYER_CREW_ID, ...AI_CREWS.map(c => c.id)];
-
 // 리그 경기 일정 생성 (라운드 로빈)
-function generateMatches(): LeagueMatch[] {
+function generateMatches(aiCrews: AICrew[]): LeagueMatch[] {
   const matches: LeagueMatch[] = [];
   let matchId = 0;
 
   // 플레이어는 모든 AI 팀과 1회씩 대결
-  for (const aiCrew of AI_CREWS) {
+  for (const aiCrew of aiCrews) {
     matches.push({
       id: `match_${matchId++}`,
       homeCrewId: PLAYER_CREW_ID,
@@ -43,12 +50,12 @@ function generateMatches(): LeagueMatch[] {
   }
 
   // AI 팀들끼리의 경기도 생성 (자동 시뮬레이션용)
-  for (let i = 0; i < AI_CREWS.length; i++) {
-    for (let j = i + 1; j < AI_CREWS.length; j++) {
+  for (let i = 0; i < aiCrews.length; i++) {
+    for (let j = i + 1; j < aiCrews.length; j++) {
       matches.push({
         id: `match_${matchId++}`,
-        homeCrewId: AI_CREWS[i].id,
-        awayCrewId: AI_CREWS[j].id,
+        homeCrewId: aiCrews[i].id,
+        awayCrewId: aiCrews[j].id,
         result: 'PENDING',
         homeScore: 0,
         awayScore: 0,
@@ -61,8 +68,9 @@ function generateMatches(): LeagueMatch[] {
 }
 
 // 초기 순위표 생성
-function generateInitialStandings(): LeagueStanding[] {
-  return ALL_CREW_IDS.map(crewId => ({
+function generateInitialStandings(aiCrews: AICrew[]): LeagueStanding[] {
+  const allCrewIds = [PLAYER_CREW_ID, ...aiCrews.map(c => c.id)];
+  return allCrewIds.map(crewId => ({
     crewId,
     played: 0,
     wins: 0,
@@ -76,8 +84,7 @@ function generateInitialStandings(): LeagueStanding[] {
 }
 
 // AI 경기 시뮬레이션
-function simulateAIMatch(_match: LeagueMatch): { homeScore: number; awayScore: number } {
-  // 간단한 시뮬레이션: 난이도에 따른 확률
+function simulateAIMatch(): { homeScore: number; awayScore: number } {
   const homeScore = Math.floor(Math.random() * 4); // 0-3
   const awayScore = Math.floor(Math.random() * 4); // 0-3
   return { homeScore, awayScore };
@@ -129,38 +136,78 @@ function updateStandings(
 export const useSeasonStore = create<SeasonState>()(
   persist(
     (set, get) => ({
+      isInitialized: false,
+      playerCrew: [],
+      currentAICrews: [],
       currentSeason: null,
       seasonHistory: [],
 
+      // 첫 게임 시작 (플레이어 크루 선택)
+      initializeGame: (playerCrew: string[]) => {
+        if (playerCrew.length !== 5) {
+          console.error('크루는 5장이어야 합니다');
+          return;
+        }
+
+        // AI 크루 랜덤 생성 (플레이어 카드 제외)
+        const aiCrews = generateAICrewsForSeason();
+        setAICrews(aiCrews);
+
+        set({
+          isInitialized: true,
+          playerCrew,
+          currentAICrews: aiCrews
+        });
+      },
+
+      // 시즌 시작 (첫 시즌 또는 다음 시즌)
       startNewSeason: () => {
-        const history = get().seasonHistory;
-        const newSeasonNumber = history.length + 1;
+        const { isInitialized, seasonHistory } = get();
+
+        if (!isInitialized) {
+          console.error('먼저 initializeGame을 호출하세요');
+          return;
+        }
+
+        // 매 시즌마다 AI 크루 랜덤 재배정
+        const aiCrews = generateAICrewsForSeason();
+        setAICrews(aiCrews);
+
+        const newSeasonNumber = seasonHistory.length + 1;
 
         const newSeason: Season = {
           id: `season_${newSeasonNumber}`,
           number: newSeasonNumber,
           status: 'IN_PROGRESS',
-          matches: generateMatches(),
-          standings: generateInitialStandings(),
+          matches: generateMatches(aiCrews),
+          standings: generateInitialStandings(aiCrews),
           currentMatchIndex: 0
         };
 
-        set({ currentSeason: newSeason });
+        set({
+          currentSeason: newSeason,
+          currentAICrews: aiCrews
+        });
       },
 
-      playMatch: (matchId: string, playerScore: number, opponentScore: number) => {
-        const season = get().currentSeason;
-        if (!season) return;
+      // 경기 결과 기록
+      playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => {
+        const { currentSeason } = get();
+        if (!currentSeason) return;
 
-        // 플레이어 경기 결과 업데이트
-        const matchIndex = season.matches.findIndex(m => m.id === matchId);
+        // 해당 상대와의 경기 찾기
+        const matchIndex = currentSeason.matches.findIndex(
+          m => !m.played &&
+            m.homeCrewId === PLAYER_CREW_ID &&
+            m.awayCrewId === opponentCrewId
+        );
         if (matchIndex === -1) return;
 
-        const match = season.matches[matchIndex];
+        const match = currentSeason.matches[matchIndex];
         const result: MatchResult = playerScore > opponentScore ? 'WIN'
           : playerScore < opponentScore ? 'LOSE' : 'DRAW';
 
-        const updatedMatches = [...season.matches];
+        const updatedMatches = [...currentSeason.matches];
         updatedMatches[matchIndex] = {
           ...match,
           homeScore: playerScore,
@@ -171,19 +218,19 @@ export const useSeasonStore = create<SeasonState>()(
 
         // 순위표 업데이트
         let updatedStandings = updateStandings(
-          season.standings,
+          currentSeason.standings,
           match.homeCrewId,
           match.awayCrewId,
           playerScore,
           opponentScore
         );
 
-        // AI 경기들 시뮬레이션 (플레이어 경기 후 AI 경기도 진행)
-        for (let i = 0; i < updatedMatches.length; i++) {
+        // AI 경기들 시뮬레이션 (플레이어 경기 후 AI 경기 2개 진행)
+        let aiMatchCount = 0;
+        for (let i = 0; i < updatedMatches.length && aiMatchCount < 2; i++) {
           const m = updatedMatches[i];
           if (!m.played && m.homeCrewId !== PLAYER_CREW_ID && m.awayCrewId !== PLAYER_CREW_ID) {
-            // AI끼리의 경기 시뮬레이션
-            const simResult = simulateAIMatch(m);
+            const simResult = simulateAIMatch();
             updatedMatches[i] = {
               ...m,
               homeScore: simResult.homeScore,
@@ -199,11 +246,11 @@ export const useSeasonStore = create<SeasonState>()(
               simResult.homeScore,
               simResult.awayScore
             );
-            break; // 한 번에 하나씩만
+            aiMatchCount++;
           }
         }
 
-        // 순위표 정렬 (포인트 > 골득실 > 다득점)
+        // 순위표 정렬
         updatedStandings.sort((a, b) => {
           if (b.points !== a.points) return b.points - a.points;
           if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
@@ -212,57 +259,48 @@ export const useSeasonStore = create<SeasonState>()(
 
         set({
           currentSeason: {
-            ...season,
+            ...currentSeason,
             matches: updatedMatches,
             standings: updatedStandings,
-            currentMatchIndex: season.currentMatchIndex + 1
+            currentMatchIndex: currentSeason.currentMatchIndex + 1
           }
         });
       },
 
       getNextMatch: () => {
-        const season = get().currentSeason;
-        if (!season) return null;
+        const { currentSeason } = get();
+        if (!currentSeason) return null;
 
-        // 플레이어의 다음 경기 찾기
-        return season.matches.find(
-          m => !m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)
+        return currentSeason.matches.find(
+          m => !m.played && m.homeCrewId === PLAYER_CREW_ID
         ) || null;
       },
 
       getCurrentStandings: () => {
-        const season = get().currentSeason;
-        if (!season) return [];
-        return season.standings;
+        const { currentSeason } = get();
+        if (!currentSeason) return [];
+        return currentSeason.standings;
       },
 
       getPlayerRank: () => {
-        const season = get().currentSeason;
-        if (!season) return 0;
-        const index = season.standings.findIndex(s => s.crewId === PLAYER_CREW_ID);
+        const { currentSeason } = get();
+        if (!currentSeason) return 0;
+        const index = currentSeason.standings.findIndex(s => s.crewId === PLAYER_CREW_ID);
         return index + 1;
       },
 
-      getOpponentCrew: (matchId: string) => {
-        const season = get().currentSeason;
-        if (!season) return null;
-        const match = season.matches.find(m => m.id === matchId);
-        if (!match) return null;
-        return match.homeCrewId === PLAYER_CREW_ID ? match.awayCrewId : match.homeCrewId;
-      },
-
       endSeason: () => {
-        const season = get().currentSeason;
-        if (!season) return;
+        const { currentSeason } = get();
+        if (!currentSeason) return;
 
         // 모든 남은 경기 시뮬레이션
-        let updatedMatches = [...season.matches];
-        let updatedStandings = [...season.standings];
+        let updatedMatches = [...currentSeason.matches];
+        let updatedStandings = [...currentSeason.standings];
 
         for (let i = 0; i < updatedMatches.length; i++) {
           const m = updatedMatches[i];
           if (!m.played) {
-            const simResult = simulateAIMatch(m);
+            const simResult = simulateAIMatch();
             updatedMatches[i] = {
               ...m,
               homeScore: simResult.homeScore,
@@ -294,7 +332,7 @@ export const useSeasonStore = create<SeasonState>()(
 
         // 히스토리 저장
         const newHistory: SeasonHistory = {
-          seasonNumber: season.number,
+          seasonNumber: currentSeason.number,
           champion,
           playerRank,
           playerPoints: playerStanding.points
@@ -302,7 +340,7 @@ export const useSeasonStore = create<SeasonState>()(
 
         set({
           currentSeason: {
-            ...season,
+            ...currentSeason,
             matches: updatedMatches,
             standings: updatedStandings,
             status: 'COMPLETED',
@@ -310,6 +348,22 @@ export const useSeasonStore = create<SeasonState>()(
           },
           seasonHistory: [...get().seasonHistory, newHistory]
         });
+      },
+
+      // 완전 리셋 (새 게임 시작)
+      resetGame: () => {
+        set({
+          isInitialized: false,
+          playerCrew: [],
+          currentAICrews: [],
+          currentSeason: null,
+          seasonHistory: []
+        });
+      },
+
+      getAICrewById: (crewId: string) => {
+        const { currentAICrews } = get();
+        return currentAICrews.find(c => c.id === crewId) || null;
       }
     }),
     {

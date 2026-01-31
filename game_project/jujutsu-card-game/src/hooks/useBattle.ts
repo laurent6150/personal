@@ -5,6 +5,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
+import { useSeasonStore } from '../stores/seasonStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import type { Difficulty, CharacterCard, RoundResult } from '../types';
 
@@ -38,6 +39,9 @@ export function useBattle() {
     player,
     processGameResult
   } = usePlayerStore();
+
+  // Season store (플레이어 크루 가져오기)
+  const { playerCrew } = useSeasonStore();
 
   // Game end result
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
@@ -76,14 +80,15 @@ export function useBattle() {
 
   // 게임 시작
   const handleStartGame = useCallback((difficulty: Difficulty) => {
-    const crew = player.currentCrew;
+    // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
+    const crew = playerCrew.length === 5 ? playerCrew : player.currentCrew;
     if (crew.length !== 5) {
       console.error('크루가 5장이 아닙니다');
       return false;
     }
     startGame(crew, difficulty);
     return true;
-  }, [player.currentCrew, startGame]);
+  }, [playerCrew, player.currentCrew, startGame]);
 
   // 카드 선택
   const handleSelectCard = useCallback((cardId: string) => {
