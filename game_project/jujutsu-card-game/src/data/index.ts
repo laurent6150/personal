@@ -7,3 +7,4 @@ export * from './characters';
 export * from './arenas';
 export * from './items';
 export * from './achievements';
+export * from './aiCrews';

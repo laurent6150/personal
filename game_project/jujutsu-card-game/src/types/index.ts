@@ -247,3 +247,62 @@ export interface ExpReward {
   total: number;
   reason: string[];
 }
+
+// ========================================
+// 시즌 & 리그 시스템
+// ========================================
+
+// AI 크루 정보
+export interface AICrew {
+  id: string;
+  name: string;
+  difficulty: Difficulty;
+  crew: string[];  // 카드 ID 5장
+  description: string;
+}
+
+// 리그 경기 결과
+export type MatchResult = 'WIN' | 'LOSE' | 'DRAW' | 'PENDING';
+
+// 리그 경기
+export interface LeagueMatch {
+  id: string;
+  homeCrewId: string;
+  awayCrewId: string;
+  result: MatchResult;
+  homeScore: number;
+  awayScore: number;
+  played: boolean;
+}
+
+// 리그 순위표 엔트리
+export interface LeagueStanding {
+  crewId: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  points: number;
+  goalsFor: number;    // 총 득점 (라운드 승리 수)
+  goalsAgainst: number; // 총 실점
+  goalDifference: number;
+}
+
+// 시즌 데이터
+export interface Season {
+  id: string;
+  number: number;
+  status: 'IN_PROGRESS' | 'COMPLETED';
+  matches: LeagueMatch[];
+  standings: LeagueStanding[];
+  currentMatchIndex: number;
+  champion?: string;  // 우승 크루 ID
+}
+
+// 시즌 히스토리
+export interface SeasonHistory {
+  seasonNumber: number;
+  champion: string;
+  playerRank: number;
+  playerPoints: number;
+}
