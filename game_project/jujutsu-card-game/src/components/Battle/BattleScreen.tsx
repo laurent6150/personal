@@ -120,12 +120,15 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     const playerCard = selectedCard;
     setRevealedPlayerCard(playerCard);
 
+    // ⚠️ 중요: executeRound 전에 battlePhase를 변경하여
+    // 게임 종료 화면이 미리 표시되는 것을 방지
+    setBattlePhase('REVEAL');
+
     // 라운드 실행하여 AI 카드 선택
     const result = await executeRound();
     if (result) {
       const aiCard = CHARACTERS_BY_ID[result.aiCardId];
       setRevealedAiCard(aiCard || null);
-      setBattlePhase('REVEAL');
     }
   };
 
