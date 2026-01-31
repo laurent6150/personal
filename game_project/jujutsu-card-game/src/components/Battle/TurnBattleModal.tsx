@@ -40,6 +40,7 @@ export function TurnBattleModal({
   const [aiHp, setAiHp] = useState(100);
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([]);
   const [battleEnded, setBattleEnded] = useState(false);
+  const [showResult, setShowResult] = useState(false); // 결과 표시 지연용
   const [winner, setWinner] = useState<'player' | 'ai' | null>(null);
 
   // 데미지 계산 (기존 결과의 약 40% 수준으로 분배)
@@ -150,6 +151,16 @@ export function TurnBattleModal({
     setWinner(result.winner === 'PLAYER' ? 'player' : result.winner === 'AI' ? 'ai' : null);
   };
 
+  // 전투 종료 후 결과 표시 지연 (전투 로그가 먼저 보이도록)
+  useEffect(() => {
+    if (battleEnded && !showResult) {
+      const timer = setTimeout(() => {
+        setShowResult(true);
+      }, 800); // 0.8초 후 결과 표시
+      return () => clearTimeout(timer);
+    }
+  }, [battleEnded, showResult]);
+
   const generateBattleMessage = (
     attacker: CharacterCard,
     _defender: CharacterCard,
@@ -250,9 +261,9 @@ export function TurnBattleModal({
           </div>
         </div>
 
-        {/* 결과 및 버튼 */}
+        {/* 결과 및 버튼 (전투 로그가 먼저 보인 후 표시) */}
         <AnimatePresence>
-          {battleEnded && (
+          {showResult && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

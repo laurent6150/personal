@@ -48,11 +48,6 @@ function App() {
     setCurrentOpponent(null);
   }, []);
 
-  const handleViewCard = useCallback((cardId: string) => {
-    setSelectedCardId(cardId);
-    setCurrentPage('cardDetail');
-  }, []);
-
   const handleShowLevelUps = useCallback((levelUpData: LevelUpInfo[]) => {
     if (levelUpData.length > 0) {
       setLevelUps(levelUpData);
@@ -107,7 +102,6 @@ function App() {
           >
             <Collection
               onBack={handleReturnToSeasonHub}
-              onViewCard={handleViewCard}
             />
           </motion.div>
         )}

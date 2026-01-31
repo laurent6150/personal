@@ -11,7 +11,8 @@ import { PLAYER_CREW_ID } from '../data/aiCrews';
 import { ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
 import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
-import type { LeagueStanding, Grade } from '../types';
+import { Modal } from '../components/UI/Modal';
+import type { LeagueStanding, Grade, CharacterCard } from '../types';
 
 // 등급별 최대 선택 가능 수
 const GRADE_LIMITS: Record<Grade, number> = {
@@ -40,6 +41,7 @@ export function SeasonHub({
 }: SeasonHubProps) {
   const {
     isInitialized,
+    playerCrew,
     currentSeason,
     seasonHistory,
     initializeGame,
@@ -60,6 +62,9 @@ export function SeasonHub({
   // 크루 선택 상태
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // 크루 상세 모달 상태
+  const [viewingCrew, setViewingCrew] = useState<{ name: string; cards: CharacterCard[] } | null>(null);
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
@@ -115,6 +120,26 @@ export function SeasonHub({
     if (selectedCards.length !== 5) return;
     initializeGame(selectedCards);
     startNewSeason();
+  };
+
+  // 크루 클릭 - 크루 카드 모달 표시
+  const handleCrewClick = (crewId: string) => {
+    if (crewId === PLAYER_CREW_ID) {
+      // 플레이어 크루
+      const cards = playerCrew
+        .map(id => CHARACTERS_BY_ID[id])
+        .filter(Boolean) as CharacterCard[];
+      setViewingCrew({ name: player.name, cards });
+    } else {
+      // AI 크루
+      const aiCrew = getAICrewById(crewId);
+      if (aiCrew) {
+        const cards = aiCrew.crew
+          .map(id => CHARACTERS_BY_ID[id])
+          .filter(Boolean) as CharacterCard[];
+        setViewingCrew({ name: aiCrew.name, cards });
+      }
+    }
   };
 
   // 새로 시작 확인
@@ -554,6 +579,7 @@ export function SeasonHub({
                     ? player.name
                     : getAICrewById(standing.crewId)?.name || '???'
                 }
+                onClick={() => handleCrewClick(standing.crewId)}
               />
             ))}
           </div>
@@ -568,10 +594,58 @@ export function SeasonHub({
         className="max-w-4xl mx-auto mt-6 flex justify-center gap-3 flex-wrap"
       >
         <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
-        <Button onClick={onCollection} variant="ghost">컬렉션</Button>
+        <Button onClick={onCollection} variant="ghost">내 크루</Button>
         <Button onClick={onProfile} variant="ghost">프로필</Button>
         <Button onClick={onSettings} variant="ghost">설정</Button>
       </motion.div>
+
+      {/* 크루 카드 상세 모달 */}
+      <AnimatePresence>
+        {viewingCrew && (
+          <Modal
+            isOpen={!!viewingCrew}
+            onClose={() => setViewingCrew(null)}
+            title={`${viewingCrew.name} 크루`}
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-5 gap-2">
+                {viewingCrew.cards.map(card => (
+                  <div key={card.id} className="relative">
+                    <CardDisplay
+                      character={card}
+                      size="sm"
+                      showStats={false}
+                      showSkill={false}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* 카드 정보 목록 */}
+              <div className="bg-black/30 rounded-lg p-3 space-y-2">
+                {viewingCrew.cards.map(card => (
+                  <div key={card.id} className="flex items-center gap-2 text-sm">
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+                      card.grade === '특급' ? 'bg-yellow-500/30 text-yellow-400' :
+                      card.grade === '1급' ? 'bg-purple-500/30 text-purple-400' :
+                      card.grade === '준1급' ? 'bg-blue-500/30 text-blue-400' :
+                      'bg-gray-500/30 text-gray-400'
+                    }`}>{card.grade}</span>
+                    <span className="text-text-primary font-medium">{card.name.ko}</span>
+                    <span className="text-text-secondary text-xs ml-auto">
+                      {card.ultimateSkill.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <Button onClick={() => setViewingCrew(null)} variant="ghost" className="w-full">
+                닫기
+              </Button>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -582,17 +656,19 @@ interface StandingRowProps {
   rank: number;
   isPlayer: boolean;
   crewName: string;
+  onClick?: () => void;
 }
 
-function StandingRow({ standing, rank, isPlayer, crewName }: StandingRowProps) {
+function StandingRow({ standing, rank, isPlayer, crewName, onClick }: StandingRowProps) {
   const rankBadge = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+      onClick={onClick}
+      className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${
         isPlayer
-          ? 'bg-accent/20 border border-accent/50'
-          : 'bg-black/20 hover:bg-black/30'
+          ? 'bg-accent/20 border border-accent/50 hover:bg-accent/30'
+          : 'bg-black/20 hover:bg-black/40'
       }`}
     >
       <div className="w-8 text-center font-bold">{rankBadge}</div>
@@ -608,6 +684,7 @@ function StandingRow({ standing, rank, isPlayer, crewName }: StandingRowProps) {
         <div className="text-lg font-bold text-accent">{standing.points}</div>
         <div className="text-xs text-text-secondary">점</div>
       </div>
+      <div className="text-xs text-text-secondary">▶</div>
     </div>
   );
 }

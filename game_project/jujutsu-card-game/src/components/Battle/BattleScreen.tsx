@@ -498,17 +498,59 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                     </div>
                   </div>
 
-                  {/* 경기장 효과 */}
-                  {currentArena && (
-                    <div className="mt-3 text-xs text-text-secondary">
-                      🏟️ 경기장: <span className="text-text-primary">{currentArena.name.ko}</span>
-                      {currentArena.effects.filter(e => e.target === selectedCardData.attribute || e.target === 'ALL').map((effect, idx) => (
-                        <span key={idx} className={`ml-2 ${effect.value > 0 ? 'text-win' : 'text-lose'}`}>
-                          {effect.value > 0 ? '▲' : '▼'} {effect.description}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* 경기장 효과 (강화된 표시) */}
+                  {currentArena && (() => {
+                    const relevantEffects = currentArena.effects.filter(
+                      e => e.target === selectedCardData.attribute || e.target === 'ALL'
+                    );
+                    const hasBoost = relevantEffects.some(e => e.value > 0);
+                    const hasWeaken = relevantEffects.some(e => e.value < 0);
+
+                    return (
+                      <div className={`mt-3 rounded-lg p-3 border ${
+                        hasBoost && !hasWeaken ? 'bg-green-500/10 border-green-500/30' :
+                        hasWeaken && !hasBoost ? 'bg-red-500/10 border-red-500/30' :
+                        hasBoost && hasWeaken ? 'bg-yellow-500/10 border-yellow-500/30' :
+                        'bg-black/30 border-white/10'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🏟️</span>
+                          <span className="text-sm font-bold text-text-primary">{currentArena.name.ko}</span>
+                          {hasBoost && !hasWeaken && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">유리</span>
+                          )}
+                          {hasWeaken && !hasBoost && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">불리</span>
+                          )}
+                          {hasBoost && hasWeaken && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400">복합</span>
+                          )}
+                        </div>
+
+                        {relevantEffects.length > 0 ? (
+                          <div className="space-y-1">
+                            {relevantEffects.map((effect, idx) => (
+                              <div
+                                key={idx}
+                                className={`text-xs flex items-center gap-2 ${
+                                  effect.value > 0 ? 'text-green-400' : effect.value < 0 ? 'text-red-400' : 'text-yellow-400'
+                                }`}
+                              >
+                                <span className="text-base">
+                                  {effect.value > 0 ? '⬆️' : effect.value < 0 ? '⬇️' : '⚡'}
+                                </span>
+                                <span className="font-medium">{effect.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-secondary">
+                            이 카드에 적용되는 경기장 효과가 없습니다
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </motion.div>
             )}
