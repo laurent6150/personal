@@ -19,10 +19,11 @@ interface BattleEndResult {
 }
 
 interface BattleScreenProps {
+  onReturnToMenu: () => void;
   onBattleEnd?: (result: BattleEndResult) => void;
 }
 
-export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
+export function BattleScreen({ onReturnToMenu, onBattleEnd }: BattleScreenProps) {
   const {
     session,
     isGameOver,
@@ -74,8 +75,34 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
     }
   }, [isGameOver]);
 
+  // 나가기 처리
+  const handleExit = () => {
+    setShowExitModal(false);
+    // 패배로 처리하고 메뉴로 돌아감
+    if (onBattleEnd) {
+      onBattleEnd({ won: false });
+    }
+    returnToMenu();
+    onReturnToMenu();
+  };
+
+  // 메인 메뉴로 돌아가기
+  const handleReturnToMenuClick = () => {
+    returnToMenu();
+    onReturnToMenu();
+  };
+
   if (!session) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl text-text-secondary mb-4">세션이 없습니다</div>
+          <Button onClick={onReturnToMenu} variant="primary">
+            메인 메뉴로
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   // 게임 종료 화면
@@ -86,7 +113,7 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
         animate={{ opacity: 1 }}
         className="min-h-screen flex items-center justify-center p-4"
       >
-        <div className="bg-bg-secondary rounded-xl p-8 max-w-md w-full text-center border border-white/10">
+        <div className="bg-bg-secondary rounded-xl p-8 max-w-md w-full text-center border border-white/10 shadow-2xl">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -143,7 +170,7 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
             <Button onClick={() => rematch()} variant="primary" className="w-full">
               재대전
             </Button>
-            <Button onClick={returnToMenu} variant="secondary" className="w-full">
+            <Button onClick={handleReturnToMenuClick} variant="secondary" className="w-full">
               메인 메뉴로
             </Button>
           </div>
@@ -151,16 +178,6 @@ export function BattleScreen({ onBattleEnd }: BattleScreenProps) {
       </motion.div>
     );
   }
-
-  // 나가기 처리
-  const handleExit = () => {
-    setShowExitModal(false);
-    // 패배로 처리하고 메뉴로 돌아감
-    if (onBattleEnd) {
-      onBattleEnd({ won: false });
-    }
-    returnToMenu();
-  };
 
   return (
     <div className="min-h-screen p-4 relative">

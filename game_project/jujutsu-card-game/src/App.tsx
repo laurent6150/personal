@@ -26,7 +26,7 @@ function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [achievementToast, setAchievementToast] = useState<string | null>(null);
 
-  const { startGame, session } = useBattle();
+  const { startGame } = useBattle();
 
   const handleStartGame = (difficulty: Difficulty) => {
     const success = startGame(difficulty);
@@ -35,10 +35,10 @@ function App() {
     }
   };
 
-  const handleReturnToMenu = () => {
+  const handleReturnToMenu = useCallback(() => {
     setCurrentPage('menu');
     setSelectedCardId(null);
-  };
+  }, []);
 
   const handleViewCard = useCallback((cardId: string) => {
     setSelectedCardId(cardId);
@@ -57,7 +57,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-primary to-bg-secondary">
+    <div className="min-h-screen w-full bg-gradient-to-br from-bg-primary to-bg-secondary flex flex-col">
       <AnimatePresence mode="wait">
         {currentPage === 'menu' && (
           <motion.div
@@ -65,6 +65,7 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            className="flex-1 w-full"
           >
             <MainMenu
               onStartGame={handleStartGame}
@@ -82,6 +83,7 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <CrewManager onBack={handleReturnToMenu} />
           </motion.div>
@@ -93,6 +95,7 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <Collection
               onBack={handleReturnToMenu}
@@ -107,6 +110,7 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <CardDetail
               cardId={selectedCardId}
@@ -121,6 +125,7 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <Profile onBack={handleReturnToMenu} />
           </motion.div>
@@ -132,19 +137,22 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <Settings onBack={handleReturnToMenu} />
           </motion.div>
         )}
 
-        {currentPage === 'battle' && session && (
+        {currentPage === 'battle' && (
           <motion.div
             key="battle"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 w-full"
           >
             <BattleScreen
+              onReturnToMenu={handleReturnToMenu}
               onBattleEnd={(result) => {
                 if (result.levelUps && result.levelUps.length > 0) {
                   handleShowLevelUps(result.levelUps.map(cardId => ({
