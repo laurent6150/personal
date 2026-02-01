@@ -67,6 +67,43 @@ function createEmptySeasonRecord(): CardSeasonRecord {
   };
 }
 
+// 기존 시즌 기록에 누락된 확장 필드 채우기 (마이그레이션)
+function migrateSeasonRecord(record: Partial<CardSeasonRecord>): CardSeasonRecord {
+  return {
+    wins: record.wins ?? 0,
+    losses: record.losses ?? 0,
+    arenaRecords: record.arenaRecords ?? {},
+    vsRecords: record.vsRecords ?? {},
+    // 확장 통계 - 기존 데이터에 없으면 0으로 초기화
+    maxWinStreak: record.maxWinStreak ?? 0,
+    currentWinStreak: record.currentWinStreak ?? 0,
+    totalDamageDealt: record.totalDamageDealt ?? 0,
+    totalDamageReceived: record.totalDamageReceived ?? 0,
+    mvpCount: record.mvpCount ?? 0,
+    ultimateHits: record.ultimateHits ?? 0
+  };
+}
+
+// 전체 records 마이그레이션
+function migrateRecords(records: Record<string, CardRecord>): Record<string, CardRecord> {
+  const migrated: Record<string, CardRecord> = {};
+
+  for (const [cardId, cardRecord] of Object.entries(records)) {
+    const migratedSeasonRecords: Record<number, CardSeasonRecord> = {};
+
+    for (const [seasonNum, seasonRecord] of Object.entries(cardRecord.seasonRecords)) {
+      migratedSeasonRecords[Number(seasonNum)] = migrateSeasonRecord(seasonRecord);
+    }
+
+    migrated[cardId] = {
+      ...cardRecord,
+      seasonRecords: migratedSeasonRecords
+    };
+  }
+
+  return migrated;
+}
+
 // 빈 카드 기록 생성
 function createEmptyCardRecord(cardId: string): CardRecord {
   return {
@@ -399,7 +436,14 @@ export const useCardRecordStore = create<CardRecordStore>()(
     }),
     {
       name: 'jujutsu-card-records',
-      version: 1
+      version: 2,
+      // localStorage에서 데이터 로드 후 마이그레이션 실행
+      onRehydrateStorage: () => (state) => {
+        if (state && state.records) {
+          // 기존 데이터에 확장 필드가 없을 수 있으므로 마이그레이션
+          state.records = migrateRecords(state.records);
+        }
+      }
     }
   )
 );
