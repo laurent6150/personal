@@ -4,6 +4,8 @@ import { SeasonHub } from './pages/SeasonHub';
 import { CrewManager } from './pages/CrewManager';
 import { Collection } from './pages/Collection';
 import { CardDetail } from './pages/CardDetail';
+import { CardCatalog } from './pages/CardCatalog';
+import { PersonalRanking } from './pages/PersonalRanking';
 import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
@@ -12,7 +14,7 @@ import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'profile' | 'settings' | 'battle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -22,10 +24,18 @@ interface LevelUpInfo {
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('seasonHub');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [cardDetailReturnPage, setCardDetailReturnPage] = useState<Page>('collection');
   const [levelUps, setLevelUps] = useState<LevelUpInfo[]>([]);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [achievementToast, setAchievementToast] = useState<string | null>(null);
   const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
+
+  // 카드 상세로 이동 (반환 페이지 지정)
+  const goToCardDetail = useCallback((cardId: string, returnPage: Page = 'collection') => {
+    setSelectedCardId(cardId);
+    setCardDetailReturnPage(returnPage);
+    setCurrentPage('cardDetail');
+  }, []);
 
   const { startGame } = useBattle();
   const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
@@ -75,7 +85,8 @@ function App() {
               onStartMatch={handleStartMatch}
               onCrewManagement={() => setCurrentPage('crew')}
               onCollection={() => setCurrentPage('collection')}
-              onProfile={() => setCurrentPage('profile')}
+              onCatalog={() => setCurrentPage('catalog')}
+              onRanking={() => setCurrentPage('ranking')}
               onSettings={() => setCurrentPage('settings')}
             />
           </motion.div>
@@ -117,7 +128,37 @@ function App() {
           >
             <CardDetail
               cardId={selectedCardId}
-              onBack={() => setCurrentPage('collection')}
+              onBack={() => setCurrentPage(cardDetailReturnPage)}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'catalog' && (
+          <motion.div
+            key="catalog"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <CardCatalog
+              onBack={handleReturnToSeasonHub}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'catalog')}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'ranking' && (
+          <motion.div
+            key="ranking"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <PersonalRanking
+              onBack={handleReturnToSeasonHub}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'ranking')}
             />
           </motion.div>
         )}

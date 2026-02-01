@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
+import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import type { Difficulty, CharacterCard, RoundResult } from '../types';
 
@@ -41,7 +42,10 @@ export function useBattle() {
   } = usePlayerStore();
 
   // Season store (플레이어 크루 가져오기)
-  const { playerCrew } = useSeasonStore();
+  const { playerCrew, currentSeason } = useSeasonStore();
+
+  // Card record store (개인 기록)
+  const { recordBattle } = useCardRecordStore();
 
   // Game end result
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
@@ -111,13 +115,26 @@ export function useBattle() {
 
     const result = executeRound();
 
+    // 카드 개인 기록 저장 (승패가 있을 때만)
+    if (result && result.winner !== 'DRAW' && currentSeason) {
+      const winnerCardId = result.winner === 'PLAYER' ? result.playerCardId : result.aiCardId;
+      const loserCardId = result.winner === 'PLAYER' ? result.aiCardId : result.playerCardId;
+
+      recordBattle({
+        seasonNumber: currentSeason.number,
+        winnerCardId,
+        loserCardId,
+        arenaId: result.arena.id
+      });
+    }
+
     // 결과 표시 후 애니메이션 종료
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     setAnimating(false);
 
     return result;
-  }, [selectedCardId, isAnimating, setAnimating, executeRound]);
+  }, [selectedCardId, isAnimating, setAnimating, executeRound, currentSeason, recordBattle]);
 
   // 결과 확인 후 다음 진행
   const handleContinue = useCallback(() => {

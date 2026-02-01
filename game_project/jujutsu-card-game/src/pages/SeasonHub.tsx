@@ -28,7 +28,9 @@ interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
   onCrewManagement: () => void;
   onCollection: () => void;
-  onProfile: () => void;
+  onCatalog: () => void;
+  onRanking: () => void;
+  onProfile?: () => void;
   onSettings: () => void;
 }
 
@@ -36,7 +38,8 @@ export function SeasonHub({
   onStartMatch,
   onCrewManagement,
   onCollection,
-  onProfile,
+  onCatalog,
+  onRanking,
   onSettings
 }: SeasonHubProps) {
   const {
@@ -706,7 +709,8 @@ export function SeasonHub({
       >
         <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
         <Button onClick={onCollection} variant="ghost">내 크루</Button>
-        <Button onClick={onProfile} variant="ghost">프로필</Button>
+        <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
+        <Button onClick={onRanking} variant="ghost">개인 순위</Button>
         <Button onClick={onSettings} variant="ghost">설정</Button>
       </motion.div>
 

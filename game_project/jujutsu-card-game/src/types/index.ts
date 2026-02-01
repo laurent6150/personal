@@ -514,3 +514,72 @@ export interface SeasonHistory {
   playoffResult?: 'CHAMPION' | 'FINALIST' | 'SEMI' | 'NOT_QUALIFIED';
   summary?: SeasonSummary;
 }
+
+// ========================================
+// 카드 기록 시스템
+// ========================================
+
+// 수상 유형
+export type AwardType = 'MVP' | 'MOST_WINS';
+
+// 수상 정보
+export interface Award {
+  type: AwardType;
+  seasonNumber: number;
+  cardId: string;
+}
+
+// 수상 설정
+export const AWARD_CONFIG: Record<AwardType, {
+  name: string;
+  icon: string;
+  description: string;
+}> = {
+  MVP: {
+    name: 'MVP',
+    icon: '🏆',
+    description: '시즌 최고 기여도'
+  },
+  MOST_WINS: {
+    name: '다승왕',
+    icon: '👑',
+    description: '시즌 최다 승리'
+  }
+};
+
+// 시즌별 카드 기록
+export interface CardSeasonRecord {
+  wins: number;
+  losses: number;
+  // 경기장별 전적 (플레이한 것만)
+  arenaRecords: Record<string, { wins: number; losses: number }>;
+  // 상대 카드별 전적 (교전한 것만)
+  vsRecords: Record<string, { wins: number; losses: number }>;
+}
+
+// 카드 전체 기록
+export interface CardRecord {
+  cardId: string;
+  // 시즌별 기록
+  seasonRecords: Record<number, CardSeasonRecord>;
+  // 수상 이력
+  awards: Award[];
+}
+
+// 전체 기록 스토어 상태
+export interface CardRecordState {
+  records: Record<string, CardRecord>;
+  seasonAwards: Record<number, Award[]>;
+}
+
+// 통계 계산용 (통산/시즌별)
+export interface CardStats {
+  cardId: string;
+  wins: number;
+  losses: number;
+  totalGames: number;
+  winRate: number;
+  // 소속 크루 (현재 시즌)
+  crewId?: string;
+  crewName?: string;
+}
