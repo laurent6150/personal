@@ -1,5 +1,5 @@
 // ========================================
-// 카드 상세 화면 - 정보/기록 탭
+// 카드 상세 화면 - 정보/시즌 성적/기록 탭
 // ========================================
 
 import { useState, useMemo } from 'react';
@@ -17,7 +17,7 @@ import { GradeBadge, AttributeBadge, RarityBadge } from '../components/UI/Badge'
 import { StatBar } from '../components/UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data/constants';
-import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord } from '../types';
+import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord, CardRecord } from '../types';
 import { AWARD_CONFIG } from '../types';
 
 interface CardDetailProps {
@@ -25,7 +25,7 @@ interface CardDetailProps {
   onBack: () => void;
 }
 
-type MainTab = 'info' | 'record';
+type MainTab = 'info' | 'seasonStats' | 'record';
 type RecordTab = 'career' | number; // 'career' for 통산, number for season
 
 export function CardDetail({ cardId, onBack }: CardDetailProps) {
@@ -165,7 +165,17 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            정보
+            📋 정보
+          </button>
+          <button
+            onClick={() => setMainTab('seasonStats')}
+            className={`flex-1 py-3 text-center font-bold transition-colors ${
+              mainTab === 'seasonStats'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            📊 시즌 성적
           </button>
           <button
             onClick={() => setMainTab('record')}
@@ -175,13 +185,13 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            기록
+            📜 기록
           </button>
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {mainTab === 'info' ? (
+        {mainTab === 'info' && (
           <motion.div
             key="info"
             initial={{ opacity: 0, x: -20 }}
@@ -203,7 +213,25 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
               handleUnequip={handleUnequip}
             />
           </motion.div>
-        ) : (
+        )}
+        {mainTab === 'seasonStats' && (
+          <motion.div
+            key="seasonStats"
+            initial={{ opacity: 0, x: 0 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <SeasonStatsTab
+              character={character}
+              playerCard={playerCard}
+              cardRecord={cardRecord}
+              currentSeason={currentSeason}
+              seasonHistory={seasonHistory}
+              awards={awards}
+            />
+          </motion.div>
+        )}
+        {mainTab === 'record' && (
           <motion.div
             key="record"
             initial={{ opacity: 0, x: 20 }}
@@ -465,6 +493,338 @@ function InfoTab({
           </AnimatePresence>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 시즌 성적 탭 컴포넌트
+function SeasonStatsTab({
+  character,
+  playerCard,
+  cardRecord,
+  currentSeason,
+  seasonHistory,
+  awards
+}: {
+  character: CharacterCard;
+  playerCard: PlayerCard;
+  cardRecord: CardRecord | null;
+  currentSeason: { number: number } | null;
+  seasonHistory: { seasonNumber: number }[];
+  awards: Award[];
+}) {
+  const [imageError, setImageError] = useState(false);
+  const attrInfo = ATTRIBUTES[character.attribute];
+  const imageUrl = imageError
+    ? getPlaceholderImage(character.name.ko, character.attribute)
+    : getCharacterImage(character.id, character.name.ko, character.attribute);
+
+  // 시즌 목록 (현재 + 과거 시즌 역순)
+  const seasonNumbers = useMemo(() => {
+    const numbers: number[] = [];
+    if (currentSeason) numbers.push(currentSeason.number);
+    for (const history of [...seasonHistory].reverse()) {
+      if (!numbers.includes(history.seasonNumber)) {
+        numbers.push(history.seasonNumber);
+      }
+    }
+    return numbers;
+  }, [currentSeason, seasonHistory]);
+
+  // 통산 합계 계산
+  const careerTotals = useMemo(() => {
+    if (!cardRecord) {
+      return {
+        wins: 0,
+        losses: 0,
+        totalGames: 0,
+        winRate: 0,
+        maxWinStreak: 0,
+        totalDamageDealt: 0,
+        totalDamageReceived: 0,
+        mvpCount: 0,
+        ultimateHits: 0
+      };
+    }
+
+    let wins = 0;
+    let losses = 0;
+    let maxWinStreak = 0;
+    let totalDamageDealt = 0;
+    let totalDamageReceived = 0;
+    let mvpCount = 0;
+    let ultimateHits = 0;
+
+    for (const sr of Object.values(cardRecord.seasonRecords)) {
+      wins += sr.wins;
+      losses += sr.losses;
+      if (sr.maxWinStreak > maxWinStreak) {
+        maxWinStreak = sr.maxWinStreak;
+      }
+      totalDamageDealt += sr.totalDamageDealt;
+      totalDamageReceived += sr.totalDamageReceived;
+      mvpCount += sr.mvpCount;
+      ultimateHits += sr.ultimateHits;
+    }
+
+    const totalGames = wins + losses;
+    return {
+      wins,
+      losses,
+      totalGames,
+      winRate: totalGames > 0 ? (wins / totalGames) * 100 : 0,
+      maxWinStreak,
+      totalDamageDealt,
+      totalDamageReceived,
+      mvpCount,
+      ultimateHits
+    };
+  }, [cardRecord]);
+
+  // 데이터가 없을 때
+  const hasNoData = careerTotals.totalGames === 0;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* 미니 카드 정보 */}
+      <div className="bg-bg-card rounded-xl p-4 border border-white/10">
+        <div className="flex items-center gap-4">
+          {/* 미니 이미지 */}
+          <div className={`
+            relative w-20 h-24 rounded-lg overflow-hidden flex-shrink-0
+            bg-gradient-to-br
+            ${character.grade === '특급' ? 'from-grade-s/30 to-grade-s/10' : ''}
+            ${character.grade === '1급' ? 'from-grade-a/30 to-grade-a/10' : ''}
+            ${character.grade === '준1급' ? 'from-grade-b/30 to-grade-b/10' : ''}
+            ${character.grade === '2급' ? 'from-grade-c/30 to-grade-c/10' : ''}
+          `}>
+            {imageError ? (
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ backgroundColor: `${attrInfo.color}30` }}
+              >
+                <span className="text-3xl">{attrInfo.icon}</span>
+              </div>
+            ) : (
+              <img
+                src={imageUrl}
+                alt={character.name.ko}
+                className="absolute inset-0 w-full h-full object-cover object-top"
+                onError={() => setImageError(true)}
+              />
+            )}
+          </div>
+
+          {/* 카드 정보 */}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold text-lg text-text-primary">{character.name.ko}</h3>
+              <span className="text-sm text-accent font-bold">Lv.{playerCard.level}</span>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <GradeBadge grade={character.grade} size="sm" />
+              <AttributeBadge attribute={character.attribute} size="sm" />
+            </div>
+            {/* 수상 뱃지 */}
+            {awards.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {awards.slice(0, 3).map((award, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs px-2 py-0.5 bg-yellow-500/20 rounded-full"
+                  >
+                    {AWARD_CONFIG[award.type].icon} 시즌{award.seasonNumber}
+                  </span>
+                ))}
+                {awards.length > 3 && (
+                  <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">
+                    +{awards.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 기록 없음 상태 */}
+      {hasNoData ? (
+        <div className="bg-bg-card rounded-xl p-8 border border-white/10 text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <div className="text-text-secondary">
+            아직 시즌 성적이 없습니다.
+          </div>
+          <div className="text-sm text-text-secondary mt-2">
+            대전을 통해 기록을 쌓아보세요!
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 시즌별 성적 카드 */}
+          <div className="space-y-4">
+            <h3 className="font-bold text-text-primary px-2">시즌별 성적</h3>
+            {seasonNumbers.map(seasonNum => {
+              const seasonRecord = cardRecord?.seasonRecords[seasonNum];
+              if (!seasonRecord || (seasonRecord.wins === 0 && seasonRecord.losses === 0)) {
+                return null;
+              }
+
+              const total = seasonRecord.wins + seasonRecord.losses;
+              const winRate = total > 0 ? (seasonRecord.wins / total) * 100 : 0;
+
+              return (
+                <motion.div
+                  key={seasonNum}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-bg-card rounded-xl p-5 border border-white/10"
+                >
+                  {/* 시즌 헤더 */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-accent">시즌 {seasonNum}</span>
+                      {currentSeason?.number === seasonNum && (
+                        <span className="text-xs px-2 py-0.5 bg-win/20 text-win rounded-full">
+                          진행 중
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold">
+                        {total}전{' '}
+                        <span className="text-win">{seasonRecord.wins}승</span>{' '}
+                        <span className="text-lose">{seasonRecord.losses}패</span>
+                      </div>
+                      <div className="text-sm text-text-secondary">승률 {winRate.toFixed(1)}%</div>
+                    </div>
+                  </div>
+
+                  {/* 확장 스탯 그리드 */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {/* 최대 연승 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">🔥</div>
+                      <div className="text-lg font-bold text-text-primary">
+                        {seasonRecord.maxWinStreak}연승
+                      </div>
+                      <div className="text-xs text-text-secondary">최대 연승</div>
+                    </div>
+
+                    {/* 입힌 데미지 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">⚔️</div>
+                      <div className="text-lg font-bold text-win">
+                        {seasonRecord.totalDamageDealt.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-text-secondary">입힌 데미지</div>
+                    </div>
+
+                    {/* 받은 데미지 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">🛡️</div>
+                      <div className="text-lg font-bold text-lose">
+                        {seasonRecord.totalDamageReceived.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-text-secondary">받은 데미지</div>
+                    </div>
+
+                    {/* MVP 횟수 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">🏆</div>
+                      <div className="text-lg font-bold text-yellow-400">
+                        {seasonRecord.mvpCount}회
+                      </div>
+                      <div className="text-xs text-text-secondary">라운드 MVP</div>
+                    </div>
+
+                    {/* 스킬 적중 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">💥</div>
+                      <div className="text-lg font-bold text-accent">
+                        {seasonRecord.ultimateHits}회
+                      </div>
+                      <div className="text-xs text-text-secondary">스킬 발동</div>
+                    </div>
+
+                    {/* 데미지 효율 */}
+                    <div className="bg-bg-secondary/50 rounded-lg p-3 text-center">
+                      <div className="text-2xl mb-1">📈</div>
+                      <div className="text-lg font-bold text-text-primary">
+                        {seasonRecord.totalDamageReceived > 0
+                          ? (seasonRecord.totalDamageDealt / seasonRecord.totalDamageReceived).toFixed(2)
+                          : '-'}
+                      </div>
+                      <div className="text-xs text-text-secondary">데미지 효율</div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* 통산 합계 */}
+          <div className="bg-gradient-to-r from-accent/20 to-purple-500/20 rounded-xl p-5 border border-accent/30">
+            <h3 className="font-bold text-text-primary mb-4 flex items-center gap-2">
+              <span className="text-xl">📊</span>
+              통산 기록
+            </h3>
+
+            {/* 전적 요약 */}
+            <div className="text-center mb-4 p-4 bg-black/20 rounded-lg">
+              <div className="text-2xl font-bold mb-1">
+                {careerTotals.totalGames}전{' '}
+                <span className="text-win">{careerTotals.wins}승</span>{' '}
+                <span className="text-lose">{careerTotals.losses}패</span>
+              </div>
+              <div className="text-lg text-text-secondary">
+                승률 {careerTotals.winRate.toFixed(1)}%
+              </div>
+            </div>
+
+            {/* 통산 스탯 그리드 */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">🔥</div>
+                <div className="text-lg font-bold">{careerTotals.maxWinStreak}연승</div>
+                <div className="text-xs text-text-secondary">역대 최다 연승</div>
+              </div>
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">⚔️</div>
+                <div className="text-lg font-bold text-win">
+                  {careerTotals.totalDamageDealt.toLocaleString()}
+                </div>
+                <div className="text-xs text-text-secondary">총 입힌 데미지</div>
+              </div>
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">🛡️</div>
+                <div className="text-lg font-bold text-lose">
+                  {careerTotals.totalDamageReceived.toLocaleString()}
+                </div>
+                <div className="text-xs text-text-secondary">총 받은 데미지</div>
+              </div>
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">🏆</div>
+                <div className="text-lg font-bold text-yellow-400">{careerTotals.mvpCount}회</div>
+                <div className="text-xs text-text-secondary">총 라운드 MVP</div>
+              </div>
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">💥</div>
+                <div className="text-lg font-bold text-accent">{careerTotals.ultimateHits}회</div>
+                <div className="text-xs text-text-secondary">총 스킬 발동</div>
+              </div>
+              <div className="bg-black/20 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">📈</div>
+                <div className="text-lg font-bold">
+                  {careerTotals.totalDamageReceived > 0
+                    ? (careerTotals.totalDamageDealt / careerTotals.totalDamageReceived).toFixed(2)
+                    : '-'}
+                </div>
+                <div className="text-xs text-text-secondary">통산 데미지 효율</div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

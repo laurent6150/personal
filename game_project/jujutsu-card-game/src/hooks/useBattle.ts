@@ -118,14 +118,26 @@ export function useBattle() {
 
     // 카드 개인 기록 저장 (승패가 있을 때만)
     if (result && result.winner !== 'DRAW' && currentSeason) {
-      const winnerCardId = result.winner === 'PLAYER' ? result.playerCardId : result.aiCardId;
-      const loserCardId = result.winner === 'PLAYER' ? result.aiCardId : result.playerCardId;
+      const isPlayerWinner = result.winner === 'PLAYER';
+      const winnerCardId = isPlayerWinner ? result.playerCardId : result.aiCardId;
+      const loserCardId = isPlayerWinner ? result.aiCardId : result.playerCardId;
+
+      // 확장 통계 데이터 추출
+      const { playerDamage, aiDamage, skillActivated } = result.calculation;
+      const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
+      const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
+      const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
+      const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
 
       recordBattle({
         seasonNumber: currentSeason.number,
         winnerCardId,
         loserCardId,
-        arenaId: result.arena.id
+        arenaId: result.arena.id,
+        winnerDamage,
+        loserDamage,
+        winnerSkillActivated,
+        loserSkillActivated
       });
     }
 

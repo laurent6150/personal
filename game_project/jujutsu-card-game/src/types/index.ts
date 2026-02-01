@@ -576,6 +576,13 @@ export interface CardSeasonRecord {
   arenaRecords: Record<string, { wins: number; losses: number }>;
   // 상대 카드별 전적 (교전한 것만)
   vsRecords: Record<string, { wins: number; losses: number }>;
+  // 확장 통계
+  maxWinStreak: number;           // 최대 연승
+  currentWinStreak: number;       // 현재 연승 (내부 추적용)
+  totalDamageDealt: number;       // 입힌 총 데미지
+  totalDamageReceived: number;    // 받은 총 데미지
+  mvpCount: number;               // 라운드 MVP 횟수 (가장 많은 데미지)
+  ultimateHits: number;           // 필살기(스킬) 적중 횟수
 }
 
 // 카드 전체 기록
