@@ -143,23 +143,6 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     achievements: []
   },
   {
-    id: "charles_bernard",
-    name: { ko: "찰스 버나드", ja: "シャルル", en: "Charles Bernard" },
-    grade: "준1급",
-    attribute: "RANGE",
-    imageUrl: getCharacterImage("charles_bernard", "찰스 버나드", "RANGE"),
-    baseStats: { atk: 15, def: 13, spd: 18, ce: 18, hp: 75 },
-    growthStats: { primary: "spd", secondary: "ce" },
-    skill: { name: "아우터", description: "상대의 미래를 조작", effect: { type: "STUN", damage: 180, duration: 1 } },
-    basicSkills: [
-      { id: "charles_1", name: "G펜 찌르기", type: "ATTACK", description: "펜으로 공격", effect: { type: "DAMAGE", value: 90 } },
-      { id: "charles_2", name: "미래 예지", type: "DEFENSE", description: "미래를 보고 회피", effect: { type: "DODGE", chance: 50 } },
-      { id: "charles_3", name: "만화 그리기", type: "ATTACK", description: "만화로 공격 생성", effect: { type: "DAMAGE", value: 95 } }
-    ],
-    ultimateSkill: { id: "charles_ult", name: "아우터", description: "상대의 미래를 조작", effect: { type: "STUN", damage: 180, duration: 1 }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
     id: "jinichi_zenin",
     name: { ko: "젠인 진이치", ja: "禪院甚壱", en: "Jinichi Zenin" },
     grade: "준1급",

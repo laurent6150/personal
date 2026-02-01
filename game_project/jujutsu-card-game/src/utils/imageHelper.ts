@@ -1,11 +1,11 @@
 // ========================================
-// 캐릭터 이미지 헬퍼 - 54명 캐릭터 지원
+// 캐릭터 이미지 헬퍼 - 52명 캐릭터 지원
 // ========================================
 
 import { ATTRIBUTES } from '../data/constants';
 import type { Attribute } from '../types';
 
-// 로컬 캐릭터 이미지 경로 매핑 (53명 - 에소&케치즈 듀오 제외)
+// 로컬 캐릭터 이미지 경로 매핑 (52명)
 export const CHARACTER_IMAGES: Record<string, string> = {
   // ===== 특급 (8명) =====
   gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
@@ -35,7 +35,7 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   uraume: '/images/characters/Uraume.jpg',
   yorozu: '/images/characters/Yorozu.jpg',
 
-  // ===== 준1급 (14명, charles_bernard는 이미지 없음) =====
+  // ===== 준1급 (13명) =====
   fushiguro_megumi: '/images/characters/Megumi_Fushiguro.jpg',
   mahito: '/images/characters/Mahito.jpg',
   mei_mei: '/images/characters/Mei_Mei.jpg',
@@ -44,7 +44,6 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   angel_hana: '/images/characters/Angel_Hana_Kurusu.jpg',
   reggie_star: '/images/characters/Reggie_Star.jpg',
   fumihiko_takaba: '/images/characters/Fumihiko_Takaba.jpg',
-  // charles_bernard: 이미지 없음 - 플레이스홀더 사용
   jinichi_zenin: '/images/characters/Jinichi_Zenin.jpg',
   ogi_zenin: '/images/characters/Ogi_Zenin.jpg',
   noritoshi_kamo: '/images/characters/Noritoshi_Kamo.jpg',
