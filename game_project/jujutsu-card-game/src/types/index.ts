@@ -583,3 +583,97 @@ export interface CardStats {
   crewId?: string;
   crewName?: string;
 }
+
+// ========================================
+// 뉴스 피드 시스템
+// ========================================
+
+// 뉴스 유형
+export type NewsType =
+  | 'MATCH_RESULT'      // 경기 결과
+  | 'STREAK'            // 연승/연패
+  | 'RECORD'            // 기록 경신
+  | 'AWARD'             // 수상 소식
+  | 'TRADE'             // 트레이드
+  | 'SEASON_START'      // 시즌 시작
+  | 'SEASON_END'        // 시즌 종료
+  | 'PLAYOFF'           // 플레이오프 소식
+  | 'MILESTONE';        // 마일스톤 달성
+
+// 뉴스 아이템
+export interface NewsItem {
+  id: string;
+  type: NewsType;
+  timestamp: number;
+  seasonNumber: number;
+  title: string;
+  content: string;
+  highlight?: boolean;  // 주요 뉴스 여부
+  relatedCards?: string[];  // 관련 카드 ID
+  relatedCrews?: string[];  // 관련 크루 ID
+}
+
+// 뉴스 피드 스토어 상태
+export interface NewsFeedState {
+  news: NewsItem[];
+  lastReadTimestamp: number;
+}
+
+// ========================================
+// 트레이드 시스템
+// ========================================
+
+// 등급별 포인트
+export const GRADE_POINTS: Record<Grade, number> = {
+  '특급': 10,
+  '1급': 5,
+  '준1급': 3,
+  '2급': 2,
+  '준2급': 1,
+  '3급': 1
+};
+
+// 트레이드 상태
+export type TradeStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+
+// 트레이드 거절 사유
+export type TradeRejectReason =
+  | 'POINT_DIFF_TOO_HIGH'  // 포인트 차이가 너무 큼
+  | 'NEED_THIS_CARD'       // 해당 카드가 필요함
+  | 'GRADE_LIMIT'          // 등급 제한 초과
+  | 'NOT_INTERESTED';      // 관심 없음
+
+// 트레이드 제안
+export interface TradeOffer {
+  id: string;
+  seasonNumber: number;
+  timestamp: number;
+  proposerCrewId: string;    // 제안하는 크루
+  targetCrewId: string;      // 제안 받는 크루
+  offeredCardId: string;     // 제안하는 카드
+  requestedCardId: string;   // 요청하는 카드
+  status: TradeStatus;
+  rejectReason?: TradeRejectReason;
+  isForced?: boolean;        // 강제 트레이드 여부
+}
+
+// AI 트레이드 평가 결과
+export interface TradeEvaluation {
+  shouldAccept: boolean;
+  reason: TradeRejectReason | 'FAIR_TRADE' | 'GOOD_DEAL';
+  pointDifference: number;
+}
+
+// 우승 보너스 (등급 제한 확장)
+export interface ChampionshipBonus {
+  seasonNumber: number;
+  specialGradeBonus: number;  // 특급 추가 가능 수
+  grade1Bonus: number;        // 1급 추가 가능 수
+}
+
+// 트레이드 스토어 상태
+export interface TradeState {
+  tradeHistory: TradeOffer[];
+  pendingOffers: TradeOffer[];
+  championships: ChampionshipBonus[];
+}

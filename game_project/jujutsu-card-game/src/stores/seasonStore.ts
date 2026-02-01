@@ -17,6 +17,7 @@ import type {
   PlayoffMatch
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID } from '../data/aiCrews';
+import { useTradeStore } from './tradeStore';
 
 interface SeasonState {
   // 게임 상태
@@ -676,6 +677,12 @@ export const useSeasonStore = create<SeasonState>()(
               playerPoints: playerStanding.points,
               playoffResult: isChampion ? 'CHAMPION' : 'FINALIST'
             };
+
+            // 우승 시 보너스 지급
+            if (isChampion) {
+              const { addChampionshipBonus } = useTradeStore.getState();
+              addChampionshipBonus(currentSeason.number);
+            }
 
             set({
               currentSeason: {

@@ -284,8 +284,10 @@ function CardCatalogItem({ card, crewInfo, playerCard, careerStats, onClick, del
           <GradeBadge grade={card.grade} size="sm" />
         </div>
 
-        {/* 캐릭터 이름 (이미지 대신) */}
-        <div className="text-3xl">{card.imageUrl || '👤'}</div>
+        {/* 캐릭터 이모지 (이미지가 없거나 URL인 경우 기본 이모지) */}
+        <div className="text-3xl">
+          {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
+        </div>
       </div>
 
       {/* 카드 정보 */}

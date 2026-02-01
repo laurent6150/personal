@@ -12,6 +12,7 @@ import { ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
 import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
+import { NewsFeed } from '../components/NewsFeed';
 import type { LeagueStanding, Grade, CharacterCard } from '../types';
 
 // 등급별 최대 선택 가능 수
@@ -30,8 +31,10 @@ interface SeasonHubProps {
   onCollection: () => void;
   onCatalog: () => void;
   onRanking: () => void;
+  onTrade: () => void;
   onProfile?: () => void;
   onSettings: () => void;
+  onCardSelect?: (cardId: string) => void;
 }
 
 export function SeasonHub({
@@ -40,7 +43,9 @@ export function SeasonHub({
   onCollection,
   onCatalog,
   onRanking,
-  onSettings
+  onTrade,
+  onSettings,
+  onCardSelect
 }: SeasonHubProps) {
   const {
     isInitialized,
@@ -700,6 +705,16 @@ export function SeasonHub({
         </motion.div>
       </div>
 
+      {/* 뉴스 피드 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="max-w-4xl mx-auto mt-6"
+      >
+        <NewsFeed maxItems={5} compact />
+      </motion.div>
+
       {/* 하단 메뉴 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -711,6 +726,7 @@ export function SeasonHub({
         <Button onClick={onCollection} variant="ghost">내 크루</Button>
         <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
         <Button onClick={onRanking} variant="ghost">개인 순위</Button>
+        <Button onClick={onTrade} variant="ghost">트레이드</Button>
         <Button onClick={onSettings} variant="ghost">설정</Button>
       </motion.div>
 
@@ -723,36 +739,55 @@ export function SeasonHub({
             title={`${viewingCrew.name} 크루`}
           >
             <div className="space-y-4">
-              <div className="grid grid-cols-5 gap-2">
+              {/* 5장 카드 균등 배치 */}
+              <div className="flex gap-2 justify-center">
                 {viewingCrew.cards.map(card => (
-                  <div key={card.id} className="relative">
-                    <CardDisplay
-                      character={card}
-                      size="sm"
-                      showStats={false}
-                      showSkill={false}
-                    />
+                  <div
+                    key={card.id}
+                    className={`flex-1 min-w-0 max-w-[100px] ${onCardSelect ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                    onClick={() => {
+                      if (onCardSelect) {
+                        setViewingCrew(null);
+                        onCardSelect(card.id);
+                      }
+                    }}
+                  >
+                    {/* 카드 이미지 */}
+                    <div className={`
+                      aspect-[3/4] rounded-lg flex items-center justify-center text-2xl
+                      bg-gradient-to-br
+                      ${card.grade === '특급' ? 'from-yellow-500/30 to-yellow-600/10 border border-yellow-500/30' : ''}
+                      ${card.grade === '1급' ? 'from-purple-500/30 to-purple-600/10 border border-purple-500/30' : ''}
+                      ${card.grade === '준1급' ? 'from-blue-500/30 to-blue-600/10 border border-blue-500/30' : ''}
+                      ${card.grade === '2급' ? 'from-green-500/30 to-green-600/10 border border-green-500/30' : ''}
+                      ${card.grade === '준2급' ? 'from-gray-500/30 to-gray-600/10 border border-gray-500/30' : ''}
+                      ${card.grade === '3급' ? 'from-gray-600/30 to-gray-700/10 border border-gray-600/30' : ''}
+                    `}>
+                      {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
+                    </div>
+                    {/* 카드 정보 */}
+                    <div className="mt-2 text-center">
+                      <div className={`text-[10px] font-bold px-1 py-0.5 rounded inline-block mb-1 ${
+                        card.grade === '특급' ? 'bg-yellow-500/30 text-yellow-400' :
+                        card.grade === '1급' ? 'bg-purple-500/30 text-purple-400' :
+                        card.grade === '준1급' ? 'bg-blue-500/30 text-blue-400' :
+                        card.grade === '2급' ? 'bg-green-500/30 text-green-400' :
+                        'bg-gray-500/30 text-gray-400'
+                      }`}>{card.grade}</div>
+                      <div className="text-xs font-bold text-text-primary truncate">{card.name.ko}</div>
+                      <div className="text-[10px] text-text-secondary truncate mt-0.5">
+                        {card.ultimateSkill.name}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* 카드 정보 목록 */}
-              <div className="bg-black/30 rounded-lg p-3 space-y-2">
-                {viewingCrew.cards.map(card => (
-                  <div key={card.id} className="flex items-center gap-2 text-sm">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                      card.grade === '특급' ? 'bg-yellow-500/30 text-yellow-400' :
-                      card.grade === '1급' ? 'bg-purple-500/30 text-purple-400' :
-                      card.grade === '준1급' ? 'bg-blue-500/30 text-blue-400' :
-                      'bg-gray-500/30 text-gray-400'
-                    }`}>{card.grade}</span>
-                    <span className="text-text-primary font-medium">{card.name.ko}</span>
-                    <span className="text-text-secondary text-xs ml-auto">
-                      {card.ultimateSkill.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {onCardSelect && (
+                <div className="text-xs text-text-secondary text-center">
+                  카드를 클릭하면 상세 기록을 볼 수 있습니다
+                </div>
+              )}
 
               <Button onClick={() => setViewingCrew(null)} variant="ghost" className="w-full">
                 닫기

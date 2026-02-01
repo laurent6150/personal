@@ -6,6 +6,7 @@ import { Collection } from './pages/Collection';
 import { CardDetail } from './pages/CardDetail';
 import { CardCatalog } from './pages/CardCatalog';
 import { PersonalRanking } from './pages/PersonalRanking';
+import { Trade } from './pages/Trade';
 import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
@@ -13,8 +14,10 @@ import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
+import { useNewsFeedStore } from './stores/newsFeedStore';
+import { usePlayerStore } from './stores/playerStore';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -39,6 +42,8 @@ function App() {
 
   const { startGame } = useBattle();
   const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
+  const { addMatchResultNews } = useNewsFeedStore();
+  const { player } = usePlayerStore();
 
   // 리그 매치 시작 (시즌 시스템용)
   const handleStartMatch = useCallback((opponentCrewId: string) => {
@@ -87,7 +92,9 @@ function App() {
               onCollection={() => setCurrentPage('collection')}
               onCatalog={() => setCurrentPage('catalog')}
               onRanking={() => setCurrentPage('ranking')}
+              onTrade={() => setCurrentPage('trade')}
               onSettings={() => setCurrentPage('settings')}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
             />
           </motion.div>
         )}
@@ -163,6 +170,18 @@ function App() {
           </motion.div>
         )}
 
+        {currentPage === 'trade' && (
+          <motion.div
+            key="trade"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <Trade onBack={handleReturnToSeasonHub} />
+          </motion.div>
+        )}
+
         {currentPage === 'profile' && (
           <motion.div
             key="profile"
@@ -211,6 +230,20 @@ function App() {
                     playPlayoffMatch(playerScore, opponentScore);
                   } else {
                     playMatch(currentOpponent, playerScore, opponentScore);
+                  }
+
+                  // 뉴스 추가
+                  const opponentCrew = getAICrewById(currentOpponent);
+                  if (opponentCrew && currentSeason) {
+                    addMatchResultNews({
+                      seasonNumber: currentSeason.number,
+                      homeCrewName: player.name,
+                      awayCrewName: opponentCrew.name,
+                      homeScore: playerScore,
+                      awayScore: opponentScore,
+                      isPlayer: true,
+                      isPlayoff
+                    });
                   }
                 }
 
