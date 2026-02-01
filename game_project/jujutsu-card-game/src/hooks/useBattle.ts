@@ -8,6 +8,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
+import { CREW_SIZE } from '../data/constants';
 import type { Difficulty, CharacterCard, RoundResult } from '../types';
 
 export interface GameEndResult {
@@ -85,13 +86,13 @@ export function useBattle() {
   // 게임 시작 (시즌에서 배정된 AI 크루 사용)
   const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
     // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
-    const crew = playerCrew.length === 5 ? playerCrew : player.currentCrew;
-    if (crew.length !== 5) {
-      console.error('크루가 5장이 아닙니다');
+    const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
+    if (crew.length !== CREW_SIZE) {
+      console.error(`크루가 ${CREW_SIZE}장이 아닙니다: ${crew.length}장`);
       return false;
     }
-    if (aiCrew.length !== 5) {
-      console.error('AI 크루가 5장이 아닙니다');
+    if (aiCrew.length !== CREW_SIZE) {
+      console.error(`AI 크루가 ${CREW_SIZE}장이 아닙니다: ${aiCrew.length}장`);
       return false;
     }
     startGame(crew, aiCrew, difficulty);
