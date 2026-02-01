@@ -8,6 +8,7 @@ import { CardCatalog } from './pages/CardCatalog';
 import { PersonalRanking } from './pages/PersonalRanking';
 import { Trade } from './pages/Trade';
 import { Profile } from './pages/Profile';
+import { Items } from './pages/Items';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
@@ -17,7 +18,7 @@ import { useSeasonStore } from './stores/seasonStore';
 import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -91,6 +92,7 @@ function App() {
               onCrewManagement={() => setCurrentPage('crew')}
               onCollection={() => setCurrentPage('collection')}
               onCatalog={() => setCurrentPage('catalog')}
+              onItems={() => setCurrentPage('items')}
               onRanking={() => setCurrentPage('ranking')}
               onTrade={() => setCurrentPage('trade')}
               onProfile={() => setCurrentPage('profile')}
@@ -153,6 +155,18 @@ function App() {
               onBack={handleReturnToSeasonHub}
               onCardSelect={(cardId) => goToCardDetail(cardId, 'catalog')}
             />
+          </motion.div>
+        )}
+
+        {currentPage === 'items' && (
+          <motion.div
+            key="items"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <Items onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 

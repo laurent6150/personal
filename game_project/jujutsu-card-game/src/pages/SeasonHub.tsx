@@ -23,6 +23,7 @@ interface SeasonHubProps {
   onCrewManagement: () => void;
   onCollection: () => void;
   onCatalog: () => void;
+  onItems?: () => void;
   onRanking: () => void;
   onTrade: () => void;
   onProfile?: () => void;
@@ -35,6 +36,7 @@ export function SeasonHub({
   onCrewManagement,
   onCollection,
   onCatalog,
+  onItems,
   onRanking,
   onTrade,
   onProfile,
@@ -731,6 +733,7 @@ export function SeasonHub({
           <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
           <Button onClick={onCollection} variant="ghost">내 크루</Button>
           <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
+          {onItems && <Button onClick={onItems} variant="ghost">아이템</Button>}
           <Button onClick={onRanking} variant="ghost">개인 순위</Button>
           <Button onClick={onTrade} variant="ghost">트레이드</Button>
           {onProfile && <Button onClick={onProfile} variant="ghost">프로필</Button>}

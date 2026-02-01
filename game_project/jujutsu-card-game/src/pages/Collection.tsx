@@ -7,6 +7,7 @@ import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { GradeBadge, AttributeBadge } from '../components/UI/Badge';
+import { CREW_SIZE } from '../data/constants';
 import type { CharacterCard } from '../types';
 
 interface CollectionProps {
@@ -18,7 +19,7 @@ export function Collection({ onBack }: CollectionProps) {
   const { playerCrew } = useSeasonStore();
   const [selectedCard, setSelectedCard] = useState<CharacterCard | null>(null);
 
-  // 내 크루 카드만 표시 (시즌에서 선택한 5장)
+  // 내 크루 카드만 표시 (시즌에서 선택한 크루)
   const myCrewCards = playerCrew
     .map(cardId => CHARACTERS_BY_ID[cardId])
     .filter(Boolean) as CharacterCard[];
@@ -37,7 +38,7 @@ export function Collection({ onBack }: CollectionProps) {
           </Button>
           <h1 className="text-2xl font-bold text-text-primary">내 크루</h1>
           <div className="text-sm text-text-secondary">
-            {myCrewCards.length}/5 카드
+            {myCrewCards.length}/{CREW_SIZE} 카드
           </div>
         </div>
       </div>
@@ -55,11 +56,11 @@ export function Collection({ onBack }: CollectionProps) {
         </div>
       )}
 
-      {/* 크루 카드 그리드 (5장) */}
+      {/* 크루 카드 그리드 */}
       {myCrewCards.length > 0 && (
         <div className="max-w-4xl mx-auto">
           <motion.div
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4"
             initial="hidden"
             animate="visible"
             variants={{

@@ -42,7 +42,7 @@ function getRelativeTime(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString('ko-KR');
 }
 
-export function NewsFeed({ maxItems = 5, showHeader = true, compact = false }: NewsFeedProps) {
+export function NewsFeed({ maxItems = 15, showHeader = true, compact = false }: NewsFeedProps) {
   const { news, lastReadTimestamp, markAsRead } = useNewsFeedStore();
 
   const displayNews = useMemo(() => {

@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
 import { useTradeStore } from './tradeStore';
+import { useNewsFeedStore } from './newsFeedStore';
 
 interface SeasonState {
   // 게임 상태
@@ -364,6 +365,7 @@ export const useSeasonStore = create<SeasonState>()(
 
           // AI 경기들 시뮬레이션
           let aiMatchCount = 0;
+          const aiCrews = get().currentAICrews;
           for (let i = 0; i < updatedMatches.length && aiMatchCount < 2; i++) {
             const m = updatedMatches[i];
             if (!m.played && m.homeCrewId !== PLAYER_CREW_ID && m.awayCrewId !== PLAYER_CREW_ID) {
@@ -383,6 +385,21 @@ export const useSeasonStore = create<SeasonState>()(
                 simResult.homeScore,
                 simResult.awayScore
               );
+
+              // AI 경기 뉴스 추가
+              const homeCrew = aiCrews.find(c => c.id === m.homeCrewId);
+              const awayCrew = aiCrews.find(c => c.id === m.awayCrewId);
+              if (homeCrew && awayCrew) {
+                useNewsFeedStore.getState().addMatchResultNews({
+                  seasonNumber: currentSeason.number,
+                  homeCrewName: homeCrew.name,
+                  awayCrewName: awayCrew.name,
+                  homeScore: simResult.homeScore,
+                  awayScore: simResult.awayScore,
+                  isPlayer: false
+                });
+              }
+
               aiMatchCount++;
             }
           }
