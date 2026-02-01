@@ -1,51 +1,76 @@
 // ========================================
-// 캐릭터 이미지 헬퍼 - 실제 이미지 + 폴백
+// 캐릭터 이미지 헬퍼 - 54명 캐릭터 지원
 // ========================================
 
-import { ATTRIBUTES } from '../data';
+import { ATTRIBUTES } from '../data/constants';
 import type { Attribute } from '../types';
 
-// CORS 프록시 URL
-const CORS_PROXY = 'https://corsproxy.io/?';
+// 로컬 캐릭터 이미지 경로 매핑 (54명)
+export const CHARACTER_IMAGES: Record<string, string> = {
+  // ===== 특급 (8명) =====
+  gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
+  geto_suguru: '/images/characters/Suguru_Geto.jpg',
+  yuta_okkotsu: '/images/characters/Yuta_Okkotsu.jpg',
+  yuki_tsukumo: '/images/characters/Yuki_Tsukumo.jpg',
+  kenjaku: '/images/characters/Kenjaku (in Suguru Geto Body).jpg',
+  tengen: '/images/characters/Tengen.jpg',
+  ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
+  fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
 
-// 캐릭터별 실제 이미지 URL 매핑 (Fandom Wiki)
-const RAW_CHARACTER_IMAGES: Record<string, string> = {
-  // S등급
-  gojo_satoru: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/1/10/Gojo_recovers_%28Anime%29.png/revision/latest?cb=20201121025457',
-  ryomen_sukuna: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/b/b5/Sukuna_full_appearance_%28Anime%29.png/revision/latest?cb=20231019150040',
-  kenjaku: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/5/58/Kenjaku_%28Anime%29.png/revision/latest?cb=20230831130935',
+  // ===== 1급 (16명) =====
+  itadori_yuji: '/images/characters/Yuji_Itadori.jpg',
+  maki_zenin_awakened: '/images/characters/Maki_Zenin (Awakened).jpg',
+  nanami_kento: '/images/characters/Kento_Nanami.jpg',
+  jogo: '/images/characters/Jogo.jpg',
+  hanami: '/images/characters/Hanami.jpg',
+  naobito_zenin: '/images/characters/Naobito_Zenin.jpg',
+  naoya_zenin: '/images/characters/Naoya_Zenin.jpg',
+  hiromi_higuruma: '/images/characters/Hiromi_Higuruma.jpg',
+  hajime_kashimo: '/images/characters/Hajime_Kashimo.jpg',
+  ryu_ishigori: '/images/characters/Ryu_Ishigori.jpg',
+  takako_uro: '/images/characters/Takako_Uro.jpg',
+  kinji_hakari: '/images/characters/Kinji_Hakari.jpg',
+  choso: '/images/characters/Choso.jpg',
+  todo_aoi: '/images/characters/Aoi_Todo.jpg',
+  uraume: '/images/characters/Uraume.jpg',
+  yorozu: '/images/characters/Yorozu.jpg',
 
-  // A등급
-  fushiguro_toji: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/d/d3/Toji_Fushiguro_%28Anime%29.png/revision/latest?cb=20230824142812',
-  nanami_kento: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/9/9d/Nanami_ready_to_fight_%28Anime%29.png/revision/latest?cb=20201128023457',
-  jogo: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/b/bd/Jogo_%28Anime%29.png/revision/latest?cb=20201024185157',
-  hanami: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/3/36/Hanami_%28Anime%29.png/revision/latest?cb=20210227025407',
-  choso: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/c/c5/Choso_%28Anime%29.png/revision/latest?cb=20230907140329',
-  yuta_okkotsu: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/2/2e/Yuta_Okkotsu_%28Movie%29.png/revision/latest?cb=20220326234457',
-  todo_aoi: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/c/cb/Aoi_Todo_%28Anime%29.png/revision/latest?cb=20210220044139',
+  // ===== 준1급 (14명) =====
+  fushiguro_megumi: '/images/characters/Megumi_Fushiguro.jpg',
+  mahito: '/images/characters/Mahito.jpg',
+  mei_mei: '/images/characters/Mei_Mei.jpg',
+  inumaki_toge: '/images/characters/Toge_Inumaki.jpg',
+  maki_zenin: '/images/characters/Maki_Zenin (Normal).jpg',
+  angel_hana: '/images/characters/Hana_Kurusu.jpg',
+  reggie_star: '/images/characters/Reggie_Star.jpg',
+  fumihiko_takaba: '/images/characters/Fumihiko_Takaba.jpg',
+  charles_bernard: '/images/characters/Charles_Bernard.jpg',
+  jinichi_zenin: '/images/characters/Jinichi_Zenin.jpg',
+  ogi_zenin: '/images/characters/Ogi_Zenin.jpg',
+  noritoshi_kamo: '/images/characters/Noritoshi_Kamo.jpg',
+  iori_hazenoki: '/images/characters/Iori_Hazenoki.jpg',
+  kusakabe_atsuya: '/images/characters/Atsuya_Kusakabe.jpg',
 
-  // B등급
-  itadori_yuji: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/4/4e/Yuji_Itadori_%28Anime%29.png/revision/latest?cb=20210117131027',
-  fushiguro_megumi: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/8/88/Megumi_Fushiguro_%28Anime%29.png/revision/latest?cb=20210117134051',
-  mahito: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/9/90/Mahito_%28Anime%29.png/revision/latest?cb=20201205010746',
-  mei_mei: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/f/f1/Mei_Mei_%28Anime%29.png/revision/latest?cb=20210306030406',
-  inumaki_toge: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/2/27/Toge_Inumaki_%28Anime%29.png/revision/latest?cb=20210123052212',
-  maki_zenin: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/1/18/Maki_Zenin_%28Anime%29.png/revision/latest?cb=20210123051457',
+  // ===== 2급 (10명) =====
+  kugisaki_nobara: '/images/characters/Nobara_Kugisaki.jpg',
+  panda: '/images/characters/Panda.jpg',
+  ino_takuma: '/images/characters/Takuma_Ino.jpg',
+  nishimiya_momo: '/images/characters/Momo_Nishimiya.jpg',
+  kasumi_miwa: '/images/characters/Kasumi_Miwa.jpg',
+  mai_zenin: '/images/characters/Mai_Zenin.jpg',
+  eso: '/images/characters/Eso.jpg',
+  kechizu: '/images/characters/Kechizu.jpg',
+  utahime_iori: '/images/characters/Utahime_Iori.jpg',
+  shoko_ieiri: '/images/characters/Shoko_Ieiri.jpg',
 
-  // C등급
-  kugisaki_nobara: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/5/57/Nobara_Kugisaki_%28Anime%29.png/revision/latest?cb=20210117135052',
-  ino_takuma: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/1/1c/Takuma_Ino_%28Anime%29.png/revision/latest?cb=20230914133227',
-  panda: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/a/a6/Panda_%28Anime%29.png/revision/latest?cb=20210123051818',
-  nishimiya_momo: 'https://static.wikia.nocookie.net/jujutsu-kaisen/images/4/41/Momo_Nishimiya_%28Anime%29.png/revision/latest?cb=20210227025327',
+  // ===== 3급 (6명) =====
+  yu_haibara: '/images/characters/Yu_Haibara.jpg',
+  kiyotaka_ijichi: '/images/characters/Kiyotaka_Ijichi.jpg',
+  akari_nitta: '/images/characters/Akari_Nitta.jpg',
+  misato_kuroi: '/images/characters/Misato_Kuroi.jpg',
+  masamichi_yaga: '/images/characters/Masamichi_Yaga.jpg',
+  eso_kechizu_duo: '/images/characters/Eso_Kechizu.jpg',
 };
-
-// CORS 프록시 적용된 이미지 URL
-export const CHARACTER_IMAGES: Record<string, string> = Object.fromEntries(
-  Object.entries(RAW_CHARACTER_IMAGES).map(([id, url]) => [
-    id,
-    `${CORS_PROXY}${encodeURIComponent(url)}`,
-  ])
-);
 
 // UI Avatars를 사용한 플레이스홀더 이미지 생성
 export function getPlaceholderImage(name: string, attribute: Attribute): string {
@@ -55,9 +80,9 @@ export function getPlaceholderImage(name: string, attribute: Attribute): string 
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bgColor}&color=fff&size=200&bold=true&format=svg`;
 }
 
-// 캐릭터 이미지 URL 가져오기 (실제 이미지 + 폴백)
+// 캐릭터 이미지 URL 가져오기 (로컬 이미지 + 폴백)
 export function getCharacterImage(characterId: string, name: string, attribute: Attribute): string {
-  // 실제 이미지가 있으면 사용, 없으면 플레이스홀더
+  // 로컬 이미지가 있으면 사용, 없으면 플레이스홀더
   if (CHARACTER_IMAGES[characterId]) {
     return CHARACTER_IMAGES[characterId];
   }

@@ -31,11 +31,11 @@ export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 // 등급 정보 (주술회전 등급 체계)
 export const GRADES: Record<Grade, GradeInfo> = {
   '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
-  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 2 },
-  '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 5 },
-  '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 5 },
-  '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 5 },
-  '3급': { bg: '#C4C4C4', text: '#000000', maxInDeck: 5 }
+  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 3 },
+  '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 6 },
+  '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 6 },
+  '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 6 },
+  '3급': { bg: '#C4C4C4', text: '#000000', maxInDeck: 6 }
 };
 
 // 레벨별 필요 경험치 (누적)
@@ -53,14 +53,16 @@ export const EXP_REWARDS = {
 // 최대 레벨
 export const MAX_LEVEL = 10;
 
-// 크루 사이즈
-export const CREW_SIZE = 5;
+// 크루 시스템
+export const CREW_SIZE = 6;          // 크루당 카드 수 (5 → 6)
+export const CREW_COUNT = 8;         // 총 크루 수 (4 → 8)
+export const REGULAR_SEASON_GAMES = 7; // 정규시즌 경기 수
 
 // 승리 조건
-export const WIN_SCORE = 3;
+export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
 
 // 최대 라운드
-export const MAX_ROUNDS = 5;
+export const MAX_ROUNDS = 5;         // 6장 크루 중 5장 사용 (1장 미사용)
 
 // 스탯 아이콘
 export const STAT_ICONS = {

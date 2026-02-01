@@ -16,7 +16,7 @@ import type {
   Playoff,
   PlayoffMatch
 } from '../types';
-import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID } from '../data/aiCrews';
+import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
 import { useTradeStore } from './tradeStore';
 
 interface SeasonState {
@@ -234,8 +234,10 @@ export const useSeasonStore = create<SeasonState>()(
 
       // 첫 게임 시작 (플레이어 크루 선택)
       initializeGame: (playerCrew: string[]) => {
-        if (playerCrew.length !== 5) {
-          console.error('크루는 5장이어야 합니다');
+        // 크루 유효성 검사 (크루 사이즈 + 등급 제한)
+        const validation = validatePlayerCrew(playerCrew);
+        if (!validation.valid) {
+          console.error('[initializeGame]', validation.error);
           return;
         }
 
@@ -792,11 +794,11 @@ export const useSeasonStore = create<SeasonState>()(
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 5, // 버전 업데이트 - 플레이오프 시스템
+      version: 6, // v6: 54캐릭터/8팀/6장 체계
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 5);
-        if (version < 5) {
-          console.log('[Season Store] 구버전 데이터 리셋');
+        console.log('[Season Store] 마이그레이션:', version, '->', 6);
+        if (version < 6) {
+          console.log('[Season Store] v6 업그레이드: 54캐릭터/8팀 체계 - 데이터 리셋');
           return {
             isInitialized: false,
             playerCrew: [],
