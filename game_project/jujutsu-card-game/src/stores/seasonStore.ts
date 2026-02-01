@@ -53,13 +53,14 @@ interface SeasonState {
   getSeasonSummary: () => SeasonSummary | null;
 }
 
-// 리그 경기 일정 생성 (라운드 로빈)
+// 리그 경기 일정 생성 (홈/어웨이 2회전)
 function generateMatches(aiCrews: AICrew[]): LeagueMatch[] {
   const matches: LeagueMatch[] = [];
   let matchId = 0;
 
-  // 플레이어는 모든 AI 팀과 1회씩 대결
+  // 플레이어는 모든 AI 팀과 2회씩 대결 (홈/어웨이)
   for (const aiCrew of aiCrews) {
+    // 홈 경기 (플레이어 홈)
     matches.push({
       id: `match_${matchId++}`,
       homeCrewId: PLAYER_CREW_ID,
@@ -69,15 +70,36 @@ function generateMatches(aiCrews: AICrew[]): LeagueMatch[] {
       awayScore: 0,
       played: false
     });
+    // 어웨이 경기 (AI 홈)
+    matches.push({
+      id: `match_${matchId++}`,
+      homeCrewId: aiCrew.id,
+      awayCrewId: PLAYER_CREW_ID,
+      result: 'PENDING',
+      homeScore: 0,
+      awayScore: 0,
+      played: false
+    });
   }
 
-  // AI 팀들끼리의 경기도 생성 (자동 시뮬레이션용)
+  // AI 팀들끼리의 경기도 생성 (자동 시뮬레이션용) - 2회전
   for (let i = 0; i < aiCrews.length; i++) {
     for (let j = i + 1; j < aiCrews.length; j++) {
+      // 1차전
       matches.push({
         id: `match_${matchId++}`,
         homeCrewId: aiCrews[i].id,
         awayCrewId: aiCrews[j].id,
+        result: 'PENDING',
+        homeScore: 0,
+        awayScore: 0,
+        played: false
+      });
+      // 2차전 (홈/어웨이 반전)
+      matches.push({
+        id: `match_${matchId++}`,
+        homeCrewId: aiCrews[j].id,
+        awayCrewId: aiCrews[i].id,
         result: 'PENDING',
         homeScore: 0,
         awayScore: 0,
@@ -293,11 +315,24 @@ export const useSeasonStore = create<SeasonState>()(
 
         // 정규시즌 경기 처리
         if (currentSeason.status === 'REGULAR') {
-          const matchIndex = currentSeason.matches.findIndex(
+          // 홈 경기 먼저 찾기
+          let matchIndex = currentSeason.matches.findIndex(
             m => !m.played &&
               m.homeCrewId === PLAYER_CREW_ID &&
               m.awayCrewId === opponentCrewId
           );
+
+          let isPlayerHome = true;
+
+          // 홈 경기가 없으면 어웨이 경기 찾기
+          if (matchIndex === -1) {
+            matchIndex = currentSeason.matches.findIndex(
+              m => !m.played &&
+                m.homeCrewId === opponentCrewId &&
+                m.awayCrewId === PLAYER_CREW_ID
+            );
+            isPlayerHome = false;
+          }
 
           if (matchIndex === -1) {
             console.error('[playMatch] 경기를 찾을 수 없습니다');
@@ -308,23 +343,23 @@ export const useSeasonStore = create<SeasonState>()(
           const result: MatchResult = playerScore > opponentScore ? 'WIN'
             : playerScore < opponentScore ? 'LOSE' : 'DRAW';
 
-          // 경기 목록 업데이트
+          // 경기 목록 업데이트 (홈/어웨이에 따라 점수 배치)
           const updatedMatches = [...currentSeason.matches];
           updatedMatches[matchIndex] = {
             ...match,
-            homeScore: playerScore,
-            awayScore: opponentScore,
-            result,
+            homeScore: isPlayerHome ? playerScore : opponentScore,
+            awayScore: isPlayerHome ? opponentScore : playerScore,
+            result: isPlayerHome ? result : (result === 'WIN' ? 'LOSE' : result === 'LOSE' ? 'WIN' : 'DRAW'),
             played: true
           };
 
-          // 순위표 업데이트
+          // 순위표 업데이트 (홈/어웨이에 따라 점수 배치)
           let updatedStandings = updateStandings(
             currentSeason.standings,
-            PLAYER_CREW_ID,
-            opponentCrewId,
-            playerScore,
-            opponentScore
+            isPlayerHome ? PLAYER_CREW_ID : opponentCrewId,
+            isPlayerHome ? opponentCrewId : PLAYER_CREW_ID,
+            isPlayerHome ? playerScore : opponentScore,
+            isPlayerHome ? opponentScore : playerScore
           );
 
           // AI 경기들 시뮬레이션
@@ -395,8 +430,9 @@ export const useSeasonStore = create<SeasonState>()(
         if (!currentSeason) return null;
 
         if (currentSeason.status === 'REGULAR') {
+          // 플레이어가 참여하는 모든 미완료 경기 (홈/어웨이 모두)
           return currentSeason.matches.find(
-            m => !m.played && m.homeCrewId === PLAYER_CREW_ID
+            m => !m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)
           ) || null;
         }
 
@@ -794,19 +830,16 @@ export const useSeasonStore = create<SeasonState>()(
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 6, // v6: 54캐릭터/8팀/6장 체계
+      version: 7, // v7: 14경기 2회전 체계
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 6);
-        if (version < 6) {
-          console.log('[Season Store] v6 업그레이드: 54캐릭터/8팀 체계 - 데이터 리셋');
+        console.log('[Season Store] 마이그레이션:', version, '->', 7);
+        if (version < 7) {
+          console.log('[Season Store] v7 업그레이드: 14경기 2회전 체계 - 진행 중 시즌 리셋');
+          const state = persistedState as SeasonState;
+          // 시즌 히스토리는 유지하고, 진행 중인 시즌만 리셋
           return {
-            isInitialized: false,
-            playerCrew: [],
-            currentAICrews: [],
-            currentSeason: null,
-            seasonHistory: [],
-            headToHeadRecords: {},
-            seasonStartLevels: {}
+            ...state,
+            currentSeason: null // 새 시즌 시작 필요
           };
         }
         return persistedState as SeasonState;

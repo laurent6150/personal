@@ -572,7 +572,7 @@ export function SeasonHub({
           <div>
             <h1 className="text-3xl font-bold text-accent text-shadow-strong">시즌 {currentSeason.number}</h1>
             <p className="text-text-secondary text-shadow">
-              {currentSeason.matches.filter(m => m.played && m.homeCrewId === PLAYER_CREW_ID).length} / 5 경기 완료
+              {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
             </p>
           </div>
           <div className="text-right">
@@ -593,12 +593,17 @@ export function SeasonHub({
           <h2 className="text-lg font-bold text-text-primary mb-4 text-shadow">📅 다음 경기</h2>
 
           {nextMatch ? (() => {
-            const opponent = getAICrewById(nextMatch.awayCrewId);
+            // 홈/어웨이에 따라 상대 팀 ID 결정
+            const isPlayerHome = nextMatch.homeCrewId === PLAYER_CREW_ID;
+            const opponentId = isPlayerHome ? nextMatch.awayCrewId : nextMatch.homeCrewId;
+            const opponent = getAICrewById(opponentId);
             return (
               <div>
                 <div className="bg-black/30 rounded-lg p-4 mb-4">
                   <div className="text-center">
-                    <div className="text-sm text-text-secondary mb-2">VS</div>
+                    <div className="text-sm text-text-secondary mb-2">
+                      VS {isPlayerHome ? '(홈)' : '(어웨이)'}
+                    </div>
                     <div className="text-2xl font-bold text-text-primary">
                       {opponent?.name || '???'}
                     </div>
@@ -639,7 +644,7 @@ export function SeasonHub({
                 </div>
 
                 <Button
-                  onClick={() => onStartMatch(nextMatch.awayCrewId)}
+                  onClick={() => onStartMatch(opponentId)}
                   variant="primary"
                   size="lg"
                   className="w-full"
