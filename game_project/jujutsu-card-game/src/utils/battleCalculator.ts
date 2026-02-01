@@ -281,6 +281,7 @@ export function determineFirstAttacker(
 
 /**
  * 라운드 진행 및 결과 계산
+ * HP가 0이 될 때까지 공격을 주고받는 턴제 전투
  */
 export function resolveRound(
   playerCard: PlayerCard | CombatStats,
@@ -331,39 +332,57 @@ export function resolveRound(
   const firstAttacker = determineFirstAttacker(playerStats, aiStats, arena);
   const playerFirst = firstAttacker === 'PLAYER';
 
-  // 데미지 계산
-  const playerDamage = calculateDamage(playerStats, aiStats, arena);
-  const aiDamage = calculateDamage(aiStats, playerStats, arena);
+  // 데미지 계산 (턴당 데미지)
+  const playerDamagePerTurn = calculateDamage(playerStats, aiStats, arena);
+  const aiDamagePerTurn = calculateDamage(aiStats, playerStats, arena);
 
-  // HP 적용 (선공이 먼저 공격)
-  let playerFinalHp = playerStats.hp;
-  let aiFinalHp = aiStats.hp;
+  // HP 기반 턴제 전투 (HP가 0이 될 때까지 반복)
+  let playerCurrentHp = playerStats.hp;
+  let aiCurrentHp = aiStats.hp;
+  let totalPlayerDamage = 0;
+  let totalAiDamage = 0;
+  const MAX_TURNS = 100; // 무한 루프 방지
+  let turnCount = 0;
 
-  if (playerFirst) {
-    aiFinalHp -= playerDamage;
-    if (aiFinalHp > 0) {
-      playerFinalHp -= aiDamage;
-    }
-  } else {
-    playerFinalHp -= aiDamage;
-    if (playerFinalHp > 0) {
-      aiFinalHp -= playerDamage;
+  while (playerCurrentHp > 0 && aiCurrentHp > 0 && turnCount < MAX_TURNS) {
+    turnCount++;
+
+    if (playerFirst) {
+      // 플레이어 선공
+      aiCurrentHp -= playerDamagePerTurn;
+      totalPlayerDamage += playerDamagePerTurn;
+
+      if (aiCurrentHp <= 0) break;
+
+      // AI 반격
+      playerCurrentHp -= aiDamagePerTurn;
+      totalAiDamage += aiDamagePerTurn;
+    } else {
+      // AI 선공
+      playerCurrentHp -= aiDamagePerTurn;
+      totalAiDamage += aiDamagePerTurn;
+
+      if (playerCurrentHp <= 0) break;
+
+      // 플레이어 반격
+      aiCurrentHp -= playerDamagePerTurn;
+      totalPlayerDamage += playerDamagePerTurn;
     }
   }
 
-  // 승패 판정
+  // 승패 판정 (HP가 0 이하인 쪽이 패배)
   let winner: 'PLAYER' | 'AI' | 'DRAW';
-  if (aiFinalHp <= 0 && playerFinalHp <= 0) {
+  if (aiCurrentHp <= 0 && playerCurrentHp <= 0) {
     winner = 'DRAW';
-  } else if (aiFinalHp <= 0) {
+  } else if (aiCurrentHp <= 0) {
     winner = 'PLAYER';
-  } else if (playerFinalHp <= 0) {
+  } else if (playerCurrentHp <= 0) {
     winner = 'AI';
   } else {
-    // 둘 다 살아있으면 남은 HP로 판정
-    if (playerFinalHp > aiFinalHp) {
+    // MAX_TURNS 도달 시 남은 HP로 판정
+    if (playerCurrentHp > aiCurrentHp) {
       winner = 'PLAYER';
-    } else if (aiFinalHp > playerFinalHp) {
+    } else if (aiCurrentHp > playerCurrentHp) {
       winner = 'AI';
     } else {
       winner = 'DRAW';
@@ -379,10 +398,10 @@ export function resolveRound(
     : getAttributeMultiplier(aiStats.attribute, playerStats.attribute);
 
   const calculation: BattleCalculation = {
-    playerDamage,
-    aiDamage,
-    playerFinalHp: Math.max(0, playerFinalHp),
-    aiFinalHp: Math.max(0, aiFinalHp),
+    playerDamage: totalPlayerDamage,
+    aiDamage: totalAiDamage,
+    playerFinalHp: Math.max(0, playerCurrentHp),
+    aiFinalHp: Math.max(0, aiCurrentHp),
     playerFirst,
     attributeMultiplier: {
       player: playerAttrMult,
