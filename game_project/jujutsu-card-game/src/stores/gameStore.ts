@@ -161,8 +161,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else if (newAiScore > newPlayerScore) {
         newStatus = 'AI_WIN';
       } else {
-        // 동점이면 추가 라운드 (에이스전) 필요하지만 일단 AI 승으로 처리
-        newStatus = 'AI_WIN';
+        // 동점이면 플레이어 승리 (홈 어드밴티지)
+        newStatus = 'PLAYER_WIN';
       }
     }
 

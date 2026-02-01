@@ -357,6 +357,8 @@ export function resolveRound(
       // AI 반격
       playerCurrentHp -= aiDamagePerTurn;
       totalAiDamage += aiDamagePerTurn;
+
+      if (playerCurrentHp <= 0) break;
     } else {
       // AI 선공
       playerCurrentHp -= aiDamagePerTurn;
@@ -367,6 +369,8 @@ export function resolveRound(
       // 플레이어 반격
       aiCurrentHp -= playerDamagePerTurn;
       totalPlayerDamage += playerDamagePerTurn;
+
+      if (aiCurrentHp <= 0) break;
     }
   }
 
