@@ -1,5 +1,5 @@
 // ========================================
-// 개인 순위 화면 - 카드별 랭킹
+// 개인 순위 화면 - 카드별 랭킹 (항목별 TOP 10)
 // ========================================
 
 import { useState, useMemo } from 'react';
@@ -18,16 +18,76 @@ interface PersonalRankingProps {
   onCardSelect: (cardId: string) => void;
 }
 
-type SortOption = 'wins' | 'winRate' | 'totalGames' | 'level' | 'atk' | 'def' | 'spd';
+type RankingCategory = 'wins' | 'winRate' | 'totalGames' | 'level' | 'atk' | 'def' | 'spd';
 
-const SORT_OPTIONS: { id: SortOption; label: string }[] = [
-  { id: 'wins', label: '승리수' },
-  { id: 'winRate', label: '승률' },
-  { id: 'totalGames', label: '경기수' },
-  { id: 'level', label: '레벨' },
-  { id: 'atk', label: 'ATK' },
-  { id: 'def', label: 'DEF' },
-  { id: 'spd', label: 'SPD' }
+interface CategoryConfig {
+  id: RankingCategory;
+  label: string;
+  icon: string;
+  getValue: (item: RankingItem) => number;
+  formatValue: (item: RankingItem) => string;
+  filterCondition?: (item: RankingItem) => boolean;
+}
+
+interface RankingItem extends CardStats {
+  character: typeof ALL_CHARACTERS[0];
+  level: number;
+  crewName?: string;
+}
+
+const RANKING_CATEGORIES: CategoryConfig[] = [
+  {
+    id: 'wins',
+    label: '승리수',
+    icon: '🏆',
+    getValue: (item) => item.wins,
+    formatValue: (item) => `${item.wins}승`,
+    filterCondition: (item) => item.totalGames > 0
+  },
+  {
+    id: 'winRate',
+    label: '승률',
+    icon: '📈',
+    getValue: (item) => item.winRate,
+    formatValue: (item) => `${item.winRate.toFixed(1)}%`,
+    filterCondition: (item) => item.totalGames >= 3 // 최소 3경기 이상
+  },
+  {
+    id: 'totalGames',
+    label: '경기수',
+    icon: '⚔️',
+    getValue: (item) => item.totalGames,
+    formatValue: (item) => `${item.totalGames}경기`,
+    filterCondition: (item) => item.totalGames > 0
+  },
+  {
+    id: 'level',
+    label: '레벨',
+    icon: '⭐',
+    getValue: (item) => item.level,
+    formatValue: (item) => `Lv.${item.level}`
+  },
+  {
+    id: 'atk',
+    label: 'ATK',
+    icon: '💥',
+    getValue: (item) => item.character.baseStats.atk,
+    formatValue: (item) => `${item.character.baseStats.atk}`
+  },
+  {
+    id: 'def',
+    label: 'DEF',
+    icon: '🛡️',
+    getValue: (item) => item.character.baseStats.def,
+    formatValue: (item) => `${item.character.baseStats.def}`
+  },
+  {
+    id: 'spd',
+    label: 'SPD',
+    icon: '⚡',
+    getValue: (item) => item.character.baseStats.spd,
+    formatValue: (item) => `${item.character.baseStats.spd}`
+  }
 ];
 
 export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) {
@@ -36,7 +96,6 @@ export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) 
   const { getAllCardStats } = useCardRecordStore();
 
   const [seasonFilter, setSeasonFilter] = useState<'career' | number>('career');
-  const [sortBy, setSortBy] = useState<SortOption>('wins');
 
   // 시즌 옵션 목록
   const seasonOptions = useMemo(() => {
@@ -74,22 +133,15 @@ export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) 
     return map;
   }, [playerCrew, currentAICrews, player.name]);
 
-  // 랭킹 데이터 계산
-  const rankings = useMemo(() => {
-    // 기록이 있는 카드들의 스탯 가져오기
+  // 전체 카드 데이터 구축
+  const allCardData = useMemo(() => {
     const statsWithRecords = seasonFilter === 'career'
       ? getAllCardStats()
       : getAllCardStats(seasonFilter);
 
-    // 기록이 있는 카드 ID 집합
     const cardIdsWithRecords = new Set(statsWithRecords.map(s => s.cardId));
 
-    // 모든 카드에 대한 완전한 데이터 구축
-    const fullRankings: (CardStats & {
-      character: typeof ALL_CHARACTERS[0];
-      level: number;
-      crewName?: string;
-    })[] = [];
+    const fullData: RankingItem[] = [];
 
     for (const card of ALL_CHARACTERS) {
       const stats = cardIdsWithRecords.has(card.id)
@@ -99,7 +151,7 @@ export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) 
       const playerCard = player.ownedCards[card.id];
       const crewInfo = cardCrewMap[card.id];
 
-      fullRankings.push({
+      fullData.push({
         ...stats,
         character: card,
         level: playerCard?.level || 1,
@@ -107,44 +159,29 @@ export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) 
       });
     }
 
-    // 정렬
-    fullRankings.sort((a, b) => {
-      switch (sortBy) {
-        case 'wins':
-          return b.wins - a.wins || b.winRate - a.winRate;
-        case 'winRate':
-          // 최소 경기 수 필터 (1경기 이상)
-          const aHasGames = a.totalGames > 0;
-          const bHasGames = b.totalGames > 0;
-          if (aHasGames !== bHasGames) return bHasGames ? 1 : -1;
-          return b.winRate - a.winRate || b.wins - a.wins;
-        case 'totalGames':
-          return b.totalGames - a.totalGames;
-        case 'level':
-          return b.level - a.level;
-        case 'atk':
-          return b.character.baseStats.atk - a.character.baseStats.atk;
-        case 'def':
-          return b.character.baseStats.def - a.character.baseStats.def;
-        case 'spd':
-          return b.character.baseStats.spd - a.character.baseStats.spd;
-        default:
-          return 0;
-      }
-    });
+    return fullData;
+  }, [seasonFilter, getAllCardStats, player.ownedCards, cardCrewMap]);
 
-    // 기록이 있는 카드만 필터 (승리수, 승률, 경기수 정렬 시)
-    if (['wins', 'winRate', 'totalGames'].includes(sortBy)) {
-      return fullRankings.filter(r => r.totalGames > 0);
+  // 카테고리별 TOP 10 계산
+  const categoryRankings = useMemo(() => {
+    const rankings: Record<RankingCategory, RankingItem[]> = {} as Record<RankingCategory, RankingItem[]>;
+
+    for (const category of RANKING_CATEGORIES) {
+      let filtered = category.filterCondition
+        ? allCardData.filter(category.filterCondition)
+        : [...allCardData];
+
+      filtered.sort((a, b) => category.getValue(b) - category.getValue(a));
+      rankings[category.id] = filtered.slice(0, 10);
     }
 
-    return fullRankings;
-  }, [seasonFilter, sortBy, getAllCardStats, player.ownedCards, cardCrewMap]);
+    return rankings;
+  }, [allCardData]);
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 pb-20">
       {/* 헤더 */}
-      <div className="max-w-4xl mx-auto mb-6">
+      <div className="max-w-6xl mx-auto mb-6">
         <div className="flex items-center justify-between">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
@@ -154,125 +191,111 @@ export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) 
         </div>
       </div>
 
-      {/* 필터 */}
-      <div className="max-w-4xl mx-auto mb-6 bg-bg-card rounded-xl p-4 border border-white/10">
-        <div className="grid grid-cols-2 gap-4">
-          {/* 시즌 선택 */}
-          <div>
-            <div className="text-sm text-text-secondary mb-2">시즌</div>
-            <div className="flex flex-wrap gap-2">
-              {seasonOptions.map(opt => (
-                <button
-                  key={String(opt.id)}
-                  onClick={() => setSeasonFilter(opt.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    seasonFilter === opt.id
-                      ? 'bg-accent text-white'
-                      : 'bg-bg-secondary text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 정렬 */}
-          <div>
-            <div className="text-sm text-text-secondary mb-2">정렬</div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full bg-bg-secondary text-text-primary rounded-lg p-2 border border-white/10"
+      {/* 시즌 필터 */}
+      <div className="max-w-6xl mx-auto mb-6">
+        <div className="flex flex-wrap gap-2 justify-center">
+          {seasonOptions.map(opt => (
+            <button
+              key={String(opt.id)}
+              onClick={() => setSeasonFilter(opt.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                seasonFilter === opt.id
+                  ? 'bg-accent text-white'
+                  : 'bg-bg-card text-text-secondary hover:text-text-primary border border-white/10'
+              }`}
             >
-              {SORT_OPTIONS.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 랭킹 테이블 */}
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-bg-card rounded-xl border border-white/10 overflow-hidden">
-          {/* 테이블 헤더 */}
-          <div className="grid grid-cols-12 gap-2 p-4 bg-bg-secondary/50 text-sm font-bold text-text-secondary border-b border-white/10">
-            <div className="col-span-1 text-center">순위</div>
-            <div className="col-span-5">카드</div>
-            <div className="col-span-3">크루</div>
-            <div className="col-span-3 text-right">전적</div>
-          </div>
-
-          {/* 랭킹 목록 */}
-          {rankings.length === 0 ? (
-            <div className="text-center py-12 text-text-secondary">
-              기록이 없습니다
-            </div>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {rankings.slice(0, 50).map((item, index) => (
-                <motion.div
-                  key={item.cardId}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  onClick={() => onCardSelect(item.cardId)}
-                  className={`grid grid-cols-12 gap-2 p-4 items-center cursor-pointer hover:bg-white/5 transition-colors ${
-                    item.crewName === player.name ? 'bg-accent/10' : ''
-                  }`}
-                >
-                  {/* 순위 */}
-                  <div className="col-span-1 text-center">
-                    {index === 0 && <span className="text-xl">🥇</span>}
-                    {index === 1 && <span className="text-xl">🥈</span>}
-                    {index === 2 && <span className="text-xl">🥉</span>}
-                    {index > 2 && <span className="font-bold text-text-secondary">{index + 1}</span>}
-                  </div>
-
-                  {/* 카드 정보 */}
-                  <div className="col-span-5 flex items-center gap-3">
-                    <GradeBadge grade={item.character.grade} size="sm" />
-                    <div>
-                      <div className="font-bold">{item.character.name.ko}</div>
-                      <div className="text-xs text-text-secondary">Lv.{item.level}</div>
-                    </div>
-                  </div>
-
-                  {/* 소속 크루 */}
-                  <div className="col-span-3">
-                    {item.crewName ? (
-                      <span className={`text-sm ${item.crewName === player.name ? 'text-accent font-bold' : 'text-text-secondary'}`}>
-                        {item.crewName}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-text-secondary/50">-</span>
-                    )}
-                  </div>
-
-                  {/* 전적 */}
-                  <div className="col-span-3 text-right">
-                    {item.totalGames > 0 ? (
-                      <>
-                        <div className="font-bold">
-                          <span className="text-win">{item.wins}승</span>
-                          {' '}
-                          <span className="text-lose">{item.losses}패</span>
-                        </div>
-                        <div className="text-xs text-text-secondary">
-                          승률 {item.winRate.toFixed(1)}%
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-text-secondary/50 text-sm">기록 없음</span>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* 카테고리별 TOP 10 그리드 */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {RANKING_CATEGORIES.map(category => (
+          <CategoryRankingCard
+            key={category.id}
+            category={category}
+            rankings={categoryRankings[category.id]}
+            playerName={player.name}
+            onCardSelect={onCardSelect}
+          />
+        ))}
       </div>
+    </div>
+  );
+}
+
+// 카테고리별 랭킹 카드 컴포넌트
+interface CategoryRankingCardProps {
+  category: CategoryConfig;
+  rankings: RankingItem[];
+  playerName: string;
+  onCardSelect: (cardId: string) => void;
+}
+
+function CategoryRankingCard({ category, rankings, playerName, onCardSelect }: CategoryRankingCardProps) {
+  return (
+    <div className="bg-bg-card rounded-xl border border-white/10 overflow-hidden">
+      {/* 카테고리 헤더 */}
+      <div className="bg-bg-secondary/50 px-4 py-3 border-b border-white/10">
+        <h3 className="font-bold text-text-primary flex items-center gap-2">
+          <span>{category.icon}</span>
+          <span>{category.label} TOP 10</span>
+        </h3>
+      </div>
+
+      {/* 랭킹 목록 */}
+      {rankings.length === 0 ? (
+        <div className="text-center py-8 text-text-secondary text-sm">
+          기록이 없습니다
+        </div>
+      ) : (
+        <div className="divide-y divide-white/5">
+          {rankings.map((item, index) => (
+            <motion.div
+              key={item.cardId}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.03 }}
+              onClick={() => onCardSelect(item.cardId)}
+              className={`flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-white/5 transition-colors ${
+                item.crewName === playerName ? 'bg-accent/10' : ''
+              }`}
+            >
+              {/* 순위 */}
+              <div className="w-6 text-center flex-shrink-0">
+                {index === 0 && <span className="text-lg">🥇</span>}
+                {index === 1 && <span className="text-lg">🥈</span>}
+                {index === 2 && <span className="text-lg">🥉</span>}
+                {index > 2 && <span className="text-sm font-bold text-text-secondary">{index + 1}</span>}
+              </div>
+
+              {/* 등급 뱃지 */}
+              <GradeBadge grade={item.character.grade} size="sm" />
+
+              {/* 카드 이름 */}
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium truncate ${
+                  item.crewName === playerName ? 'text-accent' : 'text-text-primary'
+                }`}>
+                  {item.character.name.ko}
+                </div>
+                {item.crewName && (
+                  <div className="text-xs text-text-secondary truncate">
+                    {item.crewName}
+                  </div>
+                )}
+              </div>
+
+              {/* 수치 */}
+              <div className="text-sm font-bold text-accent flex-shrink-0">
+                {category.formatValue(item)}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
