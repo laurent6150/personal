@@ -259,13 +259,33 @@ export type ArenaEffectType =
   | 'STAT_MODIFY'        // 스탯 수정
   | 'SPECIAL_RULE';      // 특수 규칙
 
+// 경기장 효과 타겟
+export type ArenaEffectTarget =
+  | Attribute            // 속성 타겟
+  | 'ALL'                // 모든 캐릭터
+  | 'LOW_DEF'            // DEF 낮은 쪽
+  | 'LOSER'              // 패배자
+  | 'RANDOM'             // 랜덤 (확률적 효과)
+  | 'HIGHEST_ATK'        // 최고 ATK
+  | 'FIRST_STRIKE'       // 선공자
+  | 'LOW_HP'             // HP 50% 이하
+  | 'SPECIAL_GRADE'      // 특급 등급
+  | 'NON_SPECIAL'        // 1급 이하
+  | 'HEAL'               // 회복 스킬 효과
+  | 'ON_HEAL'            // HP 회복 시 트리거
+  | 'RANDOM_DEBUFF';     // 랜덤 디버프
+
 // 경기장 효과
 export interface ArenaEffect {
   type: ArenaEffectType;
-  target: Attribute | 'ALL';
+  target: ArenaEffectTarget;
   value: number;
+  stat?: 'atk' | 'def' | 'spd' | 'ce' | 'hp';  // STAT_MODIFY용 스탯 지정
   description: string;
 }
+
+// 경기장 카테고리
+export type ArenaCategory = 'LOCATION' | 'DOMAIN' | 'SPECIAL';
 
 // 경기장
 export interface Arena {
@@ -274,6 +294,7 @@ export interface Arena {
   description: string;
   imageUrl: string;
   effects: ArenaEffect[];
+  category: ArenaCategory;
 }
 
 // 아이템 특수 효과
