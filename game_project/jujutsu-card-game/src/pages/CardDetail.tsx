@@ -15,6 +15,8 @@ import { getLevelProgress, getExpToNextLevel } from '../utils/battleCalculator';
 import { Button } from '../components/UI/Button';
 import { GradeBadge, AttributeBadge, RarityBadge } from '../components/UI/Badge';
 import { StatBar } from '../components/UI/StatBar';
+import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
+import { ATTRIBUTES } from '../data/constants';
 import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord } from '../types';
 import { AWARD_CONFIG } from '../types';
 
@@ -252,7 +254,14 @@ function InfoTab({
   handleEquip: (item: Item) => void;
   handleUnequip: (slot: 0 | 1) => void;
 }) {
+  const [imageError, setImageError] = useState(false);
+
   if (!character || !playerCard) return null;
+
+  const attrInfo = ATTRIBUTES[character.attribute];
+  const imageUrl = imageError
+    ? getPlaceholderImage(character.name.ko, character.attribute)
+    : getCharacterImage(character.id, character.name.ko, character.attribute);
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -266,15 +275,31 @@ function InfoTab({
           ${character.grade === '준1급' ? 'from-grade-b/30 to-grade-b/10' : ''}
           ${character.grade === '2급' ? 'from-grade-c/30 to-grade-c/10' : ''}
         `}>
-          <div className="absolute top-4 left-4 flex gap-2">
+          {/* 캐릭터 이미지 */}
+          {imageError ? (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ backgroundColor: `${attrInfo.color}30` }}
+            >
+              <span className="text-8xl">{attrInfo.icon}</span>
+            </div>
+          ) : (
+            <img
+              src={imageUrl}
+              alt={character.name.ko}
+              className="absolute inset-0 w-full h-full object-cover object-top"
+              onError={() => setImageError(true)}
+            />
+          )}
+          <div className="absolute top-4 left-4 flex gap-2 z-10">
             <GradeBadge grade={character.grade} />
             <AttributeBadge attribute={character.attribute} />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10">
             <div className="text-lg font-bold">{character.name.ko}</div>
             <div className="text-sm text-text-secondary">{character.name.en}</div>
           </div>
-          <div className="absolute top-4 right-4 bg-accent px-3 py-1 rounded-full text-sm font-bold">
+          <div className="absolute top-4 right-4 bg-accent px-3 py-1 rounded-full text-sm font-bold z-10">
             Lv.{playerCard.level}
           </div>
         </div>

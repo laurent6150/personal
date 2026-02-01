@@ -284,7 +284,7 @@ export function useCrewManagement() {
 
   // 등급별 카드 수
   const gradeCount = useMemo(() => {
-    const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+    const counts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of player.currentCrew) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) counts[char.grade]++;
@@ -297,7 +297,7 @@ export function useCrewManagement() {
     availableCards,
     gradeCount,
     crewSize: player.currentCrew.length,
-    maxCrewSize: 5,
+    maxCrewSize: CREW_SIZE,
     setCurrentCrew,
     addCardToCrew,
     removeCardFromCrew,

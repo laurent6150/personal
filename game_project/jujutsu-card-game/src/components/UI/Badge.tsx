@@ -10,14 +10,14 @@ export function GradeBadge({ grade, size = 'md' }: GradeBadgeProps) {
   const gradeInfo = GRADES[grade];
 
   const sizes = {
-    sm: 'w-5 h-5 text-xs',
-    md: 'w-7 h-7 text-sm',
-    lg: 'w-9 h-9 text-base'
+    sm: 'text-[10px] px-1.5 py-0.5 min-w-5',
+    md: 'text-xs px-2 py-1 min-w-7',
+    lg: 'text-sm px-2.5 py-1 min-w-9'
   };
 
   return (
     <span
-      className={`${sizes[size]} rounded-full flex items-center justify-center font-bold shadow-md`}
+      className={`${sizes[size]} rounded-full flex items-center justify-center font-bold shadow-md whitespace-nowrap`}
       style={{
         backgroundColor: gradeInfo.bg,
         color: gradeInfo.text

@@ -78,7 +78,7 @@ export function StatsDisplay({ stats, compact = false, tiny = false }: StatsDisp
           <span>⚡{stats.spd}</span>
         </div>
         <div className="flex justify-between gap-0.5">
-          <span>💜{stats.ce}</span>
+          <span>🔮{stats.ce}</span>
           <span>❤{stats.hp}</span>
         </div>
       </div>

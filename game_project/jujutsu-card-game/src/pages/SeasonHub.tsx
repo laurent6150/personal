@@ -13,8 +13,9 @@ import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
-import { CREW_SIZE } from '../data/constants';
+import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
 import { GRADE_LIMITS } from '../data/aiCrews';
+import { getCharacterImage } from '../utils/imageHelper';
 import type { LeagueStanding, CharacterCard, Grade } from '../types';
 
 interface SeasonHubProps {
@@ -754,7 +755,7 @@ export function SeasonHub({
                   >
                     {/* 카드 이미지 */}
                     <div className={`
-                      aspect-[3/4] rounded-lg flex items-center justify-center text-2xl
+                      aspect-[3/4] rounded-lg overflow-hidden relative
                       bg-gradient-to-br
                       ${card.grade === '특급' ? 'from-yellow-500/30 to-yellow-600/10 border border-yellow-500/30' : ''}
                       ${card.grade === '1급' ? 'from-purple-500/30 to-purple-600/10 border border-purple-500/30' : ''}
@@ -763,7 +764,23 @@ export function SeasonHub({
                       ${card.grade === '준2급' ? 'from-gray-500/30 to-gray-600/10 border border-gray-500/30' : ''}
                       ${card.grade === '3급' ? 'from-gray-600/30 to-gray-700/10 border border-gray-600/30' : ''}
                     `}>
-                      {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
+                      <img
+                        src={getCharacterImage(card.id, card.name.ko, card.attribute)}
+                        alt={card.name.ko}
+                        className="w-full h-full object-cover object-top"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.classList.add('flex', 'items-center', 'justify-center');
+                            const fallback = document.createElement('span');
+                            fallback.className = 'text-2xl';
+                            fallback.textContent = ATTRIBUTES[card.attribute]?.icon || '👤';
+                            parent.appendChild(fallback);
+                          }
+                        }}
+                      />
                     </div>
                     {/* 카드 정보 */}
                     <div className="mt-2 text-center">

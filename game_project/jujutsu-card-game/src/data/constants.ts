@@ -69,7 +69,7 @@ export const STAT_ICONS = {
   atk: '⚔️',
   def: '🛡️',
   spd: '⚡',
-  ce: '💜',
+  ce: '🔮',
   hp: '❤️'
 };
 
