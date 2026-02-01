@@ -11,10 +11,18 @@ interface SettingsProps {
 export function Settings({ onBack }: SettingsProps) {
   const { player, updateSettings, resetProgress } = usePlayerStore();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
 
   const handleResetProgress = () => {
     resetProgress();
     setShowResetConfirm(false);
+  };
+
+  const handleFullReset = () => {
+    // 모든 localStorage 삭제
+    localStorage.clear();
+    // 페이지 새로고침하여 처음부터 시작
+    window.location.reload();
   };
 
   return (
@@ -124,6 +132,18 @@ export function Settings({ onBack }: SettingsProps) {
             >
               진행 상황 초기화
             </Button>
+
+            {/* 전체 데이터 초기화 버튼 */}
+            <Button
+              onClick={() => setShowFullResetConfirm(true)}
+              variant="danger"
+              className="w-full"
+            >
+              🗑️ 전체 데이터 초기화
+            </Button>
+            <p className="text-xs text-text-secondary text-center">
+              모든 게임 데이터를 삭제하고 처음부터 시작합니다
+            </p>
           </div>
         </motion.div>
 
@@ -175,6 +195,47 @@ export function Settings({ onBack }: SettingsProps) {
               className="flex-1"
             >
               초기화
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 전체 데이터 초기화 확인 모달 */}
+      <Modal
+        isOpen={showFullResetConfirm}
+        onClose={() => setShowFullResetConfirm(false)}
+        title="전체 데이터 초기화"
+        size="sm"
+      >
+        <div className="text-center">
+          <div className="text-4xl mb-4">🗑️</div>
+          <p className="text-text-secondary mb-4">
+            <strong className="text-red-400">모든 게임 데이터가 삭제됩니다!</strong>
+          </p>
+          <ul className="text-sm text-text-secondary mb-6 text-left list-disc list-inside space-y-1">
+            <li>플레이어 정보 및 진행 상황</li>
+            <li>보유 카드 및 크루 구성</li>
+            <li>시즌 기록 및 랭킹</li>
+            <li>트레이드 내역</li>
+            <li>모든 업적 및 아이템</li>
+          </ul>
+          <p className="text-xs text-red-400 mb-6">
+            이 작업은 되돌릴 수 없습니다!
+          </p>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowFullResetConfirm(false)}
+              variant="ghost"
+              className="flex-1"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleFullReset}
+              variant="danger"
+              className="flex-1"
+            >
+              전체 초기화
             </Button>
           </div>
         </div>
