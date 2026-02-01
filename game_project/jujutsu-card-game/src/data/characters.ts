@@ -3,12 +3,34 @@
 // ========================================
 
 import type { CharacterCard } from '../types';
-import { ATTRIBUTES } from './constants';
 
-// 플레이스홀더 이미지 생성 함수
-const getPlaceholderImage = (name: string, attribute: keyof typeof ATTRIBUTES): string => {
-  const color = ATTRIBUTES[attribute].color.replace('#', '');
-  return `https://via.placeholder.com/200x280/${color}/FFFFFF?text=${encodeURIComponent(name)}`;
+// 캐릭터 이미지 경로 매핑
+const CHARACTER_IMAGES: Record<string, string> = {
+  gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
+  ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
+  kenjaku: '/images/characters/Kenjaku%20(in%20Suguru%20Geto%20Body).jpg',
+  fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
+  nanami_kento: '/images/characters/Kento_Nanami.jpg',
+  jogo: '/images/characters/Jogo.jpg',
+  hanami: '/images/characters/Hanami.jpg',
+  choso: '/images/characters/Choso.jpg',
+  yuta_okkotsu: '/images/characters/Yuta_Okkotsu.jpg',
+  todo_aoi: '/images/characters/Aoi_Todo.jpg',
+  itadori_yuji: '/images/characters/Yuji_Itadori.jpg',
+  fushiguro_megumi: '/images/characters/Megumi_Fushiguro.jpg',
+  mahito: '/images/characters/Mahito.jpg',
+  mei_mei: '/images/characters/Mei_Mei.jpg',
+  inumaki_toge: '/images/characters/Toge_Inumaki.jpg',
+  maki_zenin: '/images/characters/Maki_Zenin%20(Normal).jpg',
+  kugisaki_nobara: '/images/characters/Nobara_Kugisaki.jpg',
+  ino_takuma: '/images/characters/Takuma_Ino.jpg',
+  panda: '/images/characters/Panda.jpg',
+  nishimiya_momo: '/images/characters/Momo_Nishimiya.jpg',
+};
+
+// 이미지 경로 가져오기
+const getCharacterImage = (id: string): string => {
+  return CHARACTER_IMAGES[id] || '';
 };
 
 // ===== 특급 - 3장 =====
@@ -18,7 +40,7 @@ const S_GRADE: CharacterCard[] = [
     name: { ko: "고죠 사토루", ja: "五条悟", en: "Gojo Satoru" },
     grade: "특급",
     attribute: "BARRIER",
-    imageUrl: getPlaceholderImage("고죠", "BARRIER"),
+    imageUrl: getCharacterImage("gojo_satoru"),
     baseStats: { atk: 20, def: 18, spd: 20, ce: 25, hp: 100 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: {
@@ -78,7 +100,7 @@ const S_GRADE: CharacterCard[] = [
     name: { ko: "료멘 스쿠나", ja: "両面宿儺", en: "Ryomen Sukuna" },
     grade: "특급",
     attribute: "CURSE",
-    imageUrl: getPlaceholderImage("스쿠나", "CURSE"),
+    imageUrl: getCharacterImage("ryomen_sukuna"),
     baseStats: { atk: 25, def: 15, spd: 18, ce: 22, hp: 100 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: {
@@ -131,7 +153,7 @@ const S_GRADE: CharacterCard[] = [
     name: { ko: "켄자쿠", ja: "羂索", en: "Kenjaku" },
     grade: "특급",
     attribute: "SOUL",
-    imageUrl: getPlaceholderImage("켄자쿠", "SOUL"),
+    imageUrl: getCharacterImage("kenjaku"),
     baseStats: { atk: 18, def: 16, spd: 17, ce: 24, hp: 100 },
     growthStats: { primary: "ce", secondary: "hp" },
     skill: {
@@ -188,7 +210,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "후시구로 토지", ja: "伏黒甚爾", en: "Fushiguro Toji" },
     grade: "1급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("토지", "BODY"),
+    imageUrl: getCharacterImage("fushiguro_toji"),
     baseStats: { atk: 22, def: 14, spd: 19, ce: 0, hp: 90 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: {
@@ -241,7 +263,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "나나미 켄토", ja: "七海建人", en: "Nanami Kento" },
     grade: "1급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("나나미", "BODY"),
+    imageUrl: getCharacterImage("nanami_kento"),
     baseStats: { atk: 18, def: 16, spd: 15, ce: 18, hp: 85 },
     growthStats: { primary: "atk", secondary: "def" },
     skill: {
@@ -294,7 +316,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "죠고", ja: "漏瑚", en: "Jogo" },
     grade: "1급",
     attribute: "CONVERT",
-    imageUrl: getPlaceholderImage("죠고", "CONVERT"),
+    imageUrl: getCharacterImage("jogo"),
     baseStats: { atk: 20, def: 12, spd: 16, ce: 22, hp: 85 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: {
@@ -347,7 +369,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "하나미", ja: "花御", en: "Hanami" },
     grade: "1급",
     attribute: "CONVERT",
-    imageUrl: getPlaceholderImage("하나미", "CONVERT"),
+    imageUrl: getCharacterImage("hanami"),
     baseStats: { atk: 16, def: 18, spd: 14, ce: 20, hp: 90 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: {
@@ -400,7 +422,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "쵸소", ja: "脹相", en: "Choso" },
     grade: "1급",
     attribute: "CURSE",
-    imageUrl: getPlaceholderImage("쵸소", "CURSE"),
+    imageUrl: getCharacterImage("choso"),
     baseStats: { atk: 19, def: 15, spd: 17, ce: 19, hp: 85 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: {
@@ -453,7 +475,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "오코츠 유타", ja: "乙骨憂太", en: "Yuta Okkotsu" },
     grade: "1급",
     attribute: "CURSE",
-    imageUrl: getPlaceholderImage("유타", "CURSE"),
+    imageUrl: getCharacterImage("yuta_okkotsu"),
     baseStats: { atk: 18, def: 16, spd: 16, ce: 25, hp: 90 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: {
@@ -506,7 +528,7 @@ const A_GRADE: CharacterCard[] = [
     name: { ko: "토도 아오이", ja: "東堂葵", en: "Todo Aoi" },
     grade: "1급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("토도", "BODY"),
+    imageUrl: getCharacterImage("todo_aoi"),
     baseStats: { atk: 20, def: 14, spd: 17, ce: 16, hp: 88 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: {
@@ -563,7 +585,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "이타도리 유지", ja: "虎杖悠仁", en: "Itadori Yuji" },
     grade: "준1급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("유지", "BODY"),
+    imageUrl: getCharacterImage("itadori_yuji"),
     baseStats: { atk: 17, def: 13, spd: 18, ce: 12, hp: 80 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: {
@@ -616,7 +638,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "후시구로 메구미", ja: "伏黒恵", en: "Fushiguro Megumi" },
     grade: "준1급",
     attribute: "RANGE",
-    imageUrl: getPlaceholderImage("메구미", "RANGE"),
+    imageUrl: getCharacterImage("fushiguro_megumi"),
     baseStats: { atk: 15, def: 14, spd: 16, ce: 18, hp: 78 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: {
@@ -669,7 +691,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "마히토", ja: "真人", en: "Mahito" },
     grade: "준1급",
     attribute: "SOUL",
-    imageUrl: getPlaceholderImage("마히토", "SOUL"),
+    imageUrl: getCharacterImage("mahito"),
     baseStats: { atk: 16, def: 12, spd: 17, ce: 20, hp: 82 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: {
@@ -722,7 +744,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "메이메이", ja: "冥冥", en: "Mei Mei" },
     grade: "준1급",
     attribute: "RANGE",
-    imageUrl: getPlaceholderImage("메이메이", "RANGE"),
+    imageUrl: getCharacterImage("mei_mei"),
     baseStats: { atk: 16, def: 14, spd: 15, ce: 17, hp: 80 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: {
@@ -775,7 +797,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "이누마키 토게", ja: "狗巻棘", en: "Inumaki Toge" },
     grade: "준1급",
     attribute: "CURSE",
-    imageUrl: getPlaceholderImage("토게", "CURSE"),
+    imageUrl: getCharacterImage("inumaki_toge"),
     baseStats: { atk: 14, def: 12, spd: 16, ce: 22, hp: 70 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: {
@@ -828,7 +850,7 @@ const B_GRADE: CharacterCard[] = [
     name: { ko: "젠인 마키", ja: "禪院真希", en: "Maki Zenin" },
     grade: "준1급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("마키", "BODY"),
+    imageUrl: getCharacterImage("maki_zenin"),
     baseStats: { atk: 18, def: 13, spd: 17, ce: 5, hp: 78 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: {
@@ -885,7 +907,7 @@ const C_GRADE: CharacterCard[] = [
     name: { ko: "쿠기사키 노바라", ja: "釘崎野薔薇", en: "Kugisaki Nobara" },
     grade: "2급",
     attribute: "RANGE",
-    imageUrl: getPlaceholderImage("노바라", "RANGE"),
+    imageUrl: getCharacterImage("kugisaki_nobara"),
     baseStats: { atk: 15, def: 12, spd: 14, ce: 16, hp: 75 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: {
@@ -938,7 +960,7 @@ const C_GRADE: CharacterCard[] = [
     name: { ko: "이노 타쿠마", ja: "猪野琢真", en: "Ino Takuma" },
     grade: "2급",
     attribute: "CURSE",
-    imageUrl: getPlaceholderImage("이노", "CURSE"),
+    imageUrl: getCharacterImage("ino_takuma"),
     baseStats: { atk: 14, def: 14, spd: 13, ce: 15, hp: 75 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: {
@@ -991,7 +1013,7 @@ const C_GRADE: CharacterCard[] = [
     name: { ko: "판다", ja: "パンダ", en: "Panda" },
     grade: "2급",
     attribute: "BODY",
-    imageUrl: getPlaceholderImage("판다", "BODY"),
+    imageUrl: getCharacterImage("panda"),
     baseStats: { atk: 16, def: 16, spd: 12, ce: 10, hp: 85 },
     growthStats: { primary: "def", secondary: "atk" },
     skill: {
@@ -1044,7 +1066,7 @@ const C_GRADE: CharacterCard[] = [
     name: { ko: "니시미야 모모", ja: "西宮桃", en: "Nishimiya Momo" },
     grade: "2급",
     attribute: "RANGE",
-    imageUrl: getPlaceholderImage("모모", "RANGE"),
+    imageUrl: getCharacterImage("nishimiya_momo"),
     baseStats: { atk: 12, def: 11, spd: 16, ce: 14, hp: 70 },
     growthStats: { primary: "spd", secondary: "ce" },
     skill: {
