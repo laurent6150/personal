@@ -37,11 +37,11 @@ export function Settings({ onBack }: SettingsProps) {
     <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-lg mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-text-primary">설정</h1>
+          <h1 className="text-2xl font-bold text-text-primary text-shadow-strong">설정</h1>
           <div className="w-20" />
         </div>
       </div>

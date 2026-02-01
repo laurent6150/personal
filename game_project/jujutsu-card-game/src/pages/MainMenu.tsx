@@ -34,12 +34,12 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="text-center mb-8 bg-black/40 rounded-2xl px-8 py-6 backdrop-blur-sm"
       >
-        <h1 className="text-5xl md:text-6xl font-bold text-text-primary mb-3">
+        <h1 className="text-5xl md:text-6xl font-bold text-text-primary mb-3 text-shadow-strong">
           <span className="text-accent">영역전개</span>
         </h1>
-        <p className="text-lg text-text-secondary">주술회전 카드 배틀</p>
+        <p className="text-lg text-text-secondary text-shadow">주술회전 카드 배틀</p>
       </motion.div>
 
       {/* 현재 크루 미리보기 */}
@@ -135,13 +135,13 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
-        className="mt-8 text-center text-sm text-text-secondary"
+        className="mt-8 text-center text-sm text-text-secondary bg-black/40 rounded-xl px-6 py-3 backdrop-blur-sm"
       >
-        <div>
+        <div className="text-shadow">
           전적: {player.totalStats.totalWins}승 {player.totalStats.totalLosses}패
         </div>
         {player.totalStats.maxWinStreak > 0 && (
-          <div>최대 연승: {player.totalStats.maxWinStreak}</div>
+          <div className="text-shadow">최대 연승: {player.totalStats.maxWinStreak}</div>
         )}
       </motion.div>
     </div>

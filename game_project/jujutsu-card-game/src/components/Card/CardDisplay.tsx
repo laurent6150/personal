@@ -42,11 +42,11 @@ export function CardDisplay({
     setImageError(true);
   };
 
-  // 카드 크기 설정 (1.5배 ~ 2배 확대)
+  // 카드 크기 설정 (스탯+스킬 포함)
   const sizes = {
-    sm: { width: 'w-40', height: 'h-56', text: 'text-xs', imgHeight: 'h-28' },      // 160x224px
-    md: { width: 'w-52', height: 'h-72', text: 'text-sm', imgHeight: 'h-36' },      // 208x288px
-    lg: { width: 'w-64', height: 'h-[360px]', text: 'text-base', imgHeight: 'h-44' } // 256x360px
+    sm: { width: 'w-40', height: 'h-72', text: 'text-xs', imgHeight: 'h-24' },      // 160x288px
+    md: { width: 'w-52', height: 'h-96', text: 'text-sm', imgHeight: 'h-32' },      // 208x384px
+    lg: { width: 'w-64', height: 'h-[440px]', text: 'text-base', imgHeight: 'h-40' } // 256x440px
   };
 
   const level = playerCard?.level ?? 1;
@@ -105,7 +105,7 @@ export function CardDisplay({
           <img
             src={imageUrl}
             alt={character.name.ko}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
             onError={handleImageError}
           />
         )}
@@ -135,22 +135,28 @@ export function CardDisplay({
         </div>
       </div>
 
-      {/* 스탯 */}
-      {showStats && size !== 'sm' && (
-        <div className={size === 'md' ? 'px-2 py-1' : 'px-3 py-2'}>
-          <StatsDisplay stats={character.baseStats} compact={size === 'md'} />
+      {/* 스탯 - 모든 사이즈에서 표시 */}
+      {showStats && (
+        <div className={size === 'sm' ? 'px-1.5 py-0.5' : size === 'md' ? 'px-2 py-1' : 'px-3 py-2'}>
+          <StatsDisplay stats={character.baseStats} compact={size !== 'lg'} />
         </div>
       )}
 
-      {/* 스킬 */}
-      {showSkill && size === 'lg' && (
-        <div className="px-3 py-2 border-t border-white/10">
-          <div className="text-sm text-accent font-bold">
+      {/* 스킬 - sm/md/lg 모두 표시 */}
+      {showSkill && (
+        <div className={`border-t border-white/10 ${
+          size === 'sm' ? 'px-1.5 py-1' : size === 'md' ? 'px-2 py-1.5' : 'px-3 py-2'
+        }`}>
+          <div className={`text-accent font-bold truncate ${
+            size === 'sm' ? 'text-xs' : 'text-sm'
+          }`}>
             【{character.skill.name}】
           </div>
-          <div className="text-sm text-text-secondary line-clamp-2">
-            {character.skill.description}
-          </div>
+          {size !== 'sm' && (
+            <div className="text-xs text-text-secondary line-clamp-1">
+              {character.skill.description}
+            </div>
+          )}
         </div>
       )}
     </motion.div>

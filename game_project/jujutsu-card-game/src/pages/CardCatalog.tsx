@@ -11,6 +11,8 @@ import { useCardRecordStore } from '../stores/cardRecordStore';
 import { PLAYER_CREW_ID } from '../data/aiCrews';
 import { Button } from '../components/UI/Button';
 import { GradeBadge, AttributeBadge } from '../components/UI/Badge';
+import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
+import { ATTRIBUTES } from '../data';
 import type { Grade, Attribute, CharacterCard } from '../types';
 
 interface CardCatalogProps {
@@ -136,15 +138,23 @@ export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {
     return cards;
   }, [gradeFilter, attributeFilter, sortBy, player.ownedCards, getCareerStats]);
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-6xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-accent">술사 명부</h1>
+          <h1 className="text-2xl font-bold text-accent text-shadow-strong">술사 명부</h1>
           <div className="w-20" />
         </div>
       </div>
@@ -217,7 +227,7 @@ export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {
 
       {/* 카드 수 표시 */}
       <div className="max-w-6xl mx-auto mb-4">
-        <div className="text-sm text-text-secondary">
+        <div className="text-sm text-text-secondary text-shadow bg-black/30 inline-block px-3 py-1 rounded-lg">
           총 {filteredCards.length}명의 술사
         </div>
       </div>
@@ -253,6 +263,14 @@ interface CardCatalogItemProps {
 }
 
 function CardCatalogItem({ card, crewInfo, playerCard, careerStats, onClick, delay }: CardCatalogItemProps) {
+  const [imageError, setImageError] = useState(false);
+  const attrInfo = ATTRIBUTES[card.attribute];
+
+  // 이미지 URL (실제 이미지 또는 폴백)
+  const imageUrl = imageError
+    ? getPlaceholderImage(card.name.ko, card.attribute)
+    : getCharacterImage(card.id, card.name.ko, card.attribute);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -263,7 +281,7 @@ function CardCatalogItem({ card, crewInfo, playerCard, careerStats, onClick, del
     >
       {/* 카드 이미지 영역 */}
       <div className={`
-        relative aspect-[3/4] rounded-lg mb-2 flex items-center justify-center
+        relative aspect-[3/4] rounded-lg mb-2 overflow-hidden
         bg-gradient-to-br
         ${card.grade === '특급' ? 'from-grade-s/30 to-grade-s/10' : ''}
         ${card.grade === '1급' ? 'from-grade-a/30 to-grade-a/10' : ''}
@@ -274,20 +292,29 @@ function CardCatalogItem({ card, crewInfo, playerCard, careerStats, onClick, del
       `}>
         {/* 레벨 배지 */}
         {playerCard && (
-          <div className="absolute top-1 right-1 bg-accent text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
+          <div className="absolute top-1 right-1 bg-accent text-white text-xs px-1.5 py-0.5 rounded-full font-bold z-10">
             Lv.{playerCard.level}
           </div>
         )}
 
         {/* 등급 */}
-        <div className="absolute top-1 left-1">
+        <div className="absolute top-1 left-1 z-10">
           <GradeBadge grade={card.grade} size="sm" />
         </div>
 
-        {/* 캐릭터 이모지 (이미지가 없거나 URL인 경우 기본 이모지) */}
-        <div className="text-3xl">
-          {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
-        </div>
+        {/* 캐릭터 이미지 */}
+        {imageError ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-3xl">{attrInfo.icon}</span>
+          </div>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={card.name.ko}
+            className="w-full h-full object-cover object-top"
+            onError={() => setImageError(true)}
+          />
+        )}
       </div>
 
       {/* 카드 정보 */}

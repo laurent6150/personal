@@ -45,11 +45,11 @@ export function CrewManager({ onBack }: CrewManagerProps) {
     <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-4xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-text-primary">크루 관리</h1>
+          <h1 className="text-2xl font-bold text-text-primary text-shadow-strong">크루 관리</h1>
           <div className="w-20" /> {/* 균형을 위한 빈 공간 */}
         </div>
       </div>
@@ -76,7 +76,7 @@ export function CrewManager({ onBack }: CrewManagerProps) {
 
       {/* 현재 크루 */}
       <div className="max-w-4xl mx-auto mb-8">
-        <h2 className="text-lg font-bold text-text-primary mb-3">
+        <h2 className="text-lg font-bold text-text-primary mb-3 text-shadow bg-black/30 inline-block px-3 py-1 rounded-lg">
           현재 크루 ({crewSize}/{maxCrewSize})
         </h2>
 
@@ -124,7 +124,7 @@ export function CrewManager({ onBack }: CrewManagerProps) {
 
       {/* 사용 가능한 카드 */}
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-lg font-bold text-text-primary mb-3">
+        <h2 className="text-lg font-bold text-text-primary mb-3 text-shadow bg-black/30 inline-block px-3 py-1 rounded-lg">
           사용 가능한 카드
         </h2>
 

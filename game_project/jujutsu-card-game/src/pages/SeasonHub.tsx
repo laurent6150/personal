@@ -569,16 +569,16 @@ export function SeasonHub({
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto mb-6"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <div>
-            <h1 className="text-3xl font-bold text-accent">시즌 {currentSeason.number}</h1>
-            <p className="text-text-secondary">
+            <h1 className="text-3xl font-bold text-accent text-shadow-strong">시즌 {currentSeason.number}</h1>
+            <p className="text-text-secondary text-shadow">
               {currentSeason.matches.filter(m => m.played && m.homeCrewId === PLAYER_CREW_ID).length} / 5 경기 완료
             </p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-text-secondary">내 순위</div>
-            <div className="text-3xl font-bold text-accent">{playerRank}위</div>
+            <div className="text-sm text-text-secondary text-shadow">내 순위</div>
+            <div className="text-3xl font-bold text-accent text-shadow-strong">{playerRank}위</div>
           </div>
         </div>
       </motion.div>
@@ -591,7 +591,7 @@ export function SeasonHub({
           animate={{ opacity: 1, x: 0 }}
           className="bg-bg-card rounded-xl p-6 border border-white/10"
         >
-          <h2 className="text-lg font-bold text-text-primary mb-4">📅 다음 경기</h2>
+          <h2 className="text-lg font-bold text-text-primary mb-4 text-shadow">📅 다음 경기</h2>
 
           {nextMatch ? (() => {
             const opponent = getAICrewById(nextMatch.awayCrewId);
@@ -684,7 +684,7 @@ export function SeasonHub({
           animate={{ opacity: 1, x: 0 }}
           className="bg-bg-card rounded-xl p-6 border border-white/10"
         >
-          <h2 className="text-lg font-bold text-text-primary mb-4">🏆 순위표</h2>
+          <h2 className="text-lg font-bold text-text-primary mb-4 text-shadow">🏆 순위표</h2>
 
           <div className="space-y-2">
             {standings.map((standing, index) => (
@@ -720,14 +720,16 @@ export function SeasonHub({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="max-w-4xl mx-auto mt-6 flex justify-center gap-3 flex-wrap"
+        className="max-w-4xl mx-auto mt-6 bg-black/40 rounded-xl p-4 backdrop-blur-sm"
       >
-        <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
-        <Button onClick={onCollection} variant="ghost">내 크루</Button>
-        <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
-        <Button onClick={onRanking} variant="ghost">개인 순위</Button>
-        <Button onClick={onTrade} variant="ghost">트레이드</Button>
-        <Button onClick={onSettings} variant="ghost">설정</Button>
+        <div className="flex justify-center gap-3 flex-wrap">
+          <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
+          <Button onClick={onCollection} variant="ghost">내 크루</Button>
+          <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
+          <Button onClick={onRanking} variant="ghost">개인 순위</Button>
+          <Button onClick={onTrade} variant="ghost">트레이드</Button>
+          <Button onClick={onSettings} variant="ghost">설정</Button>
+        </div>
       </motion.div>
 
       {/* 크루 카드 상세 모달 */}

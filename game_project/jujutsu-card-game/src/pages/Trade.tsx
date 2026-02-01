@@ -12,6 +12,8 @@ import { PLAYER_CREW_ID } from '../data/aiCrews';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { GradeBadge } from '../components/UI/Badge';
+import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
+import { ATTRIBUTES } from '../data';
 import type { AICrew, CharacterCard, TradeOffer } from '../types';
 import { GRADE_POINTS } from '../types';
 
@@ -122,15 +124,23 @@ export function Trade({ onBack }: TradeProps) {
     setTradeResult(null);
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-5xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-accent">🔄 트레이드</h1>
+          <h1 className="text-2xl font-bold text-accent text-shadow-strong">🔄 트레이드</h1>
           <div className="w-20" />
         </div>
       </div>
@@ -415,25 +425,48 @@ interface TradeCardProps {
 }
 
 function TradeCard({ card, isSelected, onClick }: TradeCardProps) {
+  const [imageError, setImageError] = useState(false);
+  const attrInfo = ATTRIBUTES[card.attribute];
+
+  // 이미지 URL (실제 이미지 또는 폴백)
+  const imageUrl = imageError
+    ? getPlaceholderImage(card.name.ko, card.attribute)
+    : getCharacterImage(card.id, card.name.ko, card.attribute);
+
   return (
     <div
       onClick={onClick}
       className={`
-        aspect-[3/4] rounded-lg p-2 cursor-pointer transition-all
-        flex flex-col items-center justify-center text-center
+        aspect-[3/4] rounded-lg cursor-pointer transition-all overflow-hidden
+        flex flex-col
         ${isSelected
-          ? 'bg-accent/30 border-2 border-accent scale-105'
-          : 'bg-black/20 border border-white/10 hover:bg-black/40'
+          ? 'border-2 border-accent scale-105'
+          : 'border border-white/10 hover:border-accent/50'
         }
       `}
     >
-      <div className="text-xl mb-1">
-        {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
+      {/* 이미지 영역 */}
+      <div className="flex-1 relative overflow-hidden bg-black/20">
+        {imageError ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-xl">{attrInfo.icon}</span>
+          </div>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={card.name.ko}
+            className="w-full h-full object-cover object-top"
+            onError={() => setImageError(true)}
+          />
+        )}
       </div>
-      <GradeBadge grade={card.grade} size="sm" />
-      <div className="text-xs font-bold mt-1 truncate w-full">{card.name.ko}</div>
-      <div className="text-[10px] text-text-secondary">
-        {GRADE_POINTS[card.grade]}pt
+      {/* 정보 영역 */}
+      <div className="p-1 bg-black/40 text-center">
+        <GradeBadge grade={card.grade} size="sm" />
+        <div className="text-xs font-bold mt-0.5 truncate">{card.name.ko}</div>
+        <div className="text-[10px] text-text-secondary">
+          {GRADE_POINTS[card.grade]}pt
+        </div>
       </div>
     </div>
   );
