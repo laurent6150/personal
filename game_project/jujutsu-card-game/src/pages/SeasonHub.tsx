@@ -13,17 +13,9 @@ import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
-import type { LeagueStanding, Grade, CharacterCard } from '../types';
-
-// 등급별 최대 선택 가능 수
-const GRADE_LIMITS: Record<Grade, number> = {
-  '특급': 1,
-  '1급': 2,
-  '준1급': 5,
-  '2급': 5,
-  '준2급': 5,
-  '3급': 5
-};
+import { CREW_SIZE } from '../data/constants';
+import { GRADE_LIMITS } from '../data/aiCrews';
+import type { LeagueStanding, CharacterCard, Grade } from '../types';
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
@@ -95,8 +87,8 @@ export function SeasonHub({
     if (selectedCards.includes(cardId)) {
       return { canSelect: true }; // 이미 선택된 카드는 해제 가능
     }
-    if (selectedCards.length >= 5) {
-      return { canSelect: false, reason: '5장 선택 완료' };
+    if (selectedCards.length >= CREW_SIZE) {
+      return { canSelect: false, reason: `${CREW_SIZE}장 선택 완료` };
     }
 
     const char = CHARACTERS_BY_ID[cardId];
@@ -129,7 +121,7 @@ export function SeasonHub({
 
   // 게임 시작 (크루 선택 완료)
   const handleStartGame = () => {
-    if (selectedCards.length !== 5) return;
+    if (selectedCards.length !== CREW_SIZE) return;
     initializeGame(selectedCards);
     startNewSeason();
   };
@@ -185,7 +177,7 @@ export function SeasonHub({
           <div className="bg-bg-card rounded-xl p-6 border border-white/10 mb-6">
             <h2 className="text-xl font-bold text-text-primary mb-2">크루 선택</h2>
             <p className="text-text-secondary mb-2">
-              시즌에서 사용할 5장의 카드를 선택하세요. ({selectedCards.length}/5)
+              시즌에서 사용할 {CREW_SIZE}장의 카드를 선택하세요. ({selectedCards.length}/{CREW_SIZE})
             </p>
 
             {/* 등급 제한 안내 */}
@@ -197,7 +189,7 @@ export function SeasonHub({
                 1급: {selectedGradeCounts['1급'] || 0}/{GRADE_LIMITS['1급']}
               </span>
               <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
-                준1급/2급: 제한 없음
+                준1급 이하: 최대 {CREW_SIZE}장
               </span>
             </div>
 
@@ -217,7 +209,7 @@ export function SeasonHub({
                   </motion.div>
                 ) : null;
               })}
-              {Array.from({ length: 5 - selectedCards.length }).map((_, i) => (
+              {Array.from({ length: CREW_SIZE - selectedCards.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
                   className="w-20 h-28 rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
@@ -268,11 +260,11 @@ export function SeasonHub({
           <div className="flex justify-center gap-4">
             <Button
               onClick={handleStartGame}
-              disabled={selectedCards.length !== 5}
+              disabled={selectedCards.length !== CREW_SIZE}
               variant="primary"
               size="lg"
             >
-              시즌 1 시작! ({selectedCards.length}/5)
+              시즌 1 시작! ({selectedCards.length}/{CREW_SIZE})
             </Button>
           </div>
         </motion.div>
