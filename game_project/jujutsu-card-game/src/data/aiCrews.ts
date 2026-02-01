@@ -13,37 +13,49 @@ export interface AICrewTemplate {
   description: string;
 }
 
-// AI 팀 템플릿 (가용 카드 수에 따라 일부만 사용됨)
+// AI 팀 템플릿 - 주술회전 세계관 영감
 export const AI_CREW_TEMPLATES: AICrewTemplate[] = [
   {
-    id: 'curse_kings',
-    name: '저주의 왕들',
+    id: 'heukseom',
+    name: '흑섬',
     difficulty: 'HARD',
-    description: '강력한 저주의 군단'
+    description: '어둠을 가르는 검은 섬광'
   },
   {
-    id: 'jujutsu_high',
-    name: '주술고전',
-    difficulty: 'NORMAL',
-    description: '도쿄 주술고전 정예 팀'
-  },
-  {
-    id: 'zenin_clan',
-    name: '젠인 가문',
-    difficulty: 'NORMAL',
-    description: '명문 젠인 가문의 실력자들'
-  },
-  {
-    id: 'special_grade',
-    name: '특급 집결',
+    id: 'muryangongcheo',
+    name: '무량공처',
     difficulty: 'HARD',
-    description: '특급에 준하는 실력자들'
+    description: '무한의 정보가 흐르는 영역'
   },
   {
-    id: 'new_generation',
-    name: '신세대',
+    id: 'bokmajeonsin',
+    name: '복마전신',
+    difficulty: 'HARD',
+    description: '끊임없는 참격의 신전'
+  },
+  {
+    id: 'yeokrin',
+    name: '역린',
+    difficulty: 'NORMAL',
+    description: '깨어난 자의 분노'
+  },
+  {
+    id: 'jansang',
+    name: '잔상',
+    difficulty: 'NORMAL',
+    description: '눈으로 쫓을 수 없는 속도'
+  },
+  {
+    id: 'jeojubada',
+    name: '저주의 바다',
+    difficulty: 'NORMAL',
+    description: '저주가 모여드는 심연'
+  },
+  {
+    id: 'wonryeong',
+    name: '원령',
     difficulty: 'EASY',
-    description: '차세대 주술사들'
+    description: '사랑이 낳은 복수의 혼령'
   }
 ];
 

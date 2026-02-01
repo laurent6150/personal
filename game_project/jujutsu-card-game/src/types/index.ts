@@ -428,21 +428,89 @@ export interface LeagueStanding {
   goalDifference: number;
 }
 
-// 시즌 데이터
+// 시즌 상태
+export type SeasonStatus = 'REGULAR' | 'PLAYOFF_SEMI' | 'PLAYOFF_FINAL' | 'COMPLETED';
+
+// 플레이오프 경기
+export interface PlayoffMatch {
+  homeCrewId: string;
+  awayCrewId: string;
+  homeWins: number;
+  awayWins: number;
+  result?: 'HOME' | 'AWAY';  // 시리즈 승자
+  matches: LeagueMatch[];    // 개별 경기들
+}
+
+// 플레이오프 데이터
+export interface Playoff {
+  qualified: string[];  // TOP 4 크루 ID
+  semiFinals: [PlayoffMatch, PlayoffMatch];
+  final?: PlayoffMatch;
+  champion?: string;
+}
+
+// 시즌 데이터 (확장)
 export interface Season {
   id: string;
   number: number;
-  status: 'IN_PROGRESS' | 'COMPLETED';
+  status: SeasonStatus;
   matches: LeagueMatch[];
   standings: LeagueStanding[];
   currentMatchIndex: number;
   champion?: string;  // 우승 크루 ID
+  playoff?: Playoff;  // 플레이오프 데이터
 }
 
-// 시즌 히스토리
+// 통산 전적
+export interface HeadToHeadRecord {
+  vsId: string;      // 상대 크루 ID
+  wins: number;
+  draws: number;
+  losses: number;
+  history: {
+    seasonNumber: number;
+    result: 'WIN' | 'DRAW' | 'LOSS';
+  }[];
+}
+
+// 캐릭터 시즌 성장 기록
+export interface CharacterSeasonGrowth {
+  cardId: string;
+  startLevel: number;
+  endLevel: number;
+  expGained: number;
+  statsGained: Partial<Stats>;
+  wins: number;
+  losses: number;
+}
+
+// 시즌 요약 데이터
+export interface SeasonSummary {
+  seasonNumber: number;
+  finalRank: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  points: number;
+  characterGrowth: CharacterSeasonGrowth[];
+  mvpCardId?: string;  // 가장 많은 승리 기여
+  highlights: {
+    type: 'WIN_STREAK' | 'COMEBACK' | 'PERFECT_GAME' | 'CLUTCH';
+    description: string;
+  }[];
+  playoffResult?: {
+    qualified: boolean;
+    reachedFinal: boolean;
+    isChampion: boolean;
+  };
+}
+
+// 시즌 히스토리 (확장)
 export interface SeasonHistory {
   seasonNumber: number;
   champion: string;
   playerRank: number;
   playerPoints: number;
+  playoffResult?: 'CHAMPION' | 'FINALIST' | 'SEMI' | 'NOT_QUALIFIED';
+  summary?: SeasonSummary;
 }

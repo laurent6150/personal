@@ -28,7 +28,7 @@ function App() {
   const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
 
   const { startGame } = useBattle();
-  const { playMatch, getAICrewById } = useSeasonStore();
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
 
   // 리그 매치 시작 (시즌 시스템용)
   const handleStartMatch = useCallback((opponentCrewId: string) => {
@@ -158,11 +158,19 @@ function App() {
               onReturnToMenu={handleReturnToSeasonHub}
               opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
               onBattleEnd={(result) => {
-                // 리그 결과 기록
+                // 결과 기록 (정규시즌 vs 플레이오프)
                 if (currentOpponent) {
                   const playerScore = result.won ? 3 : 0;
                   const opponentScore = result.won ? 0 : 3;
-                  playMatch(currentOpponent, playerScore, opponentScore);
+
+                  const isPlayoff = currentSeason?.status === 'PLAYOFF_SEMI' ||
+                    currentSeason?.status === 'PLAYOFF_FINAL';
+
+                  if (isPlayoff) {
+                    playPlayoffMatch(playerScore, opponentScore);
+                  } else {
+                    playMatch(currentOpponent, playerScore, opponentScore);
+                  }
                 }
 
                 if (result.levelUps && result.levelUps.length > 0) {

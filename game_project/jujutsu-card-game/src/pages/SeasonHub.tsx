@@ -49,15 +49,19 @@ export function SeasonHub({
     getNextMatch,
     getCurrentStandings,
     getPlayerRank,
-    endSeason,
+    endRegularSeason,
+    startPlayoff,
+    getPlayoffOpponent,
     resetGame,
-    getAICrewById
+    getAICrewById,
+    getHeadToHead
   } = useSeasonStore();
 
   const { player } = usePlayerStore();
   const standings = getCurrentStandings();
   const nextMatch = getNextMatch();
   const playerRank = getPlayerRank();
+  const playoffOpponent = getPlayoffOpponent();
 
   // 크루 선택 상태
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
@@ -461,7 +465,93 @@ export function SeasonHub({
   }
 
   // ================================
-  // 4. 시즌 진행 중 화면
+  // 4. 플레이오프 진행 중 화면
+  // ================================
+  if (currentSeason.status === 'PLAYOFF_SEMI' || currentSeason.status === 'PLAYOFF_FINAL') {
+    const isSeimiFinal = currentSeason.status === 'PLAYOFF_SEMI';
+    const stageTitle = isSeimiFinal ? '준결승' : '결승';
+    const playoffMatch = isSeimiFinal
+      ? currentSeason.playoff?.semiFinals.find(sf =>
+          (sf.homeCrewId === PLAYER_CREW_ID || sf.awayCrewId === PLAYER_CREW_ID) && !sf.result
+        )
+      : currentSeason.playoff?.final;
+
+    const isPlayerHome = playoffMatch?.homeCrewId === PLAYER_CREW_ID;
+    const playerWins = isPlayerHome ? playoffMatch?.homeWins || 0 : playoffMatch?.awayWins || 0;
+    const opponentWins = isPlayerHome ? playoffMatch?.awayWins || 0 : playoffMatch?.homeWins || 0;
+
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-6"
+        >
+          <div className="text-sm text-accent mb-2">시즌 {currentSeason.number} 플레이오프</div>
+          <h1 className="text-4xl md:text-5xl font-bold text-accent mb-2">{stageTitle}</h1>
+          <p className="text-text-secondary">5전 3선승제</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-bg-card rounded-xl p-8 max-w-lg w-full border border-white/10"
+        >
+          {playoffOpponent ? (
+            <>
+              {/* 점수 표시 */}
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <div className="text-center">
+                  <div className="text-sm text-text-secondary mb-1">{player.name}</div>
+                  <div className="text-5xl font-bold text-win">{playerWins}</div>
+                </div>
+                <div className="text-2xl text-text-secondary">:</div>
+                <div className="text-center">
+                  <div className="text-sm text-text-secondary mb-1">{playoffOpponent.name}</div>
+                  <div className="text-5xl font-bold text-lose">{opponentWins}</div>
+                </div>
+              </div>
+
+              {/* 통산 전적 */}
+              <HeadToHeadDisplay opponentId={playoffOpponent.id} getHeadToHead={getHeadToHead} />
+
+              {/* 상대 크루 */}
+              <div className="bg-black/30 rounded-lg p-4 mb-6">
+                <div className="text-sm text-text-secondary mb-2 text-center">상대 크루</div>
+                <div className="flex justify-center gap-1 flex-wrap">
+                  {playoffOpponent.crew.map(cardId => {
+                    const char = CHARACTERS_BY_ID[cardId];
+                    return char ? (
+                      <div key={cardId} className="text-xs bg-black/40 px-2 py-1 rounded">
+                        {char.name.ko}
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+
+              <Button
+                onClick={() => onStartMatch(playoffOpponent.id)}
+                variant="primary"
+                size="lg"
+                className="w-full"
+              >
+                {playerWins + opponentWins + 1}차전 시작
+              </Button>
+            </>
+          ) : (
+            <div className="text-center text-text-secondary">
+              플레이오프 정보를 불러오는 중...
+            </div>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ================================
+  // 5. 시즌 진행 중 화면 (정규시즌)
   // ================================
   return (
     <div className="min-h-screen w-full p-4 md:p-8">
@@ -519,6 +609,9 @@ export function SeasonHub({
                         : opponent?.difficulty === 'NORMAL' ? '보통' : '쉬움'}
                     </div>
 
+                    {/* 통산 전적 */}
+                    {opponent && <HeadToHeadDisplay opponentId={opponent.id} getHeadToHead={getHeadToHead} />}
+
                     {/* 상대 크루 카드 미리보기 */}
                     {opponent?.crew && opponent.crew.length > 0 && (
                       <div className="mt-4">
@@ -544,17 +637,35 @@ export function SeasonHub({
                   size="lg"
                   className="w-full"
                 >
-                  ⚔️ 대전 시작
+                  대전 시작
                 </Button>
               </div>
             );
           })() : (
             <div className="text-center py-8">
               <div className="text-4xl mb-2">✅</div>
-              <div className="text-text-secondary mb-4">모든 경기 완료!</div>
-              <Button onClick={endSeason} variant="primary" className="w-full">
-                시즌 종료
-              </Button>
+              <div className="text-text-secondary mb-4">정규시즌 완료!</div>
+              {playerRank <= 4 ? (
+                <>
+                  <div className="text-win font-bold mb-2">플레이오프 진출!</div>
+                  <div className="text-xs text-text-secondary mb-4">
+                    상위 4팀이 플레이오프에 진출합니다
+                  </div>
+                  <Button onClick={() => { endRegularSeason(); startPlayoff(); }} variant="primary" className="w-full">
+                    플레이오프 시작
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="text-lose font-bold mb-2">플레이오프 진출 실패</div>
+                  <div className="text-xs text-text-secondary mb-4">
+                    {playerRank}위로 정규시즌 종료
+                  </div>
+                  <Button onClick={() => { endRegularSeason(); startPlayoff(); }} variant="primary" className="w-full">
+                    시즌 종료
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </motion.div>
@@ -646,6 +757,35 @@ export function SeasonHub({
           </Modal>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// 통산 전적 표시 컴포넌트
+interface HeadToHeadDisplayProps {
+  opponentId: string;
+  getHeadToHead: (id: string) => { wins: number; draws: number; losses: number } | null;
+}
+
+function HeadToHeadDisplay({ opponentId, getHeadToHead }: HeadToHeadDisplayProps) {
+  const record = getHeadToHead(opponentId);
+
+  if (!record || (record.wins === 0 && record.draws === 0 && record.losses === 0)) {
+    return (
+      <div className="mt-3 text-xs text-text-secondary">
+        첫 대결
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 bg-black/20 rounded-lg p-2">
+      <div className="text-xs text-text-secondary mb-1">통산 전적</div>
+      <div className="flex justify-center gap-3 text-sm">
+        <span className="text-win font-bold">{record.wins}승</span>
+        <span className="text-text-secondary">{record.draws}무</span>
+        <span className="text-lose font-bold">{record.losses}패</span>
+      </div>
     </div>
   );
 }
