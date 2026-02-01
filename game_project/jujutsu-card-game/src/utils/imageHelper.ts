@@ -5,15 +5,15 @@
 import { ATTRIBUTES } from '../data/constants';
 import type { Attribute } from '../types';
 
-// 로컬 캐릭터 이미지 경로 매핑 (54명)
+// 로컬 캐릭터 이미지 경로 매핑 (53명 - 에소&케치즈 듀오 제외)
 export const CHARACTER_IMAGES: Record<string, string> = {
-  // ===== 특급 (8명) =====
+  // ===== 특급 (8명, tengen은 이미지 없음) =====
   gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
-  geto_suguru: '/images/characters/Suguru_Geto.jpg',
+  geto_suguru: '/images/characters/Suguru_Geto (Original).jpg',
   yuta_okkotsu: '/images/characters/Yuta_Okkotsu.jpg',
   yuki_tsukumo: '/images/characters/Yuki_Tsukumo.jpg',
   kenjaku: '/images/characters/Kenjaku (in Suguru Geto Body).jpg',
-  tengen: '/images/characters/Tengen.jpg',
+  // tengen: 이미지 없음 - 플레이스홀더 사용
   ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
   fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
 
@@ -41,7 +41,7 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   mei_mei: '/images/characters/Mei_Mei.jpg',
   inumaki_toge: '/images/characters/Toge_Inumaki.jpg',
   maki_zenin: '/images/characters/Maki_Zenin (Normal).jpg',
-  angel_hana: '/images/characters/Hana_Kurusu.jpg',
+  angel_hana: '/images/characters/Angel_Hana_Kurusu.jpg',
   reggie_star: '/images/characters/Reggie_Star.jpg',
   fumihiko_takaba: '/images/characters/Fumihiko_Takaba.jpg',
   charles_bernard: '/images/characters/Charles_Bernard.jpg',
@@ -58,18 +58,17 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   nishimiya_momo: '/images/characters/Momo_Nishimiya.jpg',
   kasumi_miwa: '/images/characters/Kasumi_Miwa.jpg',
   mai_zenin: '/images/characters/Mai_Zenin.jpg',
-  eso: '/images/characters/Eso.jpg',
-  kechizu: '/images/characters/Kechizu.jpg',
+  eso: '/images/characters/eso.jpg',
+  kechizu: '/images/characters/kechizu.jpg',
   utahime_iori: '/images/characters/Utahime_Iori.jpg',
   shoko_ieiri: '/images/characters/Shoko_Ieiri.jpg',
 
-  // ===== 3급 (6명) =====
+  // ===== 3급 (5명 - 에소&케치즈 듀오 제거됨) =====
   yu_haibara: '/images/characters/Yu_Haibara.jpg',
   kiyotaka_ijichi: '/images/characters/Kiyotaka_Ijichi.jpg',
   akari_nitta: '/images/characters/Akari_Nitta.jpg',
   misato_kuroi: '/images/characters/Misato_Kuroi.jpg',
   masamichi_yaga: '/images/characters/Masamichi_Yaga.jpg',
-  eso_kechizu_duo: '/images/characters/Eso_Kechizu.jpg',
 };
 
 // UI Avatars를 사용한 플레이스홀더 이미지 생성
