@@ -37,6 +37,7 @@ export function SeasonHub({
   onCatalog,
   onRanking,
   onTrade,
+  onProfile,
   onSettings,
   onCardSelect
 }: SeasonHubProps) {
@@ -732,6 +733,7 @@ export function SeasonHub({
           <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
           <Button onClick={onRanking} variant="ghost">개인 순위</Button>
           <Button onClick={onTrade} variant="ghost">트레이드</Button>
+          {onProfile && <Button onClick={onProfile} variant="ghost">프로필</Button>}
           <Button onClick={onSettings} variant="ghost">설정</Button>
         </div>
       </motion.div>

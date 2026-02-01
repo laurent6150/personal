@@ -93,6 +93,7 @@ function App() {
               onCatalog={() => setCurrentPage('catalog')}
               onRanking={() => setCurrentPage('ranking')}
               onTrade={() => setCurrentPage('trade')}
+              onProfile={() => setCurrentPage('profile')}
               onSettings={() => setCurrentPage('settings')}
               onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
             />
