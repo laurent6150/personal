@@ -11,7 +11,7 @@ import type {
   CharacterCard
 } from '../types';
 import { getRandomArena } from '../data/arenas';
-import { generateAICrew, aiSelectCard } from '../utils/aiLogic';
+import { aiSelectCard } from '../utils/aiLogic';
 import { resolveRound } from '../utils/battleCalculator';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { WIN_SCORE, MAX_ROUNDS } from '../data/constants';
@@ -27,7 +27,7 @@ interface GameState {
   lastRoundResult: RoundResult | null;
 
   // 액션
-  startGame: (playerCrew: string[], difficulty: Difficulty) => void;
+  startGame: (playerCrew: string[], aiCrew: string[], difficulty: Difficulty) => void;
   selectCard: (cardId: string) => void;
   executeRound: () => RoundResult | null;
   endGame: () => { winner: 'PLAYER' | 'AI'; score: { player: number; ai: number } } | null;
@@ -46,11 +46,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   showResult: false,
   lastRoundResult: null,
 
-  startGame: (playerCrew: string[], difficulty: Difficulty) => {
-    // AI 크루 생성
-    const aiCrew = generateAICrew(difficulty);
-    const aiCrewIds = aiCrew.map(c => c.id);
-
+  startGame: (playerCrew: string[], aiCrew: string[], difficulty: Difficulty) => {
+    // 시즌에서 배정된 AI 크루 사용 (중복 방지)
     // 첫 번째 경기장 선택
     const firstArena = getRandomArena();
 
@@ -63,7 +60,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
       ai: {
         difficulty,
-        crew: aiCrewIds,
+        crew: aiCrew, // 시즌에서 배정된 AI 크루 사용
         score: 0,
         usedCards: []
       },

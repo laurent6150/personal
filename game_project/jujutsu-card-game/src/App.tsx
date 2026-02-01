@@ -1,18 +1,23 @@
 import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { MainMenu } from './pages/MainMenu';
+import { SeasonHub } from './pages/SeasonHub';
 import { CrewManager } from './pages/CrewManager';
 import { Collection } from './pages/Collection';
 import { CardDetail } from './pages/CardDetail';
+import { CardCatalog } from './pages/CardCatalog';
+import { PersonalRanking } from './pages/PersonalRanking';
+import { Trade } from './pages/Trade';
 import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
-import type { Difficulty } from './types';
+import { useSeasonStore } from './stores/seasonStore';
+import { useNewsFeedStore } from './stores/newsFeedStore';
+import { usePlayerStore } from './stores/playerStore';
 
-type Page = 'menu' | 'crew' | 'collection' | 'cardDetail' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -20,29 +25,43 @@ interface LevelUpInfo {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('menu');
+  const [currentPage, setCurrentPage] = useState<Page>('seasonHub');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [cardDetailReturnPage, setCardDetailReturnPage] = useState<Page>('collection');
   const [levelUps, setLevelUps] = useState<LevelUpInfo[]>([]);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [achievementToast, setAchievementToast] = useState<string | null>(null);
+  const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
 
-  const { startGame, session } = useBattle();
+  // 카드 상세로 이동 (반환 페이지 지정)
+  const goToCardDetail = useCallback((cardId: string, returnPage: Page = 'collection') => {
+    setSelectedCardId(cardId);
+    setCardDetailReturnPage(returnPage);
+    setCurrentPage('cardDetail');
+  }, []);
 
-  const handleStartGame = (difficulty: Difficulty) => {
-    const success = startGame(difficulty);
+  const { startGame } = useBattle();
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
+  const { addMatchResultNews } = useNewsFeedStore();
+  const { player } = usePlayerStore();
+
+  // 리그 매치 시작 (시즌 시스템용)
+  const handleStartMatch = useCallback((opponentCrewId: string) => {
+    const opponent = getAICrewById(opponentCrewId);
+    if (!opponent) return;
+
+    // 시즌에서 배정된 AI 크루 사용 (카드 중복 방지)
+    const success = startGame(opponent.crew, opponent.difficulty);
     if (success) {
+      setCurrentOpponent(opponentCrewId);
       setCurrentPage('battle');
     }
-  };
+  }, [startGame, getAICrewById]);
 
-  const handleReturnToMenu = () => {
-    setCurrentPage('menu');
+  const handleReturnToSeasonHub = useCallback(() => {
+    setCurrentPage('seasonHub');
     setSelectedCardId(null);
-  };
-
-  const handleViewCard = useCallback((cardId: string) => {
-    setSelectedCardId(cardId);
-    setCurrentPage('cardDetail');
+    setCurrentOpponent(null);
   }, []);
 
   const handleShowLevelUps = useCallback((levelUpData: LevelUpInfo[]) => {
@@ -57,21 +76,25 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-primary to-bg-secondary">
+    <div className="min-h-screen w-full bg-gradient-to-br from-bg-primary to-bg-secondary flex flex-col">
       <AnimatePresence mode="wait">
-        {currentPage === 'menu' && (
+        {currentPage === 'seasonHub' && (
           <motion.div
-            key="menu"
+            key="seasonHub"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            className="flex-1 w-full"
           >
-            <MainMenu
-              onStartGame={handleStartGame}
+            <SeasonHub
+              onStartMatch={handleStartMatch}
               onCrewManagement={() => setCurrentPage('crew')}
               onCollection={() => setCurrentPage('collection')}
-              onProfile={() => setCurrentPage('profile')}
+              onCatalog={() => setCurrentPage('catalog')}
+              onRanking={() => setCurrentPage('ranking')}
+              onTrade={() => setCurrentPage('trade')}
               onSettings={() => setCurrentPage('settings')}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
             />
           </motion.div>
         )}
@@ -82,8 +105,9 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
-            <CrewManager onBack={handleReturnToMenu} />
+            <CrewManager onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 
@@ -93,10 +117,10 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <Collection
-              onBack={handleReturnToMenu}
-              onViewCard={handleViewCard}
+              onBack={handleReturnToSeasonHub}
             />
           </motion.div>
         )}
@@ -107,11 +131,54 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
             <CardDetail
               cardId={selectedCardId}
-              onBack={() => setCurrentPage('collection')}
+              onBack={() => setCurrentPage(cardDetailReturnPage)}
             />
+          </motion.div>
+        )}
+
+        {currentPage === 'catalog' && (
+          <motion.div
+            key="catalog"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <CardCatalog
+              onBack={handleReturnToSeasonHub}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'catalog')}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'ranking' && (
+          <motion.div
+            key="ranking"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <PersonalRanking
+              onBack={handleReturnToSeasonHub}
+              onCardSelect={(cardId) => goToCardDetail(cardId, 'ranking')}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'trade' && (
+          <motion.div
+            key="trade"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <Trade onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 
@@ -121,8 +188,9 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
-            <Profile onBack={handleReturnToMenu} />
+            <Profile onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 
@@ -132,24 +200,57 @@ function App() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
           >
-            <Settings onBack={handleReturnToMenu} />
+            <Settings onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 
-        {currentPage === 'battle' && session && (
+        {currentPage === 'battle' && (
           <motion.div
             key="battle"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 w-full"
           >
             <BattleScreen
+              onReturnToMenu={handleReturnToSeasonHub}
+              opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
               onBattleEnd={(result) => {
+                // 결과 기록 (정규시즌 vs 플레이오프)
+                if (currentOpponent) {
+                  const playerScore = result.won ? 3 : 0;
+                  const opponentScore = result.won ? 0 : 3;
+
+                  const isPlayoff = currentSeason?.status === 'PLAYOFF_SEMI' ||
+                    currentSeason?.status === 'PLAYOFF_FINAL';
+
+                  if (isPlayoff) {
+                    playPlayoffMatch(playerScore, opponentScore);
+                  } else {
+                    playMatch(currentOpponent, playerScore, opponentScore);
+                  }
+
+                  // 뉴스 추가
+                  const opponentCrew = getAICrewById(currentOpponent);
+                  if (opponentCrew && currentSeason) {
+                    addMatchResultNews({
+                      seasonNumber: currentSeason.number,
+                      homeCrewName: player.name,
+                      awayCrewName: opponentCrew.name,
+                      homeScore: playerScore,
+                      awayScore: opponentScore,
+                      isPlayer: true,
+                      isPlayoff
+                    });
+                  }
+                }
+
                 if (result.levelUps && result.levelUps.length > 0) {
                   handleShowLevelUps(result.levelUps.map(cardId => ({
                     cardId,
-                    newLevel: 2 // Will be updated with actual level from store
+                    newLevel: 2
                   })));
                 }
                 if (result.newAchievements && result.newAchievements.length > 0) {

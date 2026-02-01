@@ -74,8 +74,8 @@ function calculateCardScore(
   }
 
   // 4. 등급 가중치 (높은 등급 카드는 중요한 라운드에 아끼려고 약간 패널티)
-  if (card.grade === 'S') score -= 10;
-  if (card.grade === 'A') score -= 5;
+  if (card.grade === '특급') score -= 10;
+  if (card.grade === '1급') score -= 5;
 
   return score;
 }
@@ -89,9 +89,9 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
 
   switch (difficulty) {
     case 'EASY':
-      // C, B 등급 위주 (약한 크루)
+      // 2급, 준1급 등급 위주 (약한 크루)
       while (crew.length < 5) {
-        const pool = [...CHARACTERS_BY_GRADE.C, ...CHARACTERS_BY_GRADE.B];
+        const pool = [...CHARACTERS_BY_GRADE['2급'], ...CHARACTERS_BY_GRADE['준1급']];
         const card = randomPick(pool);
         if (!usedIds.has(card.id)) {
           // 등급 제한 체크
@@ -105,13 +105,13 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
       break;
 
     case 'NORMAL':
-      // B, A 등급 혼합
-      // A등급 1-2장, 나머지 B등급
-      const aCards = [...CHARACTERS_BY_GRADE.A];
-      const aCount = Math.floor(Math.random() * 2) + 1; // 1-2장
+      // 준1급, 1급 등급 혼합
+      // 1급 1-2장, 나머지 준1급
+      const grade1Cards = [...CHARACTERS_BY_GRADE['1급']];
+      const grade1Count = Math.floor(Math.random() * 2) + 1; // 1-2장
 
-      for (let i = 0; i < aCount && crew.length < 5; i++) {
-        const card = randomPick(aCards);
+      for (let i = 0; i < grade1Count && crew.length < 5; i++) {
+        const card = randomPick(grade1Cards);
         if (!usedIds.has(card.id)) {
           crew.push(card);
           usedIds.add(card.id);
@@ -119,7 +119,7 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
       }
 
       while (crew.length < 5) {
-        const pool = [...CHARACTERS_BY_GRADE.B, ...CHARACTERS_BY_GRADE.C];
+        const pool = [...CHARACTERS_BY_GRADE['준1급'], ...CHARACTERS_BY_GRADE['2급']];
         const card = randomPick(pool);
         if (!usedIds.has(card.id)) {
           crew.push(card);
@@ -129,24 +129,24 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
       break;
 
     case 'HARD':
-      // S등급 1장 + A등급 2장 + B등급 2장
-      // S등급
-      const sCard = randomPick(CHARACTERS_BY_GRADE.S);
-      crew.push(sCard);
-      usedIds.add(sCard.id);
+      // 특급 1장 + 1급 2장 + 준1급 2장
+      // 특급
+      const specialCard = randomPick(CHARACTERS_BY_GRADE['특급']);
+      crew.push(specialCard);
+      usedIds.add(specialCard.id);
 
-      // A등급 2장
-      const aPool = CHARACTERS_BY_GRADE.A.filter(c => !usedIds.has(c.id));
-      for (let i = 0; i < 2 && aPool.length > 0; i++) {
-        const card = randomPick(aPool);
+      // 1급 2장
+      const grade1Pool = CHARACTERS_BY_GRADE['1급'].filter(c => !usedIds.has(c.id));
+      for (let i = 0; i < 2 && grade1Pool.length > 0; i++) {
+        const card = randomPick(grade1Pool);
         crew.push(card);
         usedIds.add(card.id);
-        aPool.splice(aPool.indexOf(card), 1);
+        grade1Pool.splice(grade1Pool.indexOf(card), 1);
       }
 
-      // B등급으로 채우기
+      // 준1급으로 채우기
       while (crew.length < 5) {
-        const pool = CHARACTERS_BY_GRADE.B.filter(c => !usedIds.has(c.id));
+        const pool = CHARACTERS_BY_GRADE['준1급'].filter(c => !usedIds.has(c.id));
         if (pool.length === 0) break;
         const card = randomPick(pool);
         crew.push(card);
@@ -231,8 +231,8 @@ function hardAISelectCard(
   if (scoreDiff < 0) {
     // 등급이 높은 카드에 보너스
     for (const cs of cardScores) {
-      if (cs.card.grade === 'S') cs.score += 30;
-      if (cs.card.grade === 'A') cs.score += 15;
+      if (cs.card.grade === '특급') cs.score += 30;
+      if (cs.card.grade === '1급') cs.score += 15;
     }
   }
 
@@ -240,8 +240,8 @@ function hardAISelectCard(
   if (scoreDiff > 0 && roundNumber < 4) {
     // 등급이 높은 카드에 패널티
     for (const cs of cardScores) {
-      if (cs.card.grade === 'S') cs.score -= 20;
-      if (cs.card.grade === 'A') cs.score -= 10;
+      if (cs.card.grade === '특급') cs.score -= 20;
+      if (cs.card.grade === '1급') cs.score -= 10;
     }
   }
 
@@ -249,8 +249,8 @@ function hardAISelectCard(
   if (roundNumber === 5 || availableCards.length === 1) {
     // 가장 강한 카드 선택
     for (const cs of cardScores) {
-      if (cs.card.grade === 'S') cs.score += 50;
-      if (cs.card.grade === 'A') cs.score += 25;
+      if (cs.card.grade === '특급') cs.score += 50;
+      if (cs.card.grade === '1급') cs.score += 25;
     }
   }
 

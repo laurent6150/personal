@@ -51,7 +51,7 @@ export function CrewManager({ onBack }: CrewManagerProps) {
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
           <h3 className="text-sm text-text-secondary mb-2">등급 제한</h3>
           <div className="flex gap-4 flex-wrap">
-            {(['S', 'A', 'B', 'C'] as const).map(grade => (
+            {(['특급', '1급', '준1급', '2급'] as const).map(grade => (
               <div key={grade} className="flex items-center gap-2">
                 <GradeBadge grade={grade} size="sm" />
                 <span className="text-sm">

@@ -28,13 +28,14 @@ export const ATTRIBUTE_ADVANTAGE: Record<Attribute, Attribute[]> = {
 export const ADVANTAGE_MULTIPLIER = 1.5;   // 유리할 때
 export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 
-// 등급 정보
+// 등급 정보 (주술회전 등급 체계)
 export const GRADES: Record<Grade, GradeInfo> = {
-  S: { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
-  A: { bg: '#FFD93D', text: '#000000', maxInDeck: 2 },
-  B: { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 5 },
-  C: { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 5 },
-  D: { bg: '#C4C4C4', text: '#000000', maxInDeck: 5 }
+  '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
+  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 2 },
+  '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 5 },
+  '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 5 },
+  '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 5 },
+  '3급': { bg: '#C4C4C4', text: '#000000', maxInDeck: 5 }
 };
 
 // 레벨별 필요 경험치 (누적)

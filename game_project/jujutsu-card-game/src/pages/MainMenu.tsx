@@ -21,17 +21,17 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
     .filter(Boolean);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8">
       {/* 타이틀 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-8"
       >
-        <h1 className="text-4xl md:text-5xl font-bold text-text-primary mb-2">
+        <h1 className="text-5xl md:text-6xl font-bold text-text-primary mb-3">
           <span className="text-accent">영역전개</span>
         </h1>
-        <p className="text-text-secondary">주술회전 카드 배틀</p>
+        <p className="text-lg text-text-secondary">주술회전 카드 배틀</p>
       </motion.div>
 
       {/* 현재 크루 미리보기 */}
@@ -67,7 +67,7 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="w-full max-w-xs space-y-3"
+        className="w-full max-w-sm space-y-4"
       >
         {/* 난이도 선택 */}
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
