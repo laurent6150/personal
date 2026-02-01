@@ -62,16 +62,35 @@ export function StatBar({
 interface StatsDisplayProps {
   stats: Stats;
   compact?: boolean;
+  tiny?: boolean;
 }
 
-export function StatsDisplay({ stats, compact = false }: StatsDisplayProps) {
+export function StatsDisplay({ stats, compact = false, tiny = false }: StatsDisplayProps) {
   const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'ce', 'hp'];
 
+  // tiny: xs 카드용 초소형 스탯 (2줄 표시)
+  if (tiny) {
+    return (
+      <div className="text-[8px] leading-tight">
+        <div className="flex justify-between gap-0.5">
+          <span>⚔{stats.atk}</span>
+          <span>🛡{stats.def}</span>
+          <span>⚡{stats.spd}</span>
+        </div>
+        <div className="flex justify-between gap-0.5">
+          <span>💜{stats.ce}</span>
+          <span>❤{stats.hp}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // compact: sm/md 카드용 한 줄 스탯
   if (compact) {
     return (
-      <div className="flex flex-wrap gap-2 text-sm">
+      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px]">
         {statKeys.map(stat => (
-          <span key={stat} className="flex items-center gap-1">
+          <span key={stat} className="flex items-center gap-0.5">
             <span>{STAT_ICONS[stat]}</span>
             <span className="font-mono">{stats[stat]}</span>
           </span>
@@ -80,6 +99,7 @@ export function StatsDisplay({ stats, compact = false }: StatsDisplayProps) {
     );
   }
 
+  // full: lg 카드용 바 형태
   return (
     <div className="space-y-1.5">
       {statKeys.map(stat => (

@@ -9,7 +9,7 @@ import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper'
 interface CardDisplayProps {
   character: CharacterCard;
   playerCard?: PlayerCard;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   isSelected?: boolean;
   isUsed?: boolean;
   isFlipped?: boolean;
@@ -44,9 +44,10 @@ export function CardDisplay({
 
   // 카드 크기 설정 (스탯+스킬 포함)
   const sizes = {
-    sm: { width: 'w-40', height: 'h-72', text: 'text-xs', imgHeight: 'h-24' },      // 160x288px
-    md: { width: 'w-52', height: 'h-96', text: 'text-sm', imgHeight: 'h-32' },      // 208x384px
-    lg: { width: 'w-64', height: 'h-[440px]', text: 'text-base', imgHeight: 'h-40' } // 256x440px
+    xs: { width: 'w-28', height: 'h-auto', text: 'text-[10px]', imgHeight: 'h-20' }, // 112px width, auto height (컴팩트)
+    sm: { width: 'w-36', height: 'h-auto', text: 'text-xs', imgHeight: 'h-24' },     // 144px width, auto height
+    md: { width: 'w-48', height: 'h-auto', text: 'text-sm', imgHeight: 'h-32' },     // 192px width, auto height
+    lg: { width: 'w-60', height: 'h-auto', text: 'text-base', imgHeight: 'h-40' }    // 240px width, auto height
   };
 
   const level = playerCard?.level ?? 1;
@@ -85,10 +86,10 @@ export function CardDisplay({
     >
       {/* 헤더: 등급 + 속성 */}
       <div className={`flex justify-between items-center bg-black/30 ${
-        size === 'sm' ? 'p-2' : 'p-2.5'
+        size === 'xs' ? 'p-1' : size === 'sm' ? 'p-1.5' : 'p-2'
       }`}>
-        <GradeBadge grade={character.grade} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
-        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
+        <GradeBadge grade={character.grade} size={size === 'lg' ? 'md' : 'sm'} />
+        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'md' : 'sm'} />
       </div>
 
       {/* 이미지 영역 - 크기별 높이 적용 */}
@@ -98,7 +99,7 @@ export function CardDisplay({
       >
         {imageError ? (
           // 폴백: 속성 아이콘
-          <span className={size === 'sm' ? 'text-4xl' : size === 'md' ? 'text-5xl' : 'text-6xl'}>
+          <span className={size === 'xs' ? 'text-3xl' : size === 'sm' ? 'text-4xl' : size === 'md' ? 'text-5xl' : 'text-6xl'}>
             {attrInfo.icon}
           </span>
         ) : (
@@ -109,10 +110,10 @@ export function CardDisplay({
             onError={handleImageError}
           />
         )}
-        {/* 속성 아이콘 오버레이 (이미지가 있을 때) */}
-        {!imageError && (
+        {/* 속성 아이콘 오버레이 (이미지가 있을 때, xs는 생략) */}
+        {!imageError && size !== 'xs' && (
           <div className={`absolute bottom-1 right-1 opacity-80 bg-black/30 rounded-full p-0.5 ${
-            size === 'sm' ? 'text-base' : size === 'md' ? 'text-lg' : 'text-xl'
+            size === 'sm' ? 'text-sm' : size === 'md' ? 'text-base' : 'text-lg'
           }`}>
             {attrInfo.icon}
           </div>
@@ -120,15 +121,15 @@ export function CardDisplay({
       </div>
 
       {/* 이름 + 레벨 */}
-      <div className={`bg-black/40 ${size === 'sm' ? 'px-2 py-1' : 'px-3 py-2'}`}>
-        <div className="flex justify-between items-center">
+      <div className={`bg-black/40 ${size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1.5 py-1' : 'px-2 py-1.5'}`}>
+        <div className="flex justify-between items-center gap-1">
           <span className={`font-bold text-text-primary truncate ${
-            size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
+            size === 'xs' ? 'text-[10px]' : size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
           }`}>
             {character.name.ko}
           </span>
-          <span className={`text-accent font-mono ${
-            size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
+          <span className={`text-accent font-mono flex-shrink-0 ${
+            size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : size === 'md' ? 'text-xs' : 'text-sm'
           }`}>
             Lv.{level}
           </span>
@@ -137,26 +138,21 @@ export function CardDisplay({
 
       {/* 스탯 - 모든 사이즈에서 표시 */}
       {showStats && (
-        <div className={size === 'sm' ? 'px-1.5 py-0.5' : size === 'md' ? 'px-2 py-1' : 'px-3 py-2'}>
-          <StatsDisplay stats={character.baseStats} compact={size !== 'lg'} />
+        <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
+          <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} />
         </div>
       )}
 
-      {/* 스킬 - sm/md/lg 모두 표시 */}
+      {/* 스킬 - 모든 사이즈에서 표시 */}
       {showSkill && (
         <div className={`border-t border-white/10 ${
-          size === 'sm' ? 'px-1.5 py-1' : size === 'md' ? 'px-2 py-1.5' : 'px-3 py-2'
+          size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'
         }`}>
           <div className={`text-accent font-bold truncate ${
-            size === 'sm' ? 'text-xs' : 'text-sm'
+            size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : 'text-xs'
           }`}>
             【{character.skill.name}】
           </div>
-          {size !== 'sm' && (
-            <div className="text-xs text-text-secondary line-clamp-1">
-              {character.skill.description}
-            </div>
-          )}
         </div>
       )}
     </motion.div>

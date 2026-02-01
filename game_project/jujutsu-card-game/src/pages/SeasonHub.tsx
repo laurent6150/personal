@@ -202,7 +202,7 @@ export function SeasonHub({
             </div>
 
             {/* 선택된 카드 미리보기 */}
-            <div className="flex gap-2 mb-6 min-h-[100px] p-4 bg-black/20 rounded-lg overflow-x-auto">
+            <div className="flex gap-2 mb-6 p-3 bg-black/20 rounded-lg overflow-x-auto">
               {selectedCards.map((cardId) => {
                 const char = CHARACTERS_BY_ID[cardId];
                 return char ? (
@@ -213,14 +213,14 @@ export function SeasonHub({
                     className="cursor-pointer flex-shrink-0"
                     onClick={() => toggleCardSelection(cardId)}
                   >
-                    <CardDisplay character={char} size="sm" isSelected />
+                    <CardDisplay character={char} size="xs" isSelected />
                   </motion.div>
                 ) : null;
               })}
               {Array.from({ length: CREW_SIZE - selectedCards.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="w-20 h-28 rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
+                  className="w-28 h-auto min-h-[140px] rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
                 >
                   <span className="text-text-secondary text-xs">?</span>
                 </div>
@@ -228,7 +228,7 @@ export function SeasonHub({
             </div>
 
             {/* 전체 카드 목록 */}
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-[400px] overflow-y-auto p-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 max-h-[500px] overflow-y-auto p-2">
               {ALL_CHARACTERS.map(char => {
                 const isSelected = selectedCards.includes(char.id);
                 const { canSelect, reason } = canSelectCard(char.id);
@@ -237,24 +237,22 @@ export function SeasonHub({
                 return (
                   <motion.div
                     key={char.id}
-                    whileHover={!isDisabled ? { scale: 1.05 } : undefined}
-                    whileTap={!isDisabled ? { scale: 0.95 } : undefined}
+                    whileHover={!isDisabled ? { scale: 1.02 } : undefined}
+                    whileTap={!isDisabled ? { scale: 0.98 } : undefined}
                     className={`relative cursor-pointer transition-all ${
-                      isSelected ? 'ring-2 ring-accent' : ''
+                      isSelected ? 'ring-2 ring-accent ring-offset-1 ring-offset-bg-primary' : ''
                     } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                     onClick={() => !isDisabled && toggleCardSelection(char.id)}
                     title={reason}
                   >
                     <CardDisplay
                       character={char}
-                      size="sm"
+                      size="xs"
                       isSelected={isSelected}
-                      showStats={false}
-                      showSkill={false}
                     />
                     {isDisabled && reason && (
-                      <div className="absolute inset-0 flex items-end justify-center pb-2">
-                        <span className="text-[10px] bg-black/80 px-1 rounded text-red-400">
+                      <div className="absolute inset-0 flex items-end justify-center pb-1 bg-black/30">
+                        <span className="text-[9px] bg-black/80 px-1 rounded text-red-400">
                           {char.grade}등급 제한
                         </span>
                       </div>
