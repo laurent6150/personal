@@ -59,10 +59,10 @@ export const CREW_COUNT = 8;         // 총 크루 수 (4 → 8)
 export const REGULAR_SEASON_GAMES = 7; // 정규시즌 경기 수
 
 // 승리 조건
-export const WIN_SCORE = 4;          // 6장 크루에서 4승 필요
+export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
 
 // 최대 라운드
-export const MAX_ROUNDS = 6;         // 6장 크루
+export const MAX_ROUNDS = 5;         // 6장 크루 중 5장 사용 (1장 미사용)
 
 // 스탯 아이콘
 export const STAT_ICONS = {
