@@ -7,13 +7,13 @@ import type { Attribute } from '../types';
 
 // 로컬 캐릭터 이미지 경로 매핑 (53명 - 에소&케치즈 듀오 제외)
 export const CHARACTER_IMAGES: Record<string, string> = {
-  // ===== 특급 (8명, tengen은 이미지 없음) =====
+  // ===== 특급 (8명) =====
   gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
   geto_suguru: '/images/characters/Suguru_Geto (Original).jpg',
   yuta_okkotsu: '/images/characters/Yuta_Okkotsu.jpg',
   yuki_tsukumo: '/images/characters/Yuki_Tsukumo.jpg',
   kenjaku: '/images/characters/Kenjaku (in Suguru Geto Body).jpg',
-  // tengen: 이미지 없음 - 플레이스홀더 사용
+  tengen: '/images/characters/tengen.jpg',
   ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
   fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
 
@@ -35,7 +35,7 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   uraume: '/images/characters/Uraume.jpg',
   yorozu: '/images/characters/Yorozu.jpg',
 
-  // ===== 준1급 (14명) =====
+  // ===== 준1급 (14명, charles_bernard는 이미지 없음) =====
   fushiguro_megumi: '/images/characters/Megumi_Fushiguro.jpg',
   mahito: '/images/characters/Mahito.jpg',
   mei_mei: '/images/characters/Mei_Mei.jpg',
@@ -44,7 +44,7 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   angel_hana: '/images/characters/Angel_Hana_Kurusu.jpg',
   reggie_star: '/images/characters/Reggie_Star.jpg',
   fumihiko_takaba: '/images/characters/Fumihiko_Takaba.jpg',
-  charles_bernard: '/images/characters/Charles_Bernard.jpg',
+  // charles_bernard: 이미지 없음 - 플레이스홀더 사용
   jinichi_zenin: '/images/characters/Jinichi_Zenin.jpg',
   ogi_zenin: '/images/characters/Ogi_Zenin.jpg',
   noritoshi_kamo: '/images/characters/Noritoshi_Kamo.jpg',
