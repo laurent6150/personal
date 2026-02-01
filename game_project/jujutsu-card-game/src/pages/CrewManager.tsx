@@ -33,8 +33,16 @@ export function CrewManager({ onBack }: CrewManagerProps) {
     removeCardFromCrew(cardId);
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-4xl mx-auto mb-6">
         <div className="flex items-center justify-between">

@@ -153,12 +153,20 @@ export function SeasonHub({
     setShowResetConfirm(false);
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/home_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   // ================================
   // 1. 첫 게임 - 크루 선택 화면
   // ================================
   if (!isInitialized) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8">
+      <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -277,7 +285,7 @@ export function SeasonHub({
   // ================================
   if (!currentSeason) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -384,7 +392,7 @@ export function SeasonHub({
     const championName = isPlayerChampion ? player.name : championCrew?.name || '???';
 
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -481,7 +489,7 @@ export function SeasonHub({
     const opponentWins = isPlayerHome ? playoffMatch?.awayWins || 0 : playoffMatch?.homeWins || 0;
 
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -554,7 +562,7 @@ export function SeasonHub({
   // 5. 시즌 진행 중 화면 (정규시즌)
   // ================================
   return (
-    <div className="min-h-screen w-full p-4 md:p-8">
+    <div className="min-h-screen w-full p-4 md:p-8" style={bgStyle}>
       {/* 헤더 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

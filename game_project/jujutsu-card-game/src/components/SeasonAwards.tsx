@@ -26,8 +26,16 @@ export function SeasonAwards({ seasonNumber, onContinue, playoffQualified, playe
   const mvpAward = awards.find(a => a.type === 'MVP');
   const mostWinsAward = awards.find(a => a.type === 'MOST_WINS');
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/victory_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={bgStyle}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

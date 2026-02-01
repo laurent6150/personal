@@ -146,9 +146,17 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     continueGame();
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/battle_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={bgStyle}>
         <div className="text-center">
           <div className="text-xl text-text-secondary mb-4">세션이 없습니다</div>
           <Button onClick={onReturnToMenu} variant="primary">
@@ -167,6 +175,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="min-h-screen flex items-center justify-center p-4"
+        style={bgStyle}
       >
         <div className="bg-bg-secondary rounded-xl p-8 max-w-md w-full text-center border border-white/10 shadow-2xl">
           <motion.div
@@ -216,7 +225,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-screen flex flex-col relative overflow-hidden" style={bgStyle}>
       {/* 모달들 */}
       <ExitConfirmModal
         isOpen={showExitModal}

@@ -20,8 +20,16 @@ export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfil
     .map(id => CHARACTERS_BY_ID[id])
     .filter(Boolean);
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8" style={bgStyle}>
       {/* 타이틀 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
