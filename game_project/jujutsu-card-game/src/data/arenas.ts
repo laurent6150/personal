@@ -595,6 +595,19 @@ export const getRandomArena = (): Arena => {
   return ARENAS[index];
 };
 
+// 사용된 경기장을 제외한 랜덤 경기장 선택 (같은 경기 내 중복 방지)
+export const getRandomArenaExcluding = (usedArenaIds: string[]): Arena => {
+  const availableArenas = ARENAS.filter(arena => !usedArenaIds.includes(arena.id));
+
+  // 모든 경기장을 사용한 경우 (25개 이상 라운드) 전체에서 랜덤 선택
+  if (availableArenas.length === 0) {
+    return getRandomArena();
+  }
+
+  const index = Math.floor(Math.random() * availableArenas.length);
+  return availableArenas[index];
+};
+
 // 카테고리 필터링된 랜덤 경기장 선택
 export const getRandomArenaByCategory = (category: ArenaCategory): Arena => {
   const filtered = ARENAS_BY_CATEGORY[category];

@@ -10,7 +10,7 @@ import type {
   RoundResult,
   CharacterCard
 } from '../types';
-import { getRandomArena } from '../data/arenas';
+import { getRandomArena, getRandomArenaExcluding } from '../data/arenas';
 import { aiSelectCard } from '../utils/aiLogic';
 import { resolveRound } from '../utils/battleCalculator';
 import { CHARACTERS_BY_ID } from '../data/characters';
@@ -166,8 +166,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
-    // 다음 경기장 선택 (게임 진행 중인 경우)
-    const nextArena = newStatus === 'IN_PROGRESS' ? getRandomArena() : null;
+    // 다음 경기장 선택 (게임 진행 중인 경우, 이미 사용된 경기장 제외)
+    const usedArenaIds = [...session.rounds.map(r => r.arena.id), arena.id];
+    const nextArena = newStatus === 'IN_PROGRESS' ? getRandomArenaExcluding(usedArenaIds) : null;
 
     const newSession: GameSession = {
       ...session,
