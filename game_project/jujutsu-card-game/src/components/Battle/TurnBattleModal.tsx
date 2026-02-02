@@ -9,6 +9,15 @@ import { CardDisplay } from '../Card/CardDisplay';
 import { Button } from '../UI/Button';
 import type { CharacterCard, Arena, RoundResult, BasicSkill, UltimateSkill, AppliedStatusEffect } from '../../types';
 import { getStatusEffect } from '../../data/statusEffects';
+import { getUltimateSkillEffects } from '../../data/ultimateSkillEffects';
+import {
+  processUltimateEffects,
+  processStatusTrigger,
+  tickStatusEffects,
+  checkEvasion,
+  getVulnerabilityMultiplier,
+  isSkillBlocked
+} from '../../utils/battleCalculator';
 
 interface TurnBattleModalProps {
   playerCard: CharacterCard;
@@ -258,7 +267,7 @@ export function TurnBattleModal({
     }
   }, [playerState.hp, aiState.hp, result.winner]);
 
-  // 전투 진행
+  // 전투 진행 (필살기 효과 시스템 포함)
   useEffect(() => {
     if (battleEnded) return;
 
@@ -273,64 +282,179 @@ export function TurnBattleModal({
       const defender = isPlayerTurn ? aiCard : playerCard;
       const attackerState = isPlayerTurn ? playerState : aiState;
       const defenderState = isPlayerTurn ? aiState : playerState;
+      const setAttackerState = isPlayerTurn ? setPlayerState : setAiState;
+      const setDefenderState = isPlayerTurn ? setAiState : setPlayerState;
 
-      // 스킬 선택
+      const logMessages: string[] = [];
+
+      // 1. 턴 시작 - 상태이상 효과 처리 (화상, 독 데미지 등)
+      const turnStartResult = processStatusTrigger(
+        attackerState.effects,
+        'TURN_START',
+        { hp: attackerState.hp, atk: attacker.baseStats.atk, def: attacker.baseStats.def, spd: attacker.baseStats.spd, ce: attacker.baseStats.ce }
+      );
+
+      let attackerHp = turnStartResult.newHp;
+      if (turnStartResult.damage > 0) {
+        turnStartResult.triggeredEffects.forEach(effectId => {
+          const effectDef = getStatusEffect(effectId);
+          if (effectDef) {
+            logMessages.push(`${effectDef.icon} ${effectDef.name}으로 ${turnStartResult.damage} 데미지!`);
+          }
+        });
+      }
+      if (turnStartResult.heal > 0) {
+        logMessages.push(`💚 재생으로 ${turnStartResult.heal} 회복!`);
+      }
+
+      // 기절 상태면 턴 스킵
+      if (turnStartResult.skipTurn) {
+        logMessages.push(`💫 ${attacker.name.ko}가 기절 상태로 행동 불가!`);
+        setAttackerState(prev => ({
+          ...prev,
+          hp: attackerHp,
+          effects: tickStatusEffects(prev.effects)
+        }));
+        setBattleLogs(prev => [...prev, {
+          turn: Math.floor(currentTurn / 2) + 1,
+          attacker: isPlayerTurn ? 'player' : 'ai',
+          skillName: '행동 불가',
+          skillType: 'basic',
+          damage: 0,
+          message: logMessages.join(' '),
+          isCritical: false,
+          isUltimate: false
+        }]);
+        setCurrentTurn(prev => prev + 1);
+        return;
+      }
+
+      // 2. 스킬 선택
       const selectedSkill = selectAISkill(attacker, defender, attackerState, defenderState);
       const isUltimate = 'gaugeRequired' in selectedSkill;
 
-      // 데미지 계산
-      const { damage, isCritical, statusEffect } = calculateDamage(
-        attacker, defender, selectedSkill, attackerState, isPlayerTurn
-      );
+      // 스킬 봉인 체크
+      const skillBlocked = isSkillBlocked(attackerState.effects);
+      const ultimateData = getUltimateSkillEffects(attacker.id);
+      const canUseUltimate = isUltimate && !skillBlocked && attackerState.gauge >= 100 && !!ultimateData;
+
+      let damage = 0;
+      let isCritical = false;
+      let statusEffect: string | undefined;
+      let appliedEffects: string[] = [];
+      let healAmount = 0;
+      let selfDamage = 0;
+      let newAttackerEffects = [...attackerState.effects];
+      let newDefenderEffects = [...defenderState.effects];
+
+      // 3. 필살기 사용
+      if (canUseUltimate && ultimateData) {
+        const ultimateResult = processUltimateEffects(
+          ultimateData,
+          attacker.id,
+          defender.id,
+          attackerState.effects,
+          defenderState.effects,
+          { hp: attackerHp, maxHp: 100, ce: attacker.baseStats.ce },
+          { hp: defenderState.hp, maxHp: 100, ce: defender.baseStats.ce }
+        );
+
+        damage = ultimateResult.damage;
+        isCritical = ultimateResult.isCritical;
+        healAmount = ultimateResult.healAmount;
+        selfDamage = ultimateResult.selfDamage;
+        newAttackerEffects = ultimateResult.attackerNewEffects;
+        newDefenderEffects = ultimateResult.defenderNewEffects;
+
+        // 효과 로그
+        ultimateResult.logs.forEach(log => logMessages.push(log));
+
+        // 부여된 상태이상 추적
+        ultimateResult.defenderNewEffects.forEach(e => {
+          if (!defenderState.effects.some(de => de.statusId === e.statusId)) {
+            const effectDef = getStatusEffect(e.statusId);
+            if (effectDef) {
+              appliedEffects.push(effectDef.name);
+            }
+          }
+        });
+
+        // 다중 공격 표시
+        if (ultimateResult.multiHitCount > 1) {
+          statusEffect = `${ultimateResult.multiHitCount}회 공격`;
+        }
+      } else {
+        // 4. 일반 공격 데미지 계산
+        const damageResult = calculateDamage(attacker, defender, selectedSkill, attackerState, isPlayerTurn);
+        damage = damageResult.damage;
+        isCritical = damageResult.isCritical;
+        statusEffect = damageResult.statusEffect;
+      }
+
+      // 취약 상태 데미지 증가
+      const vulnerabilityMult = getVulnerabilityMultiplier(defenderState.effects);
+      damage = Math.floor(damage * vulnerabilityMult);
+
+      // 회피 체크
+      if (checkEvasion(defenderState.effects)) {
+        damage = 0;
+        logMessages.push(`💨 ${defender.name.ko}가 회피!`);
+      }
 
       // 게이지 충전량 계산
-      const gaugeCharge = isUltimate ? -100 : Math.floor(
+      const gaugeCharge = canUseUltimate ? -100 : Math.floor(
         GAUGE_PER_TURN.min + Math.random() * (GAUGE_PER_TURN.max - GAUGE_PER_TURN.min)
       );
 
-      // 상태 업데이트
-      if (isPlayerTurn) {
-        setAiState(prev => {
-          const newHp = Math.max(0, prev.hp - damage);
-          if (newHp <= 0) {
-            setBattleEnded(true);
-            setWinner('player');
-          }
-          return { ...prev, hp: newHp };
-        });
-        setPlayerState(prev => ({
-          ...prev,
-          gauge: Math.min(100, Math.max(0, prev.gauge + gaugeCharge))
-        }));
-      } else {
-        setPlayerState(prev => {
-          const newHp = Math.max(0, prev.hp - damage);
-          if (newHp <= 0) {
-            setBattleEnded(true);
-            setWinner('ai');
-          }
-          return { ...prev, hp: newHp };
-        });
-        setAiState(prev => ({
-          ...prev,
-          gauge: Math.min(100, Math.max(0, prev.gauge + gaugeCharge))
-        }));
+      // 5. HP 업데이트
+      let defenderHp = Math.max(0, defenderState.hp - damage);
+      attackerHp = Math.max(0, attackerHp - selfDamage + healAmount);
+
+      // 턴 종료 - 상태이상 지속시간 감소
+      newAttackerEffects = tickStatusEffects(newAttackerEffects);
+      newDefenderEffects = tickStatusEffects(newDefenderEffects);
+
+      // 6. 상태 업데이트
+      if (defenderHp <= 0) {
+        setBattleEnded(true);
+        setWinner(isPlayerTurn ? 'player' : 'ai');
       }
 
-      // 전투 로그 추가
-      const message = generateBattleMessage(
-        attacker, selectedSkill, damage, isCritical, isUltimate, statusEffect
+      setAttackerState(prev => ({
+        ...prev,
+        hp: Math.min(100, attackerHp),
+        gauge: Math.min(100, Math.max(0, prev.gauge + gaugeCharge)),
+        effects: newAttackerEffects
+      }));
+
+      setDefenderState(prev => ({
+        ...prev,
+        hp: defenderHp,
+        effects: newDefenderEffects
+      }));
+
+      // 7. 전투 로그 생성
+      const baseMessage = generateBattleMessage(
+        attacker, selectedSkill, damage, isCritical, canUseUltimate || false, statusEffect
       );
+      const effectMessage = appliedEffects.length > 0 ? ` [${appliedEffects.join(', ')} 부여]` : '';
+      const healMessage = healAmount > 0 ? ` [${healAmount} 회복]` : '';
+      const selfDmgMessage = selfDamage > 0 ? ` [자해 ${selfDamage}]` : '';
+      const extraLogs = logMessages.length > 0 ? ' ' + logMessages.join(' ') : '';
+
       setBattleLogs(prev => [...prev, {
         turn: Math.floor(currentTurn / 2) + 1,
         attacker: isPlayerTurn ? 'player' : 'ai',
         skillName: selectedSkill.name,
-        skillType: isUltimate ? 'ultimate' : 'basic',
+        skillType: canUseUltimate ? 'ultimate' : 'basic',
         damage,
-        message,
+        message: baseMessage + effectMessage + healMessage + selfDmgMessage + extraLogs,
         isCritical,
-        isUltimate,
-        statusEffect
+        isUltimate: canUseUltimate || false,
+        statusEffect,
+        statusEffects: appliedEffects,
+        healAmount,
+        selfDamage
       }]);
 
       setCurrentTurn(prev => prev + 1);
