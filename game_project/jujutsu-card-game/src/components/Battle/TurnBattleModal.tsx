@@ -39,7 +39,7 @@ interface BattleState {
   effects: AppliedStatusEffect[];  // 적용된 상태이상
 }
 
-const MAX_TURNS = 5;
+const MAX_TURNS = 20;  // 최대 20턴까지 진행 (HP 0 또는 20턴 도달 시 종료)
 const LOG_INTERVAL = 700; // 0.7초 간격
 const GAUGE_PER_TURN = { min: 25, max: 35 }; // 턴당 게이지 충전량
 
@@ -245,6 +245,19 @@ export function TurnBattleModal({
     return { damage, isCritical, statusEffect };
   }, [arena, result]);
 
+  // 전투 종료 처리 (최대 턴 도달 시 HP 비교로 승자 결정)
+  const endBattle = useCallback(() => {
+    setBattleEnded(true);
+    if (playerState.hp > aiState.hp) {
+      setWinner('player');
+    } else if (aiState.hp > playerState.hp) {
+      setWinner('ai');
+    } else {
+      // HP 동점 시 result.winner 사용 (기존 계산 결과)
+      setWinner(result.winner === 'PLAYER' ? 'player' : result.winner === 'AI' ? 'ai' : null);
+    }
+  }, [playerState.hp, aiState.hp, result.winner]);
+
   // 전투 진행
   useEffect(() => {
     if (battleEnded) return;
@@ -324,12 +337,7 @@ export function TurnBattleModal({
     }, LOG_INTERVAL);
 
     return () => clearTimeout(timer);
-  }, [currentTurn, battleEnded, playerCard, aiCard, playerState, aiState, calculateDamage, selectAISkill]);
-
-  const endBattle = () => {
-    setBattleEnded(true);
-    setWinner(result.winner === 'PLAYER' ? 'player' : result.winner === 'AI' ? 'ai' : null);
-  };
+  }, [currentTurn, battleEnded, playerCard, aiCard, playerState, aiState, calculateDamage, selectAISkill, endBattle]);
 
   // 전투 종료 후 결과 표시 지연
   useEffect(() => {
