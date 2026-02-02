@@ -128,6 +128,10 @@ export interface UltimateSkill {
     type: 'LEVEL' | 'ACHIEVEMENT';
     value: number | string;
   };
+  // 새 필살기 효과 시스템
+  damage?: number;         // 기본 데미지
+  ceCost?: number;         // CE 소모량
+  effects?: UltimateEffect[];  // 추가 효과들
 }
 
 // 레거시 스킬 (기존 호환용)
@@ -217,23 +221,97 @@ export interface BattleUnit {
   card: CharacterCard;
   currentHp: number;
   maxHp: number;
+  currentCe: number;
   ultimateGauge: number;  // 0-100
-  statusEffects: StatusEffect[];
+  appliedEffects: AppliedStatusEffect[];  // 적용된 상태이상
   buffs: Buff[];
 }
 
-// 상태이상
+// ========================================
+// 상태이상 시스템 (필살기 효과용)
+// ========================================
+
+// 상태이상 효과 트리거
+export type StatusEffectTrigger = 'TURN_START' | 'TURN_END' | 'ON_ACTION' | 'ON_HIT' | 'INSTANT';
+
+// 상태이상 액션
+export type StatusEffectAction =
+  | 'SKIP_TURN'              // 행동 불가
+  | 'BLOCK_SKILL'            // 스킬 봉인
+  | 'DAMAGE'                 // 지속 데미지
+  | 'STAT_REDUCE'            // 스탯 감소
+  | 'STAT_BOOST'             // 스탯 증가
+  | 'BLOCK_HEAL'             // 회복 봉인
+  | 'EXECUTE_THRESHOLD'      // HP% 이하 즉사
+  | 'DAMAGE_TAKEN_INCREASE'  // 피해 증가
+  | 'HEAL'                   // 지속 회복
+  | 'ABSORB_DAMAGE'          // 데미지 흡수(보호막)
+  | 'COUNTER_ATTACK'         // 반격
+  | 'DODGE';                 // 회피
+
+// 상태이상 타입
+export type StatusEffectCategory = 'DEBUFF' | 'BUFF' | 'CONTROL';
+
+// 상태이상 정의 (데이터용)
 export interface StatusEffect {
-  type: 'STUN' | 'BURN' | 'POISON' | 'SLEEP' | 'BLIND' | 'SLOW';
+  id: string;
+  name: string;
+  type: StatusEffectCategory;
   duration: number;
-  value?: number;  // 도트 데미지 등
+  stackable: boolean;
+  maxStacks?: number;
+  effect: {
+    trigger: StatusEffectTrigger;
+    action: StatusEffectAction;
+    value: number;
+    stat?: keyof Stats;  // STAT_REDUCE/STAT_BOOST용
+  };
+  icon: string;
 }
 
-// 버프/디버프
+// 적용된 상태이상 (전투 중)
+export interface AppliedStatusEffect {
+  statusId: string;
+  remainingDuration: number;
+  stacks: number;
+  shieldAmount?: number;  // 보호막 잔여량
+}
+
+// 버프/디버프 (레거시 호환)
 export interface Buff {
   type: 'ATK' | 'DEF' | 'SPD';
   value: number;
   duration: number;
+}
+
+// ========================================
+// 필살기 효과 시스템
+// ========================================
+
+// 필살기 효과 타입
+export type UltimateEffectType =
+  | 'STATUS'                 // 상태이상 부여
+  | 'LIFESTEAL'              // 데미지의 N% HP 회복
+  | 'IGNORE_DEF'             // 방어력 N% 무시
+  | 'CE_DRAIN'               // 상대 CE N 흡수
+  | 'CRITICAL_GUARANTEED'    // 크리티컬 확정
+  | 'MULTI_HIT'              // N회 다중 공격
+  | 'RANDOM_DAMAGE'          // 데미지 랜덤 (min~max)
+  | 'SELF_DAMAGE'            // 자해 데미지
+  | 'HEAL_SELF'              // 자신 HP 회복
+  | 'REMOVE_DEBUFF'          // 디버프 제거
+  | 'REMOVE_BUFF';           // 상대 버프 제거
+
+// 필살기 효과 타겟
+export type UltimateEffectTarget = 'ENEMY' | 'SELF' | 'ALL';
+
+// 필살기 개별 효과
+export interface UltimateEffect {
+  type: UltimateEffectType;
+  target: UltimateEffectTarget;
+  statusId?: string;           // STATUS 타입용 상태이상 ID
+  value?: number | { min: number; max: number };  // 효과 수치 또는 랜덤 범위
+  chance?: number;             // 적용 확률 (기본 100)
 }
 
 // 턴 전투 결과
@@ -241,15 +319,23 @@ export interface TurnResult {
   turn: number;
   attackerCardId: string;
   defenderCardId: string;
-  skillUsed: BasicSkill | UltimateSkill;
+  skillUsed?: BasicSkill | UltimateSkill;
   damage: number;
   isCritical: boolean;
   isUltimate: boolean;
-  statusApplied?: StatusEffect;
+  isMultiHit?: boolean;
+  hitCount?: number;
+  statusApplied?: AppliedStatusEffect[];  // 부여된 상태이상들
+  statusTriggered?: string[];             // 발동된 상태이상 (화상 데미지 등)
+  healAmount?: number;                    // 회복량
+  selfDamage?: number;                    // 자해 데미지
   attackerHpAfter: number;
   defenderHpAfter: number;
+  attackerCeAfter?: number;
+  defenderCeAfter?: number;
   attackerGaugeAfter: number;
   defenderGaugeAfter: number;
+  log?: string[];                         // 전투 로그 메시지
 }
 
 // 경기장 효과 타입
@@ -332,6 +418,14 @@ export interface BattleCalculation {
   ceMultiplier: { player: number; ai: number };
   arenaBonus: { player: number; ai: number };
   skillActivated: { player: boolean; ai: boolean };
+  // 필살기 효과 시스템 추가
+  ultimateUsed?: { player: boolean; ai: boolean };
+  ultimateDamage?: { player: number; ai: number };
+  statusEffectsApplied?: {
+    player: AppliedStatusEffect[];
+    ai: AppliedStatusEffect[];
+  };
+  turnLogs?: TurnResult[];
 }
 
 // 라운드 결과

@@ -1,13 +1,14 @@
 // ========================================
-// 턴제 전투 모달 - MVP v4: 기본기/필살기 시스템
-// AI 자동 기술 선택 + 필살기 게이지 시스템
+// 턴제 전투 모달 - MVP v5: 필살기 효과 시스템
+// 상태이상 표시 + 필살기 효과 표시
 // ========================================
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CardDisplay } from '../Card/CardDisplay';
 import { Button } from '../UI/Button';
-import type { CharacterCard, Arena, RoundResult, BasicSkill, UltimateSkill } from '../../types';
+import type { CharacterCard, Arena, RoundResult, BasicSkill, UltimateSkill, AppliedStatusEffect } from '../../types';
+import { getStatusEffect } from '../../data/statusEffects';
 
 interface TurnBattleModalProps {
   playerCard: CharacterCard;
@@ -27,18 +28,48 @@ interface BattleLog {
   isCritical?: boolean;
   isUltimate?: boolean;
   statusEffect?: string;
+  statusEffects?: string[];  // 부여된 상태이상들
+  healAmount?: number;       // 회복량
+  selfDamage?: number;       // 자해 데미지
 }
 
 interface BattleState {
   hp: number;
   gauge: number;
-  buffs: { type: string; value: number; duration: number }[];
-  debuffs: { type: string; value: number; duration: number }[];
+  effects: AppliedStatusEffect[];  // 적용된 상태이상
 }
 
 const MAX_TURNS = 5;
 const LOG_INTERVAL = 700; // 0.7초 간격
 const GAUGE_PER_TURN = { min: 25, max: 35 }; // 턴당 게이지 충전량
+
+// 상태이상 아이콘 표시 컴포넌트
+function StatusEffectDisplay({ effects }: { effects: AppliedStatusEffect[] }) {
+  if (effects.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 justify-center mt-1">
+      {effects.map((effect, idx) => {
+        const statusDef = getStatusEffect(effect.statusId);
+        if (!statusDef) return null;
+        const isBuff = statusDef.type === 'BUFF';
+        return (
+          <motion.div
+            key={`${effect.statusId}-${idx}`}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className={`text-xs px-1.5 py-0.5 rounded ${
+              isBuff ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'
+            }`}
+            title={`${statusDef.name} (${effect.remainingDuration}턴)${effect.stacks > 1 ? ` x${effect.stacks}` : ''}`}
+          >
+            {statusDef.icon} {effect.stacks > 1 && `x${effect.stacks}`}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function TurnBattleModal({
   playerCard,
@@ -51,14 +82,12 @@ export function TurnBattleModal({
   const [playerState, setPlayerState] = useState<BattleState>({
     hp: 100,
     gauge: 0,
-    buffs: [],
-    debuffs: []
+    effects: []
   });
   const [aiState, setAiState] = useState<BattleState>({
     hp: 100,
     gauge: 0,
-    buffs: [],
-    debuffs: []
+    effects: []
   });
   const [battleLogs, setBattleLogs] = useState<BattleLog[]>([]);
   const [battleEnded, setBattleEnded] = useState(false);
@@ -380,6 +409,8 @@ export function TurnBattleModal({
                   }
                 />
               </div>
+              {/* 상태이상 표시 */}
+              <StatusEffectDisplay effects={playerState.effects} />
             </div>
           </div>
 
@@ -421,6 +452,8 @@ export function TurnBattleModal({
                   }
                 />
               </div>
+              {/* 상태이상 표시 */}
+              <StatusEffectDisplay effects={aiState.effects} />
             </div>
           </div>
         </div>
