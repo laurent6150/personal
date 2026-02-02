@@ -437,9 +437,7 @@ export function TurnBattleModal({
       const baseMessage = generateBattleMessage(
         attacker, selectedSkill, damage, isCritical, canUseUltimate || false, statusEffect
       );
-      const effectMessage = appliedEffects.length > 0 ? ` [${appliedEffects.join(', ')} 부여]` : '';
-      const healMessage = healAmount > 0 ? ` [${healAmount} 회복]` : '';
-      const selfDmgMessage = selfDamage > 0 ? ` [자해 ${selfDamage}]` : '';
+      // 상태이상 부여 메시지는 이미 logMessages에 아이콘과 함께 포함됨
       const extraLogs = logMessages.length > 0 ? ' ' + logMessages.join(' ') : '';
 
       setBattleLogs(prev => [...prev, {
@@ -448,7 +446,7 @@ export function TurnBattleModal({
         skillName: selectedSkill.name,
         skillType: canUseUltimate ? 'ultimate' : 'basic',
         damage,
-        message: baseMessage + effectMessage + healMessage + selfDmgMessage + extraLogs,
+        message: baseMessage + extraLogs,
         isCritical,
         isUltimate: canUseUltimate || false,
         statusEffect,

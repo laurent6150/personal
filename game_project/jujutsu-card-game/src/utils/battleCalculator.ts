@@ -513,12 +513,15 @@ export function processUltimateEffects(
         if (effect.statusId) {
           const applied = applyStatusEffect(effect.statusId, 100); // 이미 확률 체크함
           if (applied) {
+            const statusDef = getStatusEffect(effect.statusId);
+            const statusIcon = statusDef?.icon || '';
+            const statusName = statusDef?.name || effect.statusId;
             if (effect.target === 'ENEMY') {
               newDefenderEffects = addStatusToList(newDefenderEffects, applied);
-              logs.push(`${effect.statusId} 상태이상 적용!`);
+              logs.push(`${statusIcon} ${statusName} 부여!`);
             } else if (effect.target === 'SELF') {
               newAttackerEffects = addStatusToList(newAttackerEffects, applied);
-              logs.push(`${effect.statusId} 버프 적용!`);
+              logs.push(`${statusIcon} ${statusName} 획득!`);
             }
           }
         }
