@@ -16,7 +16,7 @@ import { NewsFeed } from '../components/NewsFeed';
 import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
 import { GRADE_LIMITS } from '../data/aiCrews';
 import { getCharacterImage } from '../utils/imageHelper';
-import type { LeagueStanding, CharacterCard, Grade } from '../types';
+import type { LeagueStanding, CharacterCard, LegacyGrade } from '../types';
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
@@ -76,11 +76,11 @@ export function SeasonHub({
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
-    const counts: Record<Grade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
+    const counts: Record<LegacyGrade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of selectedCards) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) {
-        counts[char.grade]++;
+        counts[char.grade as LegacyGrade]++;
       }
     }
     return counts;

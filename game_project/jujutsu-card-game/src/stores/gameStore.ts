@@ -8,13 +8,15 @@ import type {
   GameStatus,
   Difficulty,
   RoundResult,
-  CharacterCard
+  CharacterCard,
+  PlayerCard
 } from '../types';
 import { getRandomArena, getRandomArenaExcluding } from '../data/arenas';
 import { aiSelectCard } from '../utils/aiLogic';
 import { resolveRound } from '../utils/battleCalculator';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { WIN_SCORE, MAX_ROUNDS } from '../data/constants';
+import { initializeGrowthData } from '../data/growthSystem';
 
 interface GameState {
   // 현재 게임 세션
@@ -123,15 +125,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // 라운드 실행 - 임시 결과 (점수는 아직 업데이트하지 않음)
     // TurnBattleModal에서 실제 전투 후 updateRoundWinner로 점수 업데이트
+    const growthData = initializeGrowthData();
+    const playerCard: PlayerCard = {
+      cardId: selectedCardId,
+      level: 1,
+      exp: 0,
+      totalExp: 0,
+      equipment: [null, null],
+      stats: { totalWins: 0, totalLosses: 0, vsRecord: {}, arenaRecord: {} },
+      unlockedAchievements: [],
+      bonusStats: growthData.bonusStats,
+      condition: growthData.condition,
+      currentForm: growthData.currentForm,
+      recentResults: [],
+      currentWinStreak: 0,
+      maxWinStreak: 0
+    };
     const roundResult = resolveRound(
-      {
-        cardId: selectedCardId,
-        level: 1,
-        exp: 0,
-        equipment: [null, null],
-        stats: { totalWins: 0, totalLosses: 0, vsRecord: {}, arenaRecord: {} },
-        unlockedAchievements: []
-      },
+      playerCard,
       aiCard,
       arena,
       session.currentRound

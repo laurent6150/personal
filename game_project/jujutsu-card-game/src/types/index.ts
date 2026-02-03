@@ -4,18 +4,117 @@
 
 // 기본 타입
 export type Attribute = 'BARRIER' | 'BODY' | 'CURSE' | 'SOUL' | 'CONVERT' | 'RANGE';
-export type Grade = '특급' | '1급' | '준1급' | '2급' | '준2급' | '3급';
+export type Grade = '특급' | '준특급' | '1급' | '준1급' | '2급' | '준2급' | '3급' | '준3급' | '비술사';
+export type GradeId = 'S' | 'S-' | 'A' | 'A-' | 'B' | 'B-' | 'C' | 'C-' | 'D';
 export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type ItemRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 export type Rarity = ItemRarity;
 
-// 스탯 인터페이스
+// ========================================
+// 8각형 스탯 시스템
+// ========================================
+
+// 확장된 스탯 인터페이스 (5개 → 8개)
 export interface Stats {
-  atk: number;   // 공격력
-  def: number;   // 방어력
-  spd: number;   // 속도
-  ce: number;    // 저주력 (Cursed Energy)
-  hp: number;    // 체력
+  atk: number;   // 공격력 - 기본 데미지
+  def: number;   // 방어력 - 데미지 감소
+  spd: number;   // 속도 - 선공 결정
+  ce: number;    // 주력 - 스킬 자원
+  hp: number;    // 체력 - 생존력
+  crt: number;   // 치명 - 크리티컬 확률/데미지 (신규)
+  tec: number;   // 기술 - 스킬 효과 증폭 (신규)
+  mnt: number;   // 정신 - 상태이상 저항 (신규)
+}
+
+// 기존 5스탯 호환용 (마이그레이션)
+export interface LegacyStats {
+  atk: number;
+  def: number;
+  spd: number;
+  ce: number;
+  hp: number;
+}
+
+// 5스탯 또는 8스탯 허용 (캐릭터 데이터 파일용)
+export type BaseStats = LegacyStats | Stats;
+
+// 스탯 키 타입
+export type StatKey = keyof Stats;
+export type LegacyStatKey = keyof LegacyStats;
+
+// 기존 6등급 호환용 (캐릭터 데이터 파일에서 사용)
+export type LegacyGrade = '특급' | '1급' | '준1급' | '2급' | '준2급' | '3급';
+
+// ========================================
+// 9단계 등급 시스템
+// ========================================
+
+export interface GradeDefinition {
+  id: GradeId;
+  name: Grade;
+  minStat: number;    // 최소 총 스탯
+  color: string;      // 테마 색상
+  textColor: string;  // 텍스트 색상
+  maxInDeck: number;  // 덱 내 최대 수
+}
+
+// ========================================
+// 폼 상태 시스템
+// ========================================
+
+export type FormState = 'HOT' | 'RISING' | 'STABLE' | 'COLD' | 'SLUMP';
+
+export interface FormConfig {
+  statBonus: number;    // 스탯 보너스 비율 (-0.10 ~ +0.10)
+  expBonus: number;     // 경험치 보너스 배율 (0.5 ~ 1.5)
+  icon: string;         // 표시 아이콘
+  name: string;         // 한글 이름
+  color: string;        // 테마 색상
+}
+
+// ========================================
+// 컨디션 시스템
+// ========================================
+
+export interface CharacterCondition {
+  value: number;               // 50 ~ 100
+  consecutiveBattles: number;  // 연속 출전 횟수
+  lastRestRound: number;       // 마지막 휴식 라운드
+}
+
+// ========================================
+// 성장 시스템
+// ========================================
+
+export interface CharacterProgress {
+  cardId: string;
+  level: number;        // 1 ~ 10
+  exp: number;          // 현재 레벨 내 경험치
+  totalExp: number;     // 누적 총 경험치
+  recentResults: boolean[];  // 최근 5경기 결과 (폼 계산용)
+  condition: CharacterCondition;
+  currentForm: FormState;
+  // 성장으로 인한 추가 스탯
+  bonusStats: Stats;
+}
+
+// 경험치 변화 상세
+export interface ExpChangeDetails {
+  result: 'WIN' | 'LOSE';
+  remainingHpPercent: number;  // 남은 HP 비율
+  enemyHpPercent: number;      // 상대 남은 HP 비율
+  isMvp: boolean;              // MVP 여부
+  winStreak: number;           // 현재 연승
+}
+
+// 레벨업/다운 결과
+export interface LevelChangeResult {
+  previousLevel: number;
+  newLevel: number;
+  previousExp: number;
+  newExp: number;
+  statChange: Partial<Stats>;
+  notification?: string;
 }
 
 // ========================================
@@ -175,14 +274,15 @@ export interface Achievement {
 }
 
 // 캐릭터 카드 (기본 데이터)
+// baseStats는 레거시(5스탯) 또는 풀(8스탯) 모두 허용
 export interface CharacterCard {
   id: string;
   name: { ko: string; ja: string; en: string };
-  grade: Grade;
+  grade: LegacyGrade;  // 기존 6등급 사용 (특급~3급)
   attribute: Attribute;
   imageUrl: string;
-  baseStats: Stats;
-  growthStats: { primary: keyof Stats; secondary: keyof Stats };
+  baseStats: BaseStats;  // 5스탯 또는 8스탯 모두 허용
+  growthStats: { primary: LegacyStatKey; secondary: LegacyStatKey };  // 기본 5스탯 키만 사용
 
   // 레거시 스킬 (기존 호환용)
   skill: Skill;
@@ -199,6 +299,7 @@ export interface PlayerCard {
   cardId: string;
   level: number;           // 1-10
   exp: number;
+  totalExp: number;        // 누적 총 경험치 (신규)
   equipment: [string | null, string | null];  // 장비 슬롯 2개
   stats: {
     totalWins: number;
@@ -207,6 +308,14 @@ export interface PlayerCard {
     arenaRecord: Record<string, { wins: number; losses: number }>;
   };
   unlockedAchievements: string[];
+
+  // 성장 시스템 (신규)
+  bonusStats: Stats;                 // 레벨업으로 얻은 추가 스탯
+  condition: CharacterCondition;     // 컨디션
+  currentForm: FormState;            // 폼 상태
+  recentResults: boolean[];          // 최근 5경기 결과 (true = 승)
+  currentWinStreak: number;          // 현재 연승
+  maxWinStreak: number;              // 최대 연승
 }
 
 // 전투용 스탯 (최종 계산된)
@@ -745,8 +854,8 @@ export interface NewsFeedState {
 // 트레이드 시스템
 // ========================================
 
-// 등급별 포인트
-export const GRADE_POINTS: Record<Grade, number> = {
+// 등급별 포인트 (기존 6등급 호환)
+export const GRADE_POINTS: Record<LegacyGrade, number> = {
   '특급': 10,
   '1급': 5,
   '준1급': 3,

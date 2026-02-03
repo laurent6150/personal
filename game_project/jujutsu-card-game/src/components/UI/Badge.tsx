@@ -1,8 +1,8 @@
-import type { Grade, Attribute, Rarity } from '../../types';
+import type { LegacyGrade, Attribute, Rarity } from '../../types';
 import { GRADES, ATTRIBUTES } from '../../data';
 
 interface GradeBadgeProps {
-  grade: Grade;
+  grade: LegacyGrade;
   size?: 'sm' | 'md' | 'lg';
 }
 

@@ -4,6 +4,7 @@
 
 import type {
   Stats,
+  BaseStats,
   Arena,
   CharacterCard,
   PlayerCard,
@@ -29,6 +30,23 @@ import { getStatusEffect } from '../data/statusEffects';
 import { getUltimateSkillEffects, type UltimateSkillData } from '../data/ultimateSkillEffects';
 
 /**
+ * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
+ */
+function ensureFullStats(baseStats: BaseStats): Stats {
+  // 이미 8스탯이면 그대로 반환
+  if ('crt' in baseStats) {
+    return baseStats as Stats;
+  }
+  // 5스탯이면 기본값으로 신규 스탯 추가
+  return {
+    ...baseStats,
+    crt: 10,  // 기본 치명
+    tec: 10,  // 기본 기술
+    mnt: 10   // 기본 정신
+  };
+}
+
+/**
  * 플레이어 카드의 전투용 스탯 계산 (레벨업 + 장비 적용)
  */
 export function calculateCombatStats(
@@ -40,8 +58,8 @@ export function calculateCombatStats(
     throw new Error(`Character not found: ${playerCard.cardId}`);
   }
 
-  // 기본 스탯
-  const stats: Stats = { ...baseCard.baseStats };
+  // 기본 스탯 (8스탯으로 변환)
+  const stats: Stats = ensureFullStats(baseCard.baseStats);
 
   // 레벨업 보너스 적용 (레벨당 주요 스탯 +2)
   const levelBonus = (playerCard.level - 1) * 2;
@@ -91,7 +109,8 @@ export function calculateAICombatStats(
   characterCard: CharacterCard,
   arena: Arena
 ): CombatStats {
-  const stats: Stats = { ...characterCard.baseStats };
+  // 기본 스탯 (8스탯으로 변환)
+  const stats: Stats = ensureFullStats(characterCard.baseStats);
 
   // 경기장 스탯 수정자 적용
   const arenaStatMod = getArenaStatModifier(arena);

@@ -13,7 +13,7 @@ import { Button } from '../components/UI/Button';
 import { GradeBadge, AttributeBadge } from '../components/UI/Badge';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data';
-import type { Grade, Attribute, CharacterCard } from '../types';
+import type { LegacyGrade, Attribute, CharacterCard } from '../types';
 
 interface CardCatalogProps {
   onBack: () => void;
@@ -22,7 +22,7 @@ interface CardCatalogProps {
 
 type SortOption = 'name' | 'grade' | 'level' | 'winRate' | 'wins' | 'atk' | 'def' | 'spd' | 'ce' | 'hp';
 
-const GRADE_OPTIONS: (Grade | 'all')[] = ['all', '특급', '1급', '준1급', '2급', '준2급', '3급'];
+const GRADE_OPTIONS: (LegacyGrade | 'all')[] = ['all', '특급', '1급', '준1급', '2급', '준2급', '3급'];
 const ATTRIBUTE_OPTIONS: (Attribute | 'all')[] = ['all', 'BARRIER', 'BODY', 'CURSE', 'SOUL', 'CONVERT', 'RANGE'];
 const SORT_OPTIONS: { id: SortOption; label: string }[] = [
   { id: 'name', label: '이름순' },
@@ -46,7 +46,7 @@ const ATTRIBUTE_NAMES: Record<Attribute, string> = {
   RANGE: '원거리'
 };
 
-const GRADE_ORDER: Record<Grade, number> = {
+const GRADE_ORDER: Record<LegacyGrade, number> = {
   '특급': 0,
   '1급': 1,
   '준1급': 2,
@@ -60,7 +60,7 @@ export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {
   const { player } = usePlayerStore();
   const { getCareerStats } = useCardRecordStore();
 
-  const [gradeFilter, setGradeFilter] = useState<Grade | 'all'>('all');
+  const [gradeFilter, setGradeFilter] = useState<LegacyGrade | 'all'>('all');
   const [attributeFilter, setAttributeFilter] = useState<Attribute | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('grade');
   const [showFilters, setShowFilters] = useState(false);
@@ -183,7 +183,7 @@ export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {
               <div className="text-sm text-text-secondary mb-2">등급</div>
               <select
                 value={gradeFilter}
-                onChange={(e) => setGradeFilter(e.target.value as Grade | 'all')}
+                onChange={(e) => setGradeFilter(e.target.value as LegacyGrade | 'all')}
                 className="w-full bg-bg-secondary text-text-primary rounded-lg p-2 border border-white/10"
               >
                 <option value="all">전체</option>
