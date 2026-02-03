@@ -236,7 +236,7 @@ export function SeasonHub({
                     className="cursor-pointer flex-shrink-0"
                     onClick={() => toggleCardSelection(cardId)}
                   >
-                    <CardDisplay character={char} size="xs" isSelected />
+                    <CardDisplay character={char} size="xs" isSelected statsDisplayMode="gradeTotal" showSkill={false} />
                   </motion.div>
                 ) : null;
               })}
@@ -272,6 +272,8 @@ export function SeasonHub({
                       character={char}
                       size="xs"
                       isSelected={isSelected}
+                      statsDisplayMode="gradeTotal"
+                      showSkill={false}
                     />
                     {isDisabled && reason && (
                       <div className="absolute inset-0 flex items-end justify-center pb-1 bg-black/30">

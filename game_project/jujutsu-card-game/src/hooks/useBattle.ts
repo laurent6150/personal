@@ -2,7 +2,7 @@
 // 대전 진행 커스텀 훅
 // ========================================
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/shallow';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
@@ -118,6 +118,25 @@ export function useBattle() {
   const isGameActive = session?.status === 'IN_PROGRESS';
   const isGameOver = session?.status === 'PLAYER_WIN' || session?.status === 'AI_WIN';
   const isPlayerWin = session?.status === 'PLAYER_WIN';
+
+  // 게임 종료 시 자동으로 gameEndResult 설정 (안전망)
+  useEffect(() => {
+    if (isGameOver && session && !gameEndResult) {
+      const won = session.status === 'PLAYER_WIN';
+      const expResult = processGameResult(
+        won,
+        session.rounds,
+        session.ai.difficulty
+      );
+
+      setGameEndResult({
+        won,
+        expGained: expResult.expGained,
+        levelUps: expResult.levelUps,
+        newAchievements: expResult.newAchievements
+      });
+    }
+  }, [isGameOver, session, gameEndResult, processGameResult]);
 
   // 현재 점수
   const currentScore = useMemo(() => ({
@@ -281,11 +300,19 @@ export function useBattle() {
 
     if (result) {
       // 게임 결과를 플레이어 데이터에 반영
-      processGameResult(
+      const expResult = processGameResult(
         result.winner === 'PLAYER',
         session.rounds,
         session.ai.difficulty
       );
+
+      // gameEndResult 설정 (카드별 경험치 표시용)
+      setGameEndResult({
+        won: result.winner === 'PLAYER',
+        expGained: expResult.expGained,
+        levelUps: expResult.levelUps,
+        newAchievements: expResult.newAchievements
+      });
     }
 
     return result;
