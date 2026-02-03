@@ -1,6 +1,6 @@
 // ========================================
 // 카드 배치 화면
-// 5경기장에 미리 카드를 배치
+// 4경기장에 미리 카드를 배치 + 에이스 결정전 (5경기)
 // 경기장 효과 및 추천도 표시
 // ========================================
 
@@ -15,7 +15,12 @@ import {
   autoAssignCards,
   getRecommendedCardsForArena
 } from '../../utils/banPickSystem';
+import { analyzeArenaEffects } from '../../utils/arenaEffectAnalyzer';
+import { SelectedCardPanel } from './SelectedCardPanel';
 import type { Arena, CardAssignment, ArenaEffect } from '../../types';
+
+// 배치 필요 경기 수 (4경기, 5경기는 에이스 결정전)
+const REQUIRED_ASSIGNMENTS = 4;
 
 interface CardPlacementScreenProps {
   playerCrew: string[];
@@ -33,8 +38,9 @@ export function CardPlacementScreen({
   onBack
 }: CardPlacementScreenProps) {
   // 각 경기장에 배치된 카드 ID (null이면 미배치)
+  // 1~4경기만 배치, 5경기는 에이스 결정전
   const [assignments, setAssignments] = useState<(string | null)[]>(
-    Array(5).fill(null)
+    Array(REQUIRED_ASSIGNMENTS).fill(null)
   );
   // 현재 선택된 카드 (하단에서 클릭)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -45,8 +51,8 @@ export function CardPlacementScreen({
   // 현재 선택된 카드의 캐릭터 정보
   const selectedCard = selectedCardId ? CHARACTERS_BY_ID[selectedCardId] : null;
 
-  // 배치 완료 여부 (5개 모두 배치)
-  const isComplete = assignments.every(a => a !== null);
+  // 배치 완료 여부 (4개 모두 배치)
+  const isComplete = assignments.slice(0, REQUIRED_ASSIGNMENTS).every(a => a !== null);
 
   // 슬롯 클릭 핸들러
   const handleSlotClick = (index: number) => {
@@ -82,9 +88,9 @@ export function CardPlacementScreen({
     }
   };
 
-  // 자동 배치
+  // 자동 배치 (1~4경기만)
   const handleAutoAssign = () => {
-    const autoAssignments = autoAssignCards(playerCrew, arenas);
+    const autoAssignments = autoAssignCards(playerCrew, arenas.slice(0, REQUIRED_ASSIGNMENTS));
     const newAssignments = autoAssignments.map(a => a.cardId);
     setAssignments(newAssignments);
     setSelectedCardId(null);
@@ -92,16 +98,17 @@ export function CardPlacementScreen({
 
   // 초기화
   const handleReset = () => {
-    setAssignments(Array(5).fill(null));
+    setAssignments(Array(REQUIRED_ASSIGNMENTS).fill(null));
     setSelectedCardId(null);
   };
 
-  // 확정
+  // 확정 (1~4경기 배치 + 5경기는 에이스 결정전으로 null)
   const handleConfirm = () => {
     const cardAssignments: CardAssignment[] = arenas.map((arena, index) => ({
       arenaId: arena.id,
       arenaIndex: index,
-      cardId: assignments[index]
+      // 5경기(index 4)는 에이스 결정전이므로 null
+      cardId: index < REQUIRED_ASSIGNMENTS ? assignments[index] : null
     }));
     onConfirm(cardAssignments);
   };
@@ -206,19 +213,27 @@ export function CardPlacementScreen({
         </div>
       </div>
 
-      {/* 경기장 슬롯 */}
+      {/* 경기장 슬롯 (1~4경기 + 에이스 결정전) */}
       <div className="max-w-6xl mx-auto mb-6">
         <div className="grid grid-cols-5 gap-3">
-          {arenas.map((arena, index) => {
+          {/* 1~4경기 슬롯 */}
+          {arenas.slice(0, REQUIRED_ASSIGNMENTS).map((arena, index) => {
             const assignedCard = assignments[index]
               ? CHARACTERS_BY_ID[assignments[index]!]
               : null;
             const recommendation = getRecommendation(arena, index);
+            // 선택된 카드의 이 경기장 효과 분석
+            const selectedCardAnalysis = selectedCard
+              ? analyzeArenaEffects(selectedCard, arena)
+              : null;
 
             return (
               <div key={arena.id} className="flex flex-col gap-2">
                 {/* 경기장 정보 */}
-                <div className="bg-bg-secondary rounded-lg p-2 text-center">
+                <div className={`bg-bg-secondary rounded-lg p-2 text-center transition-all ${
+                  selectedCardAnalysis?.recommendation === 'good' ? 'ring-2 ring-green-500/50' :
+                  selectedCardAnalysis?.recommendation === 'bad' ? 'ring-2 ring-red-500/50' : ''
+                }`}>
                   <div className="text-xs text-text-secondary mb-1">
                     {index + 1}경기
                   </div>
@@ -228,6 +243,18 @@ export function CardPlacementScreen({
                   <div className="text-[10px] text-text-secondary">
                     {getArenaEffectSummary(arena)}
                   </div>
+                  {/* 선택된 카드의 경기장 효과 미리보기 */}
+                  {selectedCardAnalysis && !assignedCard && (
+                    <div className={`mt-1 text-[10px] font-bold ${
+                      selectedCardAnalysis.recommendation === 'good' ? 'text-green-400' :
+                      selectedCardAnalysis.recommendation === 'bad' ? 'text-red-400' :
+                      'text-gray-400'
+                    }`}>
+                      {selectedCardAnalysis.recommendation === 'good' && '⭐ 추천!'}
+                      {selectedCardAnalysis.recommendation === 'bad' && '⚠️ 불리'}
+                      {selectedCardAnalysis.recommendation === 'neutral' && '➖ 보통'}
+                    </div>
+                  )}
                 </div>
 
                 {/* 화살표 */}
@@ -256,7 +283,11 @@ export function CardPlacementScreen({
                               ? 'border-red-500 bg-red-500/10'
                               : 'border-accent bg-accent/10'
                           : selectedCardId
-                            ? 'border-yellow-500 border-dashed bg-yellow-500/10 animate-pulse'
+                            ? selectedCardAnalysis?.recommendation === 'good'
+                              ? 'border-green-500 border-dashed bg-green-500/10 animate-pulse'
+                              : selectedCardAnalysis?.recommendation === 'bad'
+                                ? 'border-red-500 border-dashed bg-red-500/10 animate-pulse'
+                                : 'border-yellow-500 border-dashed bg-yellow-500/10 animate-pulse'
                             : 'border-white/20 border-dashed bg-bg-secondary'
                         }
                       `}
@@ -308,6 +339,17 @@ export function CardPlacementScreen({
                               추천: {recommendation}
                             </div>
                           )}
+                          {/* 선택된 카드의 효과 미리보기 */}
+                          {selectedCardAnalysis && (
+                            <div className="mt-1 flex flex-wrap justify-center gap-0.5">
+                              {selectedCardAnalysis.positive.slice(0, 1).map((_, i) => (
+                                <span key={`p${i}`} className="text-[8px] text-green-400">✅</span>
+                              ))}
+                              {selectedCardAnalysis.negative.slice(0, 1).map((_, i) => (
+                                <span key={`n${i}`} className="text-[8px] text-red-400">❌</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </motion.button>
@@ -316,6 +358,53 @@ export function CardPlacementScreen({
               </div>
             );
           })}
+
+          {/* 5경기 에이스 결정전 슬롯 */}
+          {arenas[4] && (
+            <div className="flex flex-col gap-2">
+              {/* 경기장 정보 */}
+              <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg p-2 text-center border border-yellow-500/30">
+                <div className="text-xs text-yellow-400 mb-1 font-bold">
+                  5경기
+                </div>
+                <div className="text-sm font-bold text-text-primary truncate mb-1">
+                  {arenas[4].name.ko}
+                </div>
+                <div className="text-[10px] text-text-secondary">
+                  {getArenaEffectSummary(arenas[4])}
+                </div>
+              </div>
+
+              {/* 화살표 */}
+              <div className="text-center text-yellow-400 text-xl">⚔️</div>
+
+              {/* 에이스 결정전 슬롯 */}
+              <div className="aspect-[3/4] rounded-lg border-2 border-dashed border-yellow-500/50 bg-gradient-to-b from-yellow-500/10 to-orange-500/10 flex flex-col items-center justify-center p-2">
+                <div className="text-3xl mb-2">⚔️</div>
+                <div className="text-sm font-bold text-yellow-400 text-center">
+                  에이스 결정전
+                </div>
+                <div className="text-[10px] text-text-secondary text-center mt-1">
+                  2:2 동점 시 진행
+                </div>
+                <div className="text-[8px] text-yellow-400/70 text-center mt-2">
+                  모든 카드 선택 가능
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 안내 문구 */}
+      <div className="max-w-6xl mx-auto mb-4">
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+          <div className="text-sm text-yellow-400">
+            ※ 5경기는 2:2 동점 시 <span className="font-bold">에이스 결정전</span>으로 진행됩니다
+          </div>
+          <div className="text-xs text-text-secondary mt-1">
+            에이스 결정전에서는 1~4경기 출전 카드도 다시 선택 가능합니다
+          </div>
         </div>
       </div>
 
@@ -386,86 +475,16 @@ export function CardPlacementScreen({
         </div>
       </div>
 
-      {/* 선택된 카드 정보 & 경기장별 적합도 */}
+      {/* 선택된 카드 정보 패널 (RadarChart + 필살기 + 경기장 적합도) */}
       <AnimatePresence>
         {selectedCard && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="max-w-6xl mx-auto mb-6"
-          >
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-              {/* 기본 안내 */}
-              <div className="flex items-center gap-4 mb-4">
-                <div className="text-lg">👆</div>
-                <div>
-                  <div className="text-sm font-bold text-yellow-500">
-                    {selectedCard.name.ko} 선택됨
-                  </div>
-                  <div className="text-xs text-text-secondary">
-                    위 경기장 슬롯을 클릭하여 배치하세요
-                  </div>
-                </div>
-                <div className="flex-1" />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-text-secondary">속성:</span>
-                  <AttributeBadge attribute={selectedCard.attribute} size="sm" />
-                </div>
-              </div>
-
-              {/* 경기장별 적합도 표시 */}
-              <div className="border-t border-yellow-500/20 pt-3">
-                <div className="text-xs text-yellow-500/80 mb-2">📊 경기장별 적합도</div>
-                <div className="grid grid-cols-5 gap-2">
-                  {arenas.map((arena, index) => {
-                    const score = getCardArenaScore(selectedCardId!, arena);
-                    const analysis = getArenaEffectsForCard(selectedCardId!, arena);
-                    const isAssignedHere = assignments[index] === selectedCardId;
-
-                    return (
-                      <div
-                        key={arena.id}
-                        className={`
-                          p-2 rounded-lg text-center transition-all
-                          ${isAssignedHere
-                            ? 'bg-accent/20 border border-accent'
-                            : analysis.overallScore === 'GOOD'
-                              ? 'bg-green-500/10 border border-green-500/30'
-                              : analysis.overallScore === 'BAD'
-                                ? 'bg-red-500/10 border border-red-500/30'
-                                : 'bg-white/5 border border-white/10'
-                          }
-                        `}
-                      >
-                        <div className="text-[10px] text-text-secondary mb-1 truncate">
-                          {index + 1}경기 - {arena.name.ko}
-                        </div>
-                        <div className="text-xs">
-                          {renderStars(score)}
-                        </div>
-                        {analysis.overallScore === 'GOOD' && (
-                          <div className="text-[10px] text-green-400 mt-1">유리</div>
-                        )}
-                        {analysis.overallScore === 'BAD' && (
-                          <div className="text-[10px] text-red-400 mt-1">불리</div>
-                        )}
-                        {/* 관련 효과 미니 표시 */}
-                        <div className="flex justify-center gap-0.5 mt-1">
-                          {analysis.effects
-                            .filter(e => e.isRelevant)
-                            .slice(0, 3)
-                            .map((e, idx) => (
-                              <span key={idx} className="text-[10px]">{e.icon}</span>
-                            ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          <div className="max-w-6xl mx-auto mb-6">
+            <SelectedCardPanel
+              character={selectedCard}
+              arenas={arenas}
+              onClose={() => setSelectedCardId(null)}
+            />
+          </div>
         )}
       </AnimatePresence>
 
@@ -494,7 +513,7 @@ export function CardPlacementScreen({
         </div>
         {!isComplete && (
           <div className="text-center text-sm text-text-secondary mt-2">
-            5개 경기장 모두에 카드를 배치해주세요 ({assignedCardIds.length}/5)
+            1~4경기 슬롯에 카드를 배치해주세요 ({assignedCardIds.length}/{REQUIRED_ASSIGNMENTS})
           </div>
         )}
       </div>
