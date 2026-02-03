@@ -230,17 +230,17 @@ export function CardPlacementScreen({
             return (
               <div key={arena.id} className="flex flex-col gap-2">
                 {/* 경기장 정보 */}
-                <div className={`bg-bg-secondary rounded-lg p-2 text-center transition-all ${
+                <div className={`bg-bg-secondary rounded-lg p-2 text-center transition-all min-h-[80px] ${
                   selectedCardAnalysis?.recommendation === 'good' ? 'ring-2 ring-green-500/50' :
                   selectedCardAnalysis?.recommendation === 'bad' ? 'ring-2 ring-red-500/50' : ''
                 }`}>
                   <div className="text-xs text-text-secondary mb-1">
                     {index + 1}경기
                   </div>
-                  <div className="text-sm font-bold text-text-primary truncate mb-1">
+                  <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arena.name.ko}>
                     {arena.name.ko}
                   </div>
-                  <div className="text-[10px] text-text-secondary">
+                  <div className="text-[10px] text-text-secondary leading-tight break-keep" title={getArenaEffectSummary(arena)}>
                     {getArenaEffectSummary(arena)}
                   </div>
                   {/* 선택된 카드의 경기장 효과 미리보기 */}
@@ -363,14 +363,14 @@ export function CardPlacementScreen({
           {arenas[4] && (
             <div className="flex flex-col gap-2">
               {/* 경기장 정보 */}
-              <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg p-2 text-center border border-yellow-500/30">
+              <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg p-2 text-center border border-yellow-500/30 min-h-[80px]">
                 <div className="text-xs text-yellow-400 mb-1 font-bold">
                   5경기
                 </div>
-                <div className="text-sm font-bold text-text-primary truncate mb-1">
+                <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arenas[4].name.ko}>
                   {arenas[4].name.ko}
                 </div>
-                <div className="text-[10px] text-text-secondary">
+                <div className="text-[10px] text-text-secondary leading-tight break-keep" title={getArenaEffectSummary(arenas[4])}>
                   {getArenaEffectSummary(arenas[4])}
                 </div>
               </div>

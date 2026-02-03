@@ -10,21 +10,22 @@ interface RadarChartProps {
   size?: 'sm' | 'md' | 'lg';
   showLabels?: boolean;
   showValues?: boolean;
+  showTotal?: boolean;  // 중앙에 능력치 총합 표시
   maxValue?: number;
   fillColor?: string;
   strokeColor?: string;
 }
 
-// 8스탯 레이블
+// 8스탯 레이블 (한글)
 const STAT_LABELS = [
-  { key: 'atk', label: 'ATK', color: '#E74C3C' },
-  { key: 'def', label: 'DEF', color: '#3498DB' },
-  { key: 'spd', label: 'SPD', color: '#F1C40F' },
-  { key: 'ce', label: 'CE', color: '#9B59B6' },
-  { key: 'hp', label: 'HP', color: '#E91E63' },
-  { key: 'crt', label: 'CRT', color: '#EC4899' },
-  { key: 'tec', label: 'TEC', color: '#14B8A6' },
-  { key: 'mnt', label: 'MNT', color: '#6366F1' },
+  { key: 'atk', label: '공격', color: '#E74C3C' },
+  { key: 'def', label: '방어', color: '#3498DB' },
+  { key: 'spd', label: '속도', color: '#F1C40F' },
+  { key: 'ce', label: '주력', color: '#9B59B6' },
+  { key: 'hp', label: '체력', color: '#E91E63' },
+  { key: 'crt', label: '치명', color: '#EC4899' },
+  { key: 'tec', label: '기술', color: '#14B8A6' },
+  { key: 'mnt', label: '정신', color: '#6366F1' },
 ];
 
 // 사이즈별 설정
@@ -39,6 +40,7 @@ export function RadarChart({
   size = 'md',
   showLabels = true,
   showValues = false,
+  showTotal = false,
   maxValue = 30,
   fillColor = 'rgba(139, 92, 246, 0.3)',
   strokeColor = '#8B5CF6',
@@ -53,6 +55,11 @@ export function RadarChart({
   const getStatValue = (key: string): number => {
     return (stats as unknown as Record<string, number>)[key] ?? 0;
   };
+
+  // 총합 계산
+  const total = STAT_LABELS.reduce((sum, stat) => {
+    return sum + getStatValue(stat.key);
+  }, 0);
 
   // 각도에 따른 좌표 계산 (위쪽에서 시작, 시계방향)
   const getPoint = (index: number, value: number, radius: number) => {
@@ -188,6 +195,34 @@ export function RadarChart({
           </text>
         );
       })}
+
+      {/* 중앙 총합 표시 */}
+      {showTotal && (
+        <>
+          <text
+            x={centerX}
+            y={centerY - (size === 'sm' ? 3 : size === 'md' ? 5 : 7)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#fff"
+            fontSize={size === 'sm' ? 14 : size === 'md' ? 20 : 26}
+            fontWeight="bold"
+            className="drop-shadow-lg"
+          >
+            {total}
+          </text>
+          <text
+            x={centerX}
+            y={centerY + (size === 'sm' ? 8 : size === 'md' ? 12 : 16)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#aaa"
+            fontSize={size === 'sm' ? 6 : size === 'md' ? 8 : 10}
+          >
+            총합
+          </text>
+        </>
+      )}
     </svg>
   );
 }

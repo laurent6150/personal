@@ -114,22 +114,23 @@ export function SelectedCardPanel({
               </span>
             </div>
 
-            {/* 미니 스탯 */}
+            {/* 미니 스탯 (한글) */}
             <div className="grid grid-cols-2 gap-1 text-xs">
-              <div className="text-red-400">⚔️ ATK {stats.atk ?? 0}</div>
-              <div className="text-blue-400">🛡️ DEF {stats.def ?? 0}</div>
-              <div className="text-yellow-400">⚡ SPD {stats.spd ?? 0}</div>
-              <div className="text-purple-400">🔮 CE {stats.ce ?? 0}</div>
+              <div className="text-red-400">⚔️ 공격 {stats.atk ?? 0}</div>
+              <div className="text-blue-400">🛡️ 방어 {stats.def ?? 0}</div>
+              <div className="text-yellow-400">⚡ 속도 {stats.spd ?? 0}</div>
+              <div className="text-purple-400">🔮 주력 {stats.ce ?? 0}</div>
             </div>
           </div>
         </div>
 
-        {/* 중앙: 레이더 차트 */}
+        {/* 중앙: 레이더 차트 (한글 + 총합) */}
         <div className="flex flex-col items-center justify-center">
           <RadarChart
             stats={character.baseStats}
             size="sm"
             showLabels={true}
+            showTotal={true}
             fillColor={`${attrInfo.color}40`}
             strokeColor={attrInfo.color}
           />
@@ -181,7 +182,7 @@ export function SelectedCardPanel({
               <div
                 key={arena.id}
                 className={`
-                  p-2 rounded-lg text-center transition-all
+                  p-2 rounded-lg text-center transition-all group relative
                   ${analysis.recommendation === 'good'
                     ? 'bg-green-500/10 border border-green-500/30'
                     : analysis.recommendation === 'bad'
@@ -193,7 +194,7 @@ export function SelectedCardPanel({
                 <div className="text-[10px] text-text-secondary mb-1 truncate">
                   {idx + 1}경기
                 </div>
-                <div className="text-xs font-bold truncate">{arena.name.ko}</div>
+                <div className="text-xs font-bold truncate" title={arena.name.ko}>{arena.name.ko}</div>
                 <div className={`text-xs mt-1 ${badge.color}`}>
                   {badge.icon} {badge.text}
                 </div>
@@ -205,6 +206,28 @@ export function SelectedCardPanel({
                   {analysis.negative.slice(0, 2).map((_, i) => (
                     <span key={`n${i}`} className="text-[8px] text-red-400">❌</span>
                   ))}
+                </div>
+
+                {/* 호버 시 상세 이유 툴팁 */}
+                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-bg-primary border border-white/20 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all text-left">
+                  <div className="text-xs font-bold mb-1">{arena.name.ko}</div>
+                  {analysis.positive.length > 0 && (
+                    <div className="mb-1">
+                      {analysis.positive.map((msg, i) => (
+                        <div key={`p${i}`} className="text-[10px] text-green-400">✅ {msg}</div>
+                      ))}
+                    </div>
+                  )}
+                  {analysis.negative.length > 0 && (
+                    <div className="mb-1">
+                      {analysis.negative.map((msg, i) => (
+                        <div key={`n${i}`} className="text-[10px] text-red-400">❌ {msg}</div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-[9px] text-text-secondary mt-1 pt-1 border-t border-white/10">
+                    💡 {analysis.tipMessage}
+                  </div>
                 </div>
               </div>
             );

@@ -508,21 +508,31 @@ function InfoTab({
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">스탯</h3>
 
-          {/* RadarChart로 8스탯 시각화 */}
+          {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합) */}
           <div className="flex justify-center mb-6">
             <RadarChart
               stats={character.baseStats}
               size="lg"
               showLabels={true}
               showValues={true}
+              showTotal={true}
               fillColor={`${attrInfo.color}40`}
               strokeColor={attrInfo.color}
             />
           </div>
 
-          {/* 스탯 상세 리스트 */}
+          {/* 스탯 상세 리스트 (한글) */}
           <div className="space-y-3">
-            {(['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt'] as const).map(stat => {
+            {([
+              { key: 'atk', name: '공격' },
+              { key: 'def', name: '방어' },
+              { key: 'spd', name: '속도' },
+              { key: 'ce', name: '주력' },
+              { key: 'hp', name: '체력' },
+              { key: 'crt', name: '치명' },
+              { key: 'tec', name: '기술' },
+              { key: 'mnt', name: '정신' }
+            ] as const).map(({ key: stat, name }) => {
               const base = (character.baseStats as unknown as Record<string, number>)[stat] ?? 0;
               const enhanced = (enhancedStats as unknown as Record<string, number>)[stat] ?? base;
               const bonus = (equipmentBonus as unknown as Record<string, number>)[stat] ?? 0;
@@ -533,7 +543,7 @@ function InfoTab({
               return (
                 <div key={stat} className="flex items-center gap-3">
                   <span className="w-8 text-lg">{STAT_ICONS[stat]}</span>
-                  <span className="w-12 text-sm text-text-secondary uppercase">{stat}</span>
+                  <span className="w-12 text-sm text-text-secondary">{name}</span>
                   <div className="flex-1">
                     <StatBar stat={stat} value={total} maxValue={50} showLabel={false} showIcon={false} />
                   </div>

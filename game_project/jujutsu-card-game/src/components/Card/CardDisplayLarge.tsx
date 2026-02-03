@@ -117,13 +117,14 @@ export function CardDisplayLarge({
 
       {/* 중단: 레이더 차트 + 컨디션/폼 */}
       <div className="flex-1 p-2 flex gap-2 bg-black/30">
-        {/* 레이더 차트 */}
+        {/* 레이더 차트 (한글 라벨 + 총합) */}
         {showRadarChart && (
           <div className="flex-shrink-0">
             <RadarChart
               stats={character.baseStats}
               size="sm"
               showLabels={true}
+              showTotal={true}
               fillColor={`${attrInfo.color}40`}
               strokeColor={attrInfo.color}
             />
@@ -173,12 +174,12 @@ export function CardDisplayLarge({
             </div>
           </div>
 
-          {/* 주요 스탯 미니 */}
+          {/* 주요 스탯 미니 (한글) */}
           <div className="grid grid-cols-4 gap-0.5 text-[9px] px-1">
-            <div className="text-red-400">ATK {(character.baseStats as unknown as Record<string, number>).atk ?? 0}</div>
-            <div className="text-blue-400">DEF {(character.baseStats as unknown as Record<string, number>).def ?? 0}</div>
-            <div className="text-yellow-400">SPD {(character.baseStats as unknown as Record<string, number>).spd ?? 0}</div>
-            <div className="text-purple-400">CE {(character.baseStats as unknown as Record<string, number>).ce ?? 0}</div>
+            <div className="text-red-400">⚔️ {(character.baseStats as unknown as Record<string, number>).atk ?? 0}</div>
+            <div className="text-blue-400">🛡️ {(character.baseStats as unknown as Record<string, number>).def ?? 0}</div>
+            <div className="text-yellow-400">⚡ {(character.baseStats as unknown as Record<string, number>).spd ?? 0}</div>
+            <div className="text-purple-400">🔮 {(character.baseStats as unknown as Record<string, number>).ce ?? 0}</div>
           </div>
         </div>
       </div>
