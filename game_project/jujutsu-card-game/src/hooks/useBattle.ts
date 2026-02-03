@@ -10,7 +10,11 @@ import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { CREW_SIZE } from '../data/constants';
-import type { Difficulty, CharacterCard, RoundResult, CardAssignment } from '../types';
+import type { Difficulty, CharacterCard, RoundResult, CardAssignment, Arena } from '../types';
+
+// 안정적인 참조를 위한 상수 (React 19 호환)
+const EMPTY_ARENA_ARRAY: Arena[] = [];
+const EMPTY_ASSIGNMENT_ARRAY: CardAssignment[] = [];
 
 export interface GameEndResult {
   won: boolean;
@@ -70,7 +74,7 @@ export function useBattle() {
     setBanPickPhase: state.setBanPickPhase
   })));
 
-  // 밴픽 관련 셀렉터 (useShallow로 안정적인 참조 유지)
+  // 밴픽 관련 셀렉터 (안정적인 참조를 위해 상수 사용 - React 19 호환)
   const seriesScoreboard = useGameStore(useShallow(state => {
     if (!state.session) return null;
     return {
@@ -79,13 +83,13 @@ export function useBattle() {
       currentRound: state.session.currentRound,
       totalRounds: state.session.banPickInfo?.selectedArenas.length ?? 5,
       rounds: state.session.rounds,
-      selectedArenas: state.session.banPickInfo?.selectedArenas ?? [],
-      cardAssignments: state.session.cardAssignments ?? []
+      selectedArenas: state.session.banPickInfo?.selectedArenas ?? EMPTY_ARENA_ARRAY,
+      cardAssignments: state.session.cardAssignments ?? EMPTY_ASSIGNMENT_ARRAY
     };
   }));
-  const selectedArenas = useGameStore(useShallow(state =>
-    state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? []
-  ));
+  const selectedArenas = useGameStore(state =>
+    state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? EMPTY_ARENA_ARRAY
+  );
   const assignedCardForCurrentRound = useGameStore(state => {
     if (!state.session?.cardAssignments) return null;
     const currentRoundIndex = (state.session.currentRound ?? 1) - 1;
