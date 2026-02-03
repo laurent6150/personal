@@ -16,6 +16,7 @@ import { getLevelProgress, getExpToNextLevel } from '../utils/battleCalculator';
 import { Button } from '../components/UI/Button';
 import { GradeBadge, AttributeBadge, RarityBadge } from '../components/UI/Badge';
 import { StatBar } from '../components/UI/StatBar';
+import { RadarChart } from '../components/UI/RadarChart';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data/constants';
 import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord, CardRecord, FormState } from '../types';
@@ -380,12 +381,93 @@ function InfoTab({
           </div>
         </div>
 
-        {/* 스킬 정보 */}
-        <div className="bg-bg-secondary/50 rounded-lg p-4">
-          <div className="text-sm text-text-secondary mb-1">스킬</div>
+        {/* 패시브 스킬 정보 */}
+        <div className="bg-bg-secondary/50 rounded-lg p-4 mb-4">
+          <div className="text-sm text-text-secondary mb-1">💫 패시브 스킬</div>
           <div className="font-bold text-accent">{character.skill.name}</div>
           <div className="text-sm text-text-secondary mt-1">{character.skill.description}</div>
         </div>
+
+        {/* 필살기 (영역전개) 정보 */}
+        {character.ultimateSkill && (
+          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg p-4 border border-purple-500/30">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">⚡</span>
+              <span className="text-sm text-purple-400 font-bold">필살기</span>
+            </div>
+            <div className="font-bold text-lg text-text-primary mb-1">
+              {character.ultimateSkill.name}
+            </div>
+            <div className="text-sm text-text-secondary mb-3">
+              {character.ultimateSkill.description}
+            </div>
+
+            {/* 필살기 스탯 */}
+            <div className="grid grid-cols-2 gap-3">
+              {character.ultimateSkill.damage !== undefined && (
+                <div className="bg-black/30 rounded-lg p-3 text-center">
+                  <div className="text-xl mb-1">💥</div>
+                  <div className="font-bold text-lose">{character.ultimateSkill.damage}</div>
+                  <div className="text-xs text-text-secondary">데미지</div>
+                </div>
+              )}
+              {character.ultimateSkill.ceCost !== undefined && (
+                <div className="bg-black/30 rounded-lg p-3 text-center">
+                  <div className="text-xl mb-1">🔮</div>
+                  <div className="font-bold text-purple-400">{character.ultimateSkill.ceCost}</div>
+                  <div className="text-xs text-text-secondary">CE 소모</div>
+                </div>
+              )}
+              <div className="bg-black/30 rounded-lg p-3 text-center">
+                <div className="text-xl mb-1">⚡</div>
+                <div className="font-bold text-yellow-400">{character.ultimateSkill.gaugeRequired}</div>
+                <div className="text-xs text-text-secondary">필요 게이지</div>
+              </div>
+              {character.ultimateSkill.effects && character.ultimateSkill.effects.length > 0 && (
+                <div className="bg-black/30 rounded-lg p-3 text-center">
+                  <div className="text-xl mb-1">✨</div>
+                  <div className="font-bold text-accent">{character.ultimateSkill.effects.length}개</div>
+                  <div className="text-xs text-text-secondary">추가 효과</div>
+                </div>
+              )}
+            </div>
+
+            {/* 추가 효과 목록 */}
+            {character.ultimateSkill.effects && character.ultimateSkill.effects.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-purple-500/20">
+                <div className="text-xs text-text-secondary mb-2">추가 효과</div>
+                <div className="flex flex-wrap gap-2">
+                  {character.ultimateSkill.effects.map((effect, idx) => {
+                    const effectLabel = (() => {
+                      const val = typeof effect.value === 'number' ? effect.value : effect.value?.min;
+                      switch (effect.type) {
+                        case 'STATUS': return `상태이상 부여`;
+                        case 'LIFESTEAL': return `HP ${val}% 흡수`;
+                        case 'IGNORE_DEF': return `방어력 ${val}% 무시`;
+                        case 'CE_DRAIN': return `CE ${val} 흡수`;
+                        case 'CRITICAL_GUARANTEED': return '크리티컬 확정';
+                        case 'MULTI_HIT': return `${val}회 다중 공격`;
+                        case 'RANDOM_DAMAGE': return '랜덤 데미지';
+                        case 'SELF_DAMAGE': return `자해 ${val} 데미지`;
+                        case 'HEAL_SELF': return `HP ${val} 회복`;
+                        case 'REMOVE_DEBUFF': return '디버프 제거';
+                        default: return effect.type;
+                      }
+                    })();
+                    return (
+                      <span
+                        key={idx}
+                        className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs"
+                      >
+                        {effectLabel}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 폼 & 컨디션 & 스탯 & 장비 */}
@@ -425,6 +507,20 @@ function InfoTab({
         {/* 스탯 (8스탯 전체) */}
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">스탯</h3>
+
+          {/* RadarChart로 8스탯 시각화 */}
+          <div className="flex justify-center mb-6">
+            <RadarChart
+              stats={character.baseStats}
+              size="lg"
+              showLabels={true}
+              showValues={true}
+              fillColor={`${attrInfo.color}40`}
+              strokeColor={attrInfo.color}
+            />
+          </div>
+
+          {/* 스탯 상세 리스트 */}
           <div className="space-y-3">
             {(['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt'] as const).map(stat => {
               const base = (character.baseStats as unknown as Record<string, number>)[stat] ?? 0;
