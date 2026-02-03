@@ -568,6 +568,61 @@ export interface GameSession {
   currentRound: number;
   status: GameStatus;
   currentArena: Arena | null;
+
+  // 밴픽 & 카드 배치 시스템 (Phase 2)
+  banPickInfo?: BanPickInfo;
+  cardAssignments?: CardAssignment[];
+}
+
+// ========================================
+// 밴픽 시스템 (Phase 2)
+// ========================================
+
+// 밴픽 정보
+export interface BanPickInfo {
+  playerBannedArena: string | null;  // 플레이어가 밴한 경기장 ID
+  aiBannedArena: string | null;      // AI가 밴한 경기장 ID
+  selectedArenas: Arena[];           // 선택된 5개 경기장 (순서 확정)
+}
+
+// 카드 배치 정보
+export interface CardAssignment {
+  arenaId: string;      // 경기장 ID
+  arenaIndex: number;   // 경기 순서 (0-4)
+  cardId: string | null; // 배치된 카드 ID (null이면 미배치)
+}
+
+// 밴픽 단계
+export type BanPickPhase =
+  | 'PLAYER_BAN'      // 플레이어 밴 선택
+  | 'AI_BAN'          // AI 밴 진행
+  | 'BAN_RESULT'      // 밴 결과 표시
+  | 'CARD_PLACEMENT'  // 카드 배치
+  | 'READY';          // 경기 준비 완료
+
+// 경기장 분석 결과 (추천용)
+export interface ArenaAnalysis {
+  arenaId: string;
+  favoredAttribute: Attribute | null;
+  weakenedAttribute: Attribute | null;
+  hasSpeedReverse: boolean;
+  hasAttributeNullify: boolean;
+  recommendedCards: string[];  // 추천 카드 ID
+  avoidCards: string[];        // 비추천 카드 ID
+}
+
+// 크루 속성 분석 결과
+export interface CrewAttributeAnalysis {
+  dominant: Attribute;         // 가장 많은 속성
+  distribution: Record<Attribute, number>;  // 속성별 카드 수
+}
+
+// 경기장 적합도 점수
+export interface ArenaFitScore {
+  cardId: string;
+  arenaId: string;
+  score: number;
+  reasons: string[];
 }
 
 // 플레이어 데이터 (저장용)

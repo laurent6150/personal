@@ -3,13 +3,18 @@
 // ========================================
 
 import { useCallback, useMemo, useState } from 'react';
-import { useGameStore } from '../stores/gameStore';
+import {
+  useGameStore,
+  selectSeriesScoreboard,
+  selectSelectedArenas,
+  selectAssignedCardForCurrentRound
+} from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { CREW_SIZE } from '../data/constants';
-import type { Difficulty, CharacterCard, RoundResult } from '../types';
+import type { Difficulty, CharacterCard, RoundResult, CardAssignment } from '../types';
 
 export interface GameEndResult {
   won: boolean;
@@ -26,6 +31,8 @@ export function useBattle() {
     isAnimating,
     showResult,
     lastRoundResult,
+    banPickPhase,
+    pendingBanPickInfo,
     startGame,
     selectCard,
     executeRound,
@@ -34,8 +41,20 @@ export function useBattle() {
     resetGame,
     setAnimating,
     setShowResult,
-    clearLastResult
+    clearLastResult,
+    // 밴픽 액션 (Phase 2)
+    initBanPick,
+    submitPlayerBan,
+    confirmBanResult,
+    submitCardPlacements,
+    startGameWithPlacements,
+    setBanPickPhase
   } = useGameStore();
+
+  // 밴픽 관련 셀렉터
+  const seriesScoreboard = useGameStore(selectSeriesScoreboard);
+  const selectedArenas = useGameStore(selectSelectedArenas);
+  const assignedCardForCurrentRound = useGameStore(selectAssignedCardForCurrentRound);
 
   // Player store
   const {
@@ -84,7 +103,46 @@ export function useBattle() {
     return session.ai.crew.length - session.ai.usedCards.length;
   }, [session]);
 
-  // 게임 시작 (시즌에서 배정된 AI 크루 사용)
+  // ========================================
+  // 밴픽 플로우 핸들러 (Phase 2)
+  // ========================================
+
+  // 밴픽 모드로 게임 시작
+  const handleStartGameWithBanPick = useCallback((aiCrew: string[], difficulty: Difficulty) => {
+    const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
+    if (crew.length !== CREW_SIZE || aiCrew.length !== CREW_SIZE) {
+      console.error('크루 사이즈가 맞지 않습니다.');
+      return false;
+    }
+    initBanPick(crew, aiCrew, difficulty);
+    return true;
+  }, [playerCrew, player.currentCrew, initBanPick]);
+
+  // 플레이어 밴 제출
+  const handleSubmitBan = useCallback((arenaId: string) => {
+    submitPlayerBan(arenaId);
+  }, [submitPlayerBan]);
+
+  // 밴 결과 확인
+  const handleConfirmBanResult = useCallback(() => {
+    confirmBanResult();
+  }, [confirmBanResult]);
+
+  // 카드 배치 제출
+  const handleSubmitPlacements = useCallback((assignments: CardAssignment[]) => {
+    submitCardPlacements(assignments);
+  }, [submitCardPlacements]);
+
+  // 배치 완료 후 게임 시작
+  const handleStartAfterPlacements = useCallback(() => {
+    startGameWithPlacements();
+  }, [startGameWithPlacements]);
+
+  // ========================================
+  // 기존 레거시 핸들러
+  // ========================================
+
+  // 게임 시작 (시즌에서 배정된 AI 크루 사용) - 레거시 모드 (밴픽 없이)
   const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
     // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
     const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
@@ -249,16 +307,31 @@ export function useBattle() {
     roundResultInfo,
     gameEndResult,
 
-    // 액션
+    // 밴픽 상태 (Phase 2)
+    banPickPhase,
+    pendingBanPickInfo,
+    seriesScoreboard,
+    selectedArenas,
+    assignedCardForCurrentRound,
+
+    // 기존 액션 (레거시 모드)
     startGame: handleStartGame,
     selectCard: handleSelectCard,
     executeRound: handleExecuteRound,
-    updateRoundWinner,  // 실제 전투 결과로 점수 업데이트
+    updateRoundWinner,
     continueGame: handleContinue,
     endGame: handleEndGame,
     rematch: handleRematch,
     returnToMenu: handleReturnToMenu,
-    setShowResult
+    setShowResult,
+
+    // 밴픽 액션 (Phase 2)
+    startGameWithBanPick: handleStartGameWithBanPick,
+    submitBan: handleSubmitBan,
+    confirmBanResult: handleConfirmBanResult,
+    submitPlacements: handleSubmitPlacements,
+    startAfterPlacements: handleStartAfterPlacements,
+    setBanPickPhase
   };
 }
 
