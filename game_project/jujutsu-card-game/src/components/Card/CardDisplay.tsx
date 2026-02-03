@@ -1,100 +1,49 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { CharacterCard, PlayerCard, Grade, BaseStats, UltimateSkill, UltimateEffectType } from '../../types';
+import type { CharacterCard, PlayerCard, Grade, BaseStats, Attribute } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { StatsDisplay } from '../UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
 
-// 필살기 효과 타입에 따른 특징 분류
-function getSkillTypeLabel(skill?: UltimateSkill): { label: string; color: string } {
-  // 기본 effect 타입 확인 (레거시 시스템)
-  if (skill?.effect?.type) {
-    const effectType = skill.effect.type;
-    if (effectType === 'STUN' || effectType === 'SPEED_CONTROL') {
-      return { label: '제어', color: '#3B82F6' }; // 파랑
-    }
-    if (effectType === 'BURN' || effectType === 'HP_DRAIN') {
-      return { label: '지속', color: '#EF4444' }; // 빨강
-    }
-    if (effectType === 'STAT_MODIFY') {
-      const value = skill.effect.value;
-      if (typeof value === 'object' && value.amount < 0) {
-        return { label: '디버프', color: '#8B5CF6' }; // 보라
-      }
-      return { label: '버프', color: '#22C55E' }; // 녹색
-    }
-    if (effectType === 'IGNORE_DEFENSE' || effectType === 'TRUE_DAMAGE') {
-      return { label: '관통', color: '#F97316' }; // 주황
-    }
-  }
-
-  // effects 배열 확인 (새 시스템)
-  if (skill?.effects && skill.effects.length > 0) {
-    const effectTypes: UltimateEffectType[] = skill.effects.map(e => e.type);
-
-    // STATUS 효과가 있으면 상태이상 타입 확인
-    if (effectTypes.includes('STATUS')) {
-      const statusEffect = skill.effects.find(e => e.type === 'STATUS');
-      if (statusEffect?.statusId) {
-        const statusId = statusEffect.statusId.toLowerCase();
-        if (statusId.includes('stun') || statusId.includes('seal') || statusId.includes('slow')) {
-          return { label: '제어', color: '#3B82F6' }; // 파랑
-        }
-        if (statusId.includes('burn') || statusId.includes('bleed') || statusId.includes('poison')) {
-          return { label: '지속', color: '#EF4444' }; // 빨강
-        }
-        if (statusId.includes('down') || statusId.includes('weak')) {
-          return { label: '디버프', color: '#8B5CF6' }; // 보라
-        }
-      }
-    }
-
-    if (effectTypes.includes('LIFESTEAL') || effectTypes.includes('HEAL_SELF')) {
-      return { label: '흡수', color: '#22C55E' }; // 녹색
-    }
-    if (effectTypes.includes('IGNORE_DEF')) {
-      return { label: '관통', color: '#F97316' }; // 주황
-    }
-    if (effectTypes.includes('MULTI_HIT')) {
-      return { label: '난타', color: '#EC4899' }; // 핑크
-    }
-    if (effectTypes.includes('REMOVE_BUFF')) {
-      return { label: '해제', color: '#8B5CF6' }; // 보라
-    }
-    if (effectTypes.includes('CRITICAL_GUARANTEED')) {
-      return { label: '필살', color: '#EF4444' }; // 빨강
-    }
-  }
-
-  return { label: '고위력', color: '#6B7280' }; // 기본
+// 속성별 색상 및 한글 이름
+function getAttributeInfo(attribute: Attribute): { label: string; color: string } {
+  const attributeMap: Record<Attribute, { label: string; color: string }> = {
+    'BARRIER': { label: '결계', color: '#3B82F6' },    // 파랑
+    'BODY': { label: '신체', color: '#F97316' },      // 주황
+    'CURSE': { label: '저주', color: '#9333EA' },     // 보라
+    'SOUL': { label: '혼백', color: '#06B6D4' },      // 청록
+    'CONVERT': { label: '변환', color: '#14B8A6' },   // 틸
+    'RANGE': { label: '원거리', color: '#EC4899' },   // 핑크
+  };
+  return attributeMap[attribute] || { label: attribute, color: '#6B7280' };
 }
 
-// 등급 + 총합 + 필살기 타입 표시 컴포넌트
+// 등급 + 총합 + 속성 표시 컴포넌트
 interface GradeTotalDisplayProps {
   grade: Grade;
   stats: BaseStats;
   size: 'xs' | 'sm' | 'md' | 'lg';
   gradeInfo: { bg: string; text: string };
-  skill?: UltimateSkill;
-  showSkillType?: boolean;
+  attribute?: Attribute;
+  showAttribute?: boolean;
 }
 
-function GradeTotalDisplay({ grade, stats, size, gradeInfo, skill, showSkillType = true }: GradeTotalDisplayProps) {
+function GradeTotalDisplay({ grade, stats, size, gradeInfo, attribute, showAttribute = true }: GradeTotalDisplayProps) {
   // 총합 계산 (8스탯)
   const statValues = stats as unknown as Record<string, number>;
   const total = ['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt']
     .reduce((sum, key) => sum + (statValues[key] ?? 0), 0);
 
-  // 필살기 타입
-  const skillType = getSkillTypeLabel(skill);
+  // 속성 정보
+  const attrInfo = attribute ? getAttributeInfo(attribute) : null;
 
   // 크기별 스타일
   const sizeStyles = {
-    xs: { container: 'gap-1', grade: 'text-base', total: 'text-[10px]', label: 'text-[7px]', skillType: 'text-[8px] px-1 py-0.5' },
-    sm: { container: 'gap-1.5', grade: 'text-lg', total: 'text-xs', label: 'text-[8px]', skillType: 'text-[9px] px-1.5 py-0.5' },
-    md: { container: 'gap-2', grade: 'text-xl', total: 'text-sm', label: 'text-[9px]', skillType: 'text-[10px] px-2 py-0.5' },
-    lg: { container: 'gap-2', grade: 'text-2xl', total: 'text-base', label: 'text-xs', skillType: 'text-xs px-2 py-1' }
+    xs: { container: 'gap-1', grade: 'text-base', total: 'text-[10px]', label: 'text-[7px]', attrBadge: 'text-[8px] px-1 py-0.5' },
+    sm: { container: 'gap-1.5', grade: 'text-lg', total: 'text-xs', label: 'text-[8px]', attrBadge: 'text-[9px] px-1.5 py-0.5' },
+    md: { container: 'gap-2', grade: 'text-xl', total: 'text-sm', label: 'text-[9px]', attrBadge: 'text-[10px] px-2 py-0.5' },
+    lg: { container: 'gap-2', grade: 'text-2xl', total: 'text-base', label: 'text-xs', attrBadge: 'text-xs px-2 py-1' }
   };
 
   const style = sizeStyles[size];
@@ -113,12 +62,12 @@ function GradeTotalDisplay({ grade, stats, size, gradeInfo, skill, showSkillType
         <span className={`${style.total} font-bold text-text-primary font-mono`}>
           {total}
         </span>
-        {showSkillType && skill ? (
+        {showAttribute && attrInfo ? (
           <span
-            className={`${style.skillType} rounded font-bold`}
-            style={{ backgroundColor: `${skillType.color}30`, color: skillType.color }}
+            className={`${style.attrBadge} rounded-full font-bold`}
+            style={{ backgroundColor: `${attrInfo.color}30`, color: attrInfo.color }}
           >
-            {skillType.label}
+            {attrInfo.label}
           </span>
         ) : (
           <span className={`${style.label} text-text-secondary`}>총합</span>
@@ -266,14 +215,14 @@ export function CardDisplay({
       {showStats && (
         <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
           {statsDisplayMode === 'gradeTotal' ? (
-            // 등급 + 총합 + 필살기 타입 표시 모드
+            // 등급 + 총합 + 속성 표시 모드
             <GradeTotalDisplay
               grade={character.grade}
               stats={character.baseStats}
               size={size}
               gradeInfo={gradeInfo}
-              skill={character.ultimateSkill}
-              showSkillType={true}
+              attribute={character.attribute}
+              showAttribute={true}
             />
           ) : (
             <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBattle } from '../../hooks/useBattle';
-import { CardDisplay } from '../Card/CardDisplay';
+import { CardDisplay, CardRevealPanel } from '../Card';
 import { ArenaDisplay } from './ArenaDisplay';
 import { TurnBattleModal } from './TurnBattleModal';
 import { Button } from '../UI/Button';
@@ -685,66 +685,48 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 overflow-y-auto"
           >
             <motion.div
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
-              className="text-center max-w-6xl w-full"
+              className="text-center w-full max-w-5xl"
             >
-              <div className="text-2xl text-text-secondary mb-4">상대가 카드를 공개합니다!</div>
+              <div className="text-2xl text-text-secondary mb-3">상대가 카드를 공개합니다!</div>
 
               {/* 경기장 정보 */}
               {currentArena && (
                 <div className="mb-4 bg-bg-card/80 rounded-lg p-3 max-w-md mx-auto border border-white/10">
                   <div className="text-sm text-accent">🏟️ {currentArena.name.ko}</div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    {currentArena.effects.map(e => e.description).slice(0, 2).join(' / ')}
+                  </div>
                 </div>
               )}
 
-              {/* 카드 비교 영역 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* 카드 비교 영역 - 3열 레이아웃 */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-4">
                 {/* 내 카드 정보 패널 */}
-                <div className="bg-bg-card/90 rounded-xl border-2 border-green-500/50 p-4">
-                  <div className="text-sm text-green-400 mb-2 font-bold">👤 당신</div>
-                  <CardDisplay character={revealedPlayerCard} size="md" isSelected />
-                  <div className="mt-3 text-left">
-                    <div className="text-sm font-bold text-text-primary mb-2">{revealedPlayerCard.name.ko}</div>
-                    <div className="bg-black/30 rounded-lg p-2 mb-2">
-                      <div className="text-xs text-accent mb-1">⚔️ 고유 기술</div>
-                      <div className="text-xs font-bold text-accent">【{revealedPlayerCard.skill.name}】</div>
-                      <p className="text-[10px] text-text-secondary">{revealedPlayerCard.skill.description}</p>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1 text-[9px]">
-                      <span className="text-red-400">공{revealedPlayerCard.baseStats.atk}</span>
-                      <span className="text-blue-400">방{revealedPlayerCard.baseStats.def}</span>
-                      <span className="text-yellow-400">속{revealedPlayerCard.baseStats.spd}</span>
-                      <span className="text-purple-400">주{revealedPlayerCard.baseStats.ce}</span>
-                    </div>
-                    {currentArena && (() => {
-                      const effects = currentArena.effects.filter(e => e.target === revealedPlayerCard.attribute || e.target === 'ALL');
-                      const hasBoost = effects.some(e => e.value > 0);
-                      const hasWeaken = effects.some(e => e.value < 0);
-                      return effects.length > 0 && (
-                        <div className={`mt-2 text-xs p-2 rounded ${hasBoost && !hasWeaken ? 'bg-green-500/20 text-green-400' : hasWeaken ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                          경기장: {hasBoost && !hasWeaken ? '유리' : hasWeaken && !hasBoost ? '불리' : '복합'}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
+                <CardRevealPanel
+                  character={revealedPlayerCard}
+                  arena={currentArena}
+                  isPlayer={true}
+                  seasonRecord={{ wins: 0, losses: 0 }}
+                  h2hRecord={{ wins: 0, losses: 0 }}
+                />
 
                 {/* VS + 속성 상성 */}
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center justify-center px-4">
                   <div className="text-5xl text-accent font-bold mb-4">VS</div>
-                  <div className="text-sm mb-4">
+                  <div className="text-sm mb-4 space-y-2">
                     {getAttributeAdvantage(revealedPlayerCard.attribute, revealedAiCard.attribute) && (
-                      <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded">속성 유리!</span>
+                      <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded">🔼 속성 유리!</div>
                     )}
                     {getAttributeAdvantage(revealedAiCard.attribute, revealedPlayerCard.attribute) && (
-                      <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded">속성 불리!</span>
+                      <div className="bg-red-500/20 text-red-400 px-3 py-1 rounded">🔽 속성 불리!</div>
                     )}
                     {revealedPlayerCard.attribute === revealedAiCard.attribute && (
-                      <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded">속성 동일</span>
+                      <div className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded">➖ 속성 동일</div>
                     )}
                   </div>
                   <Button onClick={handleStartBattle} variant="primary" size="lg">
@@ -757,34 +739,14 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   initial={{ rotateY: 180, opacity: 0 }}
                   animate={{ rotateY: 0, opacity: 1 }}
                   transition={{ duration: 0.6 }}
-                  className="bg-bg-card/90 rounded-xl border-2 border-red-500/50 p-4"
                 >
-                  <div className="text-sm text-red-400 mb-2 font-bold">👹 상대</div>
-                  <CardDisplay character={revealedAiCard} size="md" />
-                  <div className="mt-3 text-left">
-                    <div className="text-sm font-bold text-text-primary mb-2">{revealedAiCard.name.ko}</div>
-                    <div className="bg-black/30 rounded-lg p-2 mb-2">
-                      <div className="text-xs text-accent mb-1">⚔️ 고유 기술</div>
-                      <div className="text-xs font-bold text-accent">【{revealedAiCard.skill.name}】</div>
-                      <p className="text-[10px] text-text-secondary">{revealedAiCard.skill.description}</p>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1 text-[9px]">
-                      <span className="text-red-400">공{revealedAiCard.baseStats.atk}</span>
-                      <span className="text-blue-400">방{revealedAiCard.baseStats.def}</span>
-                      <span className="text-yellow-400">속{revealedAiCard.baseStats.spd}</span>
-                      <span className="text-purple-400">주{revealedAiCard.baseStats.ce}</span>
-                    </div>
-                    {currentArena && (() => {
-                      const effects = currentArena.effects.filter(e => e.target === revealedAiCard.attribute || e.target === 'ALL');
-                      const hasBoost = effects.some(e => e.value > 0);
-                      const hasWeaken = effects.some(e => e.value < 0);
-                      return effects.length > 0 && (
-                        <div className={`mt-2 text-xs p-2 rounded ${hasBoost && !hasWeaken ? 'bg-green-500/20 text-green-400' : hasWeaken ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                          경기장: {hasBoost && !hasWeaken ? '유리' : hasWeaken && !hasBoost ? '불리' : '복합'}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                  <CardRevealPanel
+                    character={revealedAiCard}
+                    arena={currentArena}
+                    isPlayer={false}
+                    seasonRecord={{ wins: 0, losses: 0 }}
+                    h2hRecord={{ wins: 0, losses: 0 }}
+                  />
                 </motion.div>
               </div>
             </motion.div>
