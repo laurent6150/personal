@@ -410,26 +410,30 @@ export const useGameStore = create<GameState>((set, get) => ({
   }
 }));
 
+// 안정적인 참조를 위한 상수 (React 19 호환)
+const EMPTY_ARRAY: string[] = [];
+const EMPTY_SCORE = { player: 0, ai: 0 };
+
 // 선택자 (Selector) 함수들
 export const selectIsGameInProgress = (state: GameState) =>
   state.session?.status === 'IN_PROGRESS';
 
 export const selectPlayerAvailableCards = (state: GameState) => {
-  if (!state.session) return [];
+  if (!state.session) return EMPTY_ARRAY;
   return state.session.player.crew.filter(
     id => !state.session!.player.usedCards.includes(id)
   );
 };
 
 export const selectAiAvailableCards = (state: GameState) => {
-  if (!state.session) return [];
+  if (!state.session) return EMPTY_ARRAY;
   return state.session.ai.crew.filter(
     id => !state.session!.ai.usedCards.includes(id)
   );
 };
 
 export const selectCurrentScore = (state: GameState) => {
-  if (!state.session) return { player: 0, ai: 0 };
+  if (!state.session) return EMPTY_SCORE;
   return {
     player: state.session.player.score,
     ai: state.session.ai.score
@@ -459,7 +463,7 @@ export const selectCardAssignments = (state: GameState) =>
   state.session?.cardAssignments ?? null;
 
 export const selectSelectedArenas = (state: GameState) =>
-  state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? [];
+  state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? EMPTY_ARRAY;
 
 // 현재 라운드에 배치된 플레이어 카드 ID 가져오기
 export const selectAssignedCardForCurrentRound = (state: GameState) => {
@@ -477,7 +481,7 @@ export const selectSeriesScoreboard = (state: GameState) => {
     currentRound: state.session.currentRound,
     totalRounds: state.session.banPickInfo?.selectedArenas.length ?? MAX_ROUNDS,
     rounds: state.session.rounds,
-    selectedArenas: state.session.banPickInfo?.selectedArenas ?? [],
-    cardAssignments: state.session.cardAssignments ?? []
+    selectedArenas: state.session.banPickInfo?.selectedArenas ?? EMPTY_ARRAY,
+    cardAssignments: state.session.cardAssignments ?? EMPTY_ARRAY
   };
 };
