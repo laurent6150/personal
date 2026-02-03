@@ -963,3 +963,124 @@ export interface TradeState {
   pendingOffers: TradeOffer[];
   championships: ChampionshipBonus[];
 }
+
+// ========================================
+// 개인 리그 토너먼트 시스템 (Phase 3)
+// ========================================
+
+// 개인 리그 상태
+export type IndividualLeagueStatus =
+  | 'NOT_STARTED'
+  | 'ROUND_32'
+  | 'ROUND_16'
+  | 'QUARTER'
+  | 'SEMI'
+  | 'FINAL'
+  | 'FINISHED';
+
+// 개인 리그 매치 형식
+export type LeagueMatchFormat = '1WIN' | '2WIN' | '3WIN';
+
+// 개인 리그 참가자
+export interface LeagueParticipant {
+  odId: string;           // 캐릭터 ID (선수 ID)
+  odName: string;         // 캐릭터 이름
+  crewId: string;         // 소속 크루 ID
+  crewName: string;       // 소속 크루 이름
+  isPlayerCrew: boolean;  // 플레이어 크루 소속 여부
+  // 토너먼트 진행 상태
+  status: 'ACTIVE' | 'ELIMINATED';
+  eliminatedAt?: IndividualLeagueStatus;  // 탈락 라운드
+}
+
+// 개인 리그 매치
+export interface IndividualMatch {
+  id: string;
+  participant1: string;   // 참가자 odId
+  participant2: string;   // 참가자 odId
+  winner: string | null;  // 승자 odId
+  score: { p1: number; p2: number };
+  format: LeagueMatchFormat;
+  played: boolean;
+  arenas?: string[];      // 사용된 경기장 ID들
+}
+
+// 개인 리그 조
+export interface LeagueGroup {
+  id: string;             // 'A' ~ 'H'
+  participants: string[]; // 참가자 odId 2명
+  matches: IndividualMatch[];
+  winner: string | null;  // 2선승한 참가자
+  // 각 참가자별 승리 수
+  winsCount: Record<string, number>;
+}
+
+// 개인 리그 대진표
+export interface IndividualBrackets {
+  round32: IndividualMatch[];     // 16경기 (32명 → 16명)
+  round16: LeagueGroup[];         // 8개 조 (16명 → 8명)
+  quarter: IndividualMatch[];     // 4경기 (8명 → 4명)
+  semi: IndividualMatch[];        // 2경기 (4명 → 2명)
+  final: IndividualMatch | null;  // 1경기 (2명 → 1명)
+}
+
+// 개인 리그 데이터
+export interface IndividualLeague {
+  season: number;
+  status: IndividualLeagueStatus;
+  participants: LeagueParticipant[];  // 32명
+  brackets: IndividualBrackets;
+  champion: string | null;            // 우승자 odId
+  runnerUp: string | null;            // 준우승자 odId
+  // 내 카드 현황 추적용
+  myCardResults: {
+    odId: string;
+    finalResult: IndividualLeagueStatus;  // 탈락 라운드
+    rewardClaimed: boolean;
+  }[];
+}
+
+// 개인 리그 히스토리
+export interface IndividualLeagueHistory {
+  season: number;
+  champion: string;           // 우승자 odId
+  championName: string;       // 우승자 이름
+  runnerUp: string;           // 준우승자 odId
+  runnerUpName: string;       // 준우승자 이름
+  myCardResults: {
+    odId: string;
+    odName: string;
+    result: IndividualLeagueStatus;
+    isChampion: boolean;
+    isRunnerUp: boolean;
+  }[];
+}
+
+// 개인 리그 스토어 상태
+export interface IndividualLeagueState {
+  currentSeason: number;
+  currentLeague: IndividualLeague | null;
+  history: IndividualLeagueHistory[];
+  // 명예의 전당
+  hallOfFame: {
+    season: number;
+    championId: string;
+    championName: string;
+    crewName: string;
+  }[];
+}
+
+// 개인 리그 보상 설정
+export const INDIVIDUAL_LEAGUE_REWARDS: Record<IndividualLeagueStatus, {
+  exp: number;
+  title?: string;
+  badge?: string;
+}> = {
+  'NOT_STARTED': { exp: 0 },
+  'ROUND_32': { exp: 50 },        // 32강 탈락
+  'ROUND_16': { exp: 100 },       // 16강 진출
+  'QUARTER': { exp: 200 },        // 8강 진출
+  'SEMI': { exp: 300 },           // 4강 진출
+  'FINAL': { exp: 500 },          // 결승 진출 (준우승)
+  'FINISHED': { exp: 1000, title: '챔피언', badge: '🏆' }  // 우승
+};
