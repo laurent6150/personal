@@ -12,6 +12,7 @@ import { Profile } from './pages/Profile';
 import { Items } from './pages/Items';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
+import { IndividualLeagueScreen } from './components/IndividualLeague/IndividualLeagueScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
@@ -19,7 +20,7 @@ import { useSeasonStore } from './stores/seasonStore';
 import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague';
 
 interface LevelUpInfo {
   cardId: string;
@@ -42,7 +43,7 @@ function App() {
     setCurrentPage('cardDetail');
   }, []);
 
-  const { startGame } = useBattle();
+  const { startGameWithBanPick } = useBattle();
   const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore(useShallow(state => ({
     currentSeason: state.currentSeason,
     playMatch: state.playMatch,
@@ -52,18 +53,18 @@ function App() {
   const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
   const player = usePlayerStore(state => state.player);
 
-  // 리그 매치 시작 (시즌 시스템용)
+  // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
   const handleStartMatch = useCallback((opponentCrewId: string) => {
     const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
-    // 시즌에서 배정된 AI 크루 사용 (카드 중복 방지)
-    const success = startGame(opponent.crew, opponent.difficulty);
+    // 밴/픽 모드로 게임 시작 (시즌에서 배정된 AI 크루 사용)
+    const success = startGameWithBanPick(opponent.crew, opponent.difficulty);
     if (success) {
       setCurrentOpponent(opponentCrewId);
       setCurrentPage('battle');
     }
-  }, [startGame, getAICrewById]);
+  }, [startGameWithBanPick, getAICrewById]);
 
   const handleReturnToSeasonHub = useCallback(() => {
     setCurrentPage('seasonHub');
@@ -103,6 +104,7 @@ function App() {
               onTrade={() => setCurrentPage('trade')}
               onProfile={() => setCurrentPage('profile')}
               onSettings={() => setCurrentPage('settings')}
+              onIndividualLeague={() => setCurrentPage('individualLeague')}
               onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
             />
           </motion.div>
@@ -224,6 +226,18 @@ function App() {
             className="flex-1 w-full"
           >
             <Settings onBack={handleReturnToSeasonHub} />
+          </motion.div>
+        )}
+
+        {currentPage === 'individualLeague' && (
+          <motion.div
+            key="individualLeague"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <IndividualLeagueScreen onBack={handleReturnToSeasonHub} />
           </motion.div>
         )}
 

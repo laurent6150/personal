@@ -29,6 +29,7 @@ interface SeasonHubProps {
   onTrade: () => void;
   onProfile?: () => void;
   onSettings: () => void;
+  onIndividualLeague?: () => void;
   onCardSelect?: (cardId: string) => void;
 }
 
@@ -42,6 +43,7 @@ export function SeasonHub({
   onTrade,
   onProfile,
   onSettings,
+  onIndividualLeague,
   onCardSelect
 }: SeasonHubProps) {
   const {
@@ -753,6 +755,7 @@ export function SeasonHub({
           {onItems && <Button onClick={onItems} variant="ghost">아이템</Button>}
           <Button onClick={onRanking} variant="ghost">개인 순위</Button>
           <Button onClick={onTrade} variant="ghost">트레이드</Button>
+          {onIndividualLeague && <Button onClick={onIndividualLeague} variant="ghost">🏆 개인 리그</Button>}
           {onProfile && <Button onClick={onProfile} variant="ghost">프로필</Button>}
           <Button onClick={onSettings} variant="ghost">설정</Button>
         </div>

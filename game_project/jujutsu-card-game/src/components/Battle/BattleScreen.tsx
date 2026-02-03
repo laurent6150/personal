@@ -1,5 +1,5 @@
 // ========================================
-// 대전 화면 - MVP v3: 새 레이아웃 + 턴제 전투
+// 대전 화면 - MVP v3: 새 레이아웃 + 턴제 전투 + 밴/픽 시스템
 // ========================================
 
 import { useEffect, useRef, useState, useMemo } from 'react';
@@ -10,6 +10,9 @@ import { ArenaDisplay } from './ArenaDisplay';
 import { TurnBattleModal } from './TurnBattleModal';
 import { Button } from '../UI/Button';
 import { ExitConfirmModal } from '../UI/ExitConfirmModal';
+import { ArenaBanModal } from '../BanPick/ArenaBanModal';
+import { BanResultModal } from '../BanPick/BanResultModal';
+import { CardPlacementScreen } from '../BanPick/CardPlacementScreen';
 import { WIN_SCORE } from '../../data/constants';
 import { CHARACTERS_BY_ID } from '../../data';
 import type { CharacterCard } from '../../types';
@@ -47,7 +50,14 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     executeRound,
     updateRoundWinner,
     continueGame,
-    returnToMenu
+    returnToMenu,
+    // 밴/픽 관련
+    banPickPhase,
+    pendingBanPickInfo,
+    submitBan,
+    confirmBanResult,
+    submitPlacements,
+    startAfterPlacements
   } = useBattle();
 
   const hasCalledBattleEnd = useRef(false);
@@ -167,6 +177,77 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             메인 메뉴로
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // ========================================
+  // 밴/픽 페이즈 렌더링
+  // ========================================
+
+  // 1. 플레이어 경기장 밴 선택
+  if (banPickPhase === 'PLAYER_BAN') {
+    return (
+      <ArenaBanModal
+        opponentCrewName={opponentName || 'AI'}
+        opponentCrew={session.ai.crew}
+        playerCrew={session.player.crew}
+        onBanSelect={submitBan}
+        onCancel={() => {
+          returnToMenu();
+          onReturnToMenu();
+        }}
+      />
+    );
+  }
+
+  // 2. 밴 결과 표시
+  if (banPickPhase === 'BAN_RESULT' && pendingBanPickInfo) {
+    return (
+      <BanResultModal
+        banPickInfo={pendingBanPickInfo}
+        onContinue={confirmBanResult}
+      />
+    );
+  }
+
+  // 3. 카드 배치 화면
+  if (banPickPhase === 'CARD_PLACEMENT' && pendingBanPickInfo) {
+    return (
+      <CardPlacementScreen
+        playerCrew={session.player.crew}
+        arenas={pendingBanPickInfo.selectedArenas}
+        opponentCrewName={opponentName || 'AI'}
+        onConfirm={(assignments) => {
+          submitPlacements(assignments);
+        }}
+        onBack={() => {
+          returnToMenu();
+          onReturnToMenu();
+        }}
+      />
+    );
+  }
+
+  // 4. 배치 완료 - 전투 시작 대기
+  if (banPickPhase === 'READY') {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={bgStyle}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-bg-card rounded-xl p-8 max-w-md w-full text-center border border-white/10"
+        >
+          <div className="text-4xl mb-4">⚔️</div>
+          <h2 className="text-2xl font-bold text-text-primary mb-2">준비 완료!</h2>
+          <p className="text-text-secondary mb-6">
+            vs {opponentName || 'AI'}<br />
+            5라운드 경기가 시작됩니다
+          </p>
+          <Button onClick={startAfterPlacements} variant="primary" size="lg" className="w-full">
+            전투 시작!
+          </Button>
+        </motion.div>
       </div>
     );
   }
@@ -498,13 +579,18 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                       <p className="text-xs text-text-secondary line-clamp-2">{selectedCardData.skill.description}</p>
                     </div>
 
-                    {/* 스탯 & 상성 */}
+                    {/* 스탯 (8스탯) & 상성 */}
                     <div className="bg-black/30 rounded-lg p-3">
                       <div className="text-xs text-accent mb-2">📊 스탯</div>
-                      <div className="flex gap-3 text-xs mb-2">
+                      <div className="grid grid-cols-4 gap-1 text-[10px] mb-2">
                         <span className="text-red-400">ATK {selectedCardData.baseStats.atk}</span>
                         <span className="text-blue-400">DEF {selectedCardData.baseStats.def}</span>
                         <span className="text-yellow-400">SPD {selectedCardData.baseStats.spd}</span>
+                        <span className="text-purple-400">CE {selectedCardData.baseStats.ce}</span>
+                        <span className="text-pink-400">HP {selectedCardData.baseStats.hp}</span>
+                        <span className="text-pink-300">CRT {(selectedCardData.baseStats as unknown as Record<string, number>).crt ?? 0}</span>
+                        <span className="text-teal-400">TEC {(selectedCardData.baseStats as unknown as Record<string, number>).tec ?? 0}</span>
+                        <span className="text-indigo-400">MNT {(selectedCardData.baseStats as unknown as Record<string, number>).mnt ?? 0}</span>
                       </div>
                       <div className="text-xs text-text-secondary">
                         강함: <span className="text-win">{selectedCardData.attribute === 'BODY' ? '저주' : selectedCardData.attribute === 'CURSE' ? '혼백' : selectedCardData.attribute === 'SOUL' ? '결계' : selectedCardData.attribute === 'BARRIER' ? '신체' : '-'}</span>

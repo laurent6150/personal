@@ -16,6 +16,7 @@ interface CardDisplayProps {
   onClick?: () => void;
   showStats?: boolean;
   showSkill?: boolean;
+  showAllStats?: boolean;  // 8스탯 전체 표시 여부
 }
 
 export function CardDisplay({
@@ -27,7 +28,8 @@ export function CardDisplay({
   isFlipped = false,
   onClick,
   showStats = true,
-  showSkill = true
+  showSkill = true,
+  showAllStats = false
 }: CardDisplayProps) {
   const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[character.attribute];
@@ -139,7 +141,7 @@ export function CardDisplay({
       {/* 스탯 - 모든 사이즈에서 표시 */}
       {showStats && (
         <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
-          <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} />
+          <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
         </div>
       )}
 

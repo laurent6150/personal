@@ -18,8 +18,9 @@ import { GradeBadge, AttributeBadge, RarityBadge } from '../components/UI/Badge'
 import { StatBar } from '../components/UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data/constants';
-import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord, CardRecord } from '../types';
+import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord, CardRecord, FormState } from '../types';
 import { AWARD_CONFIG } from '../types';
+import { FORM_CONFIG } from '../data/growthSystem';
 
 interface CardDetailProps {
   cardId: string;
@@ -96,8 +97,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     [character.growthStats.secondary]: character.baseStats[character.growthStats.secondary] + levelBonus
   };
 
-  // 장비 보너스 계산
-  const equipmentBonus = { atk: 0, def: 0, spd: 0, ce: 0, hp: 0 };
+  // 장비 보너스 계산 (8스탯 지원)
+  const equipmentBonus = { atk: 0, def: 0, spd: 0, ce: 0, hp: 0, crt: 0, tec: 0, mnt: 0 };
   for (const equipId of playerCard.equipment) {
     if (equipId) {
       const item = ITEMS_BY_ID[equipId];
@@ -110,6 +111,13 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
       }
     }
   }
+
+  // 폼/컨디션 정보
+  const formState = playerCard.currentForm || 'STABLE';
+  const currentCondition = typeof playerCard.condition === 'object'
+    ? playerCard.condition.value
+    : (playerCard.condition ?? 75);
+  const formConfig = FORM_CONFIG[formState as FormState];
 
   // 장착 가능한 아이템 필터링
   const availableItems = ALL_ITEMS.filter(item => {
@@ -224,6 +232,9 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
               availableItems={availableItems}
               handleEquip={handleEquip}
               handleUnequip={handleUnequip}
+              currentForm={formState}
+              currentCondition={currentCondition}
+              formConfig={formConfig}
             />
           </motion.div>
         )}
@@ -280,7 +291,10 @@ function InfoTab({
   setSelectedSlot,
   availableItems,
   handleEquip,
-  handleUnequip
+  handleUnequip,
+  currentForm: _currentForm,
+  currentCondition,
+  formConfig
 }: {
   character: CharacterCard;
   playerCard: PlayerCard;
@@ -294,6 +308,9 @@ function InfoTab({
   availableItems: Item[];
   handleEquip: (item: Item) => void;
   handleUnequip: (slot: 0 | 1) => void;
+  currentForm: string;
+  currentCondition: number;
+  formConfig: { statBonus: number; expBonus: number; icon: string; name: string; color: string };
 }) {
   const [imageError, setImageError] = useState(false);
 
@@ -371,16 +388,48 @@ function InfoTab({
         </div>
       </div>
 
-      {/* 스탯 & 장비 */}
+      {/* 폼 & 컨디션 & 스탯 & 장비 */}
       <div className="space-y-4">
-        {/* 스탯 */}
+        {/* 폼 & 컨디션 */}
+        <div className="bg-bg-card rounded-xl p-4 border border-white/10">
+          <div className="grid grid-cols-2 gap-4">
+            {/* 폼 */}
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: `${formConfig.color}20` }}>
+              <div className="text-2xl mb-1">{formConfig.icon}</div>
+              <div className="font-bold" style={{ color: formConfig.color }}>{formConfig.name}</div>
+              <div className="text-xs text-text-secondary mt-1">
+                {formConfig.statBonus > 0 ? `스탯 +${Math.round(formConfig.statBonus * 100)}%` :
+                 formConfig.statBonus < 0 ? `스탯 ${Math.round(formConfig.statBonus * 100)}%` : '스탯 보정 없음'}
+              </div>
+            </div>
+            {/* 컨디션 */}
+            <div className="text-center p-3 rounded-lg bg-bg-secondary/50">
+              <div className="text-2xl mb-1">💪</div>
+              <div className="font-bold text-text-primary">{currentCondition}%</div>
+              <div className="text-xs text-text-secondary mt-1">컨디션</div>
+              <div className="mt-2 h-2 bg-bg-primary rounded-full overflow-hidden">
+                <div
+                  className="h-full transition-all"
+                  style={{
+                    width: `${currentCondition}%`,
+                    backgroundColor: currentCondition >= 80 ? '#22C55E' :
+                                    currentCondition >= 60 ? '#EAB308' :
+                                    currentCondition >= 40 ? '#F97316' : '#EF4444'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 스탯 (8스탯 전체) */}
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">스탯</h3>
           <div className="space-y-3">
-            {(['atk', 'def', 'spd', 'ce', 'hp'] as const).map(stat => {
-              const base = character.baseStats[stat];
-              const enhanced = enhancedStats[stat];
-              const bonus = equipmentBonus[stat];
+            {(['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt'] as const).map(stat => {
+              const base = (character.baseStats as unknown as Record<string, number>)[stat] ?? 0;
+              const enhanced = (enhancedStats as unknown as Record<string, number>)[stat] ?? base;
+              const bonus = (equipmentBonus as unknown as Record<string, number>)[stat] ?? 0;
               const total = enhanced + bonus;
               const isPrimary = character.growthStats.primary === stat;
               const isSecondary = character.growthStats.secondary === stat;
