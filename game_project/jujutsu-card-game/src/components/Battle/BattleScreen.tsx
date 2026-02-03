@@ -45,6 +45,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     gameEndResult,
     selectCard,
     executeRound,
+    updateRoundWinner,
     continueGame,
     returnToMenu
   } = useBattle();
@@ -137,8 +138,11 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     setBattlePhase('BATTLE');
   };
 
-  // 턴제 전투 완료
-  const handleTurnBattleComplete = () => {
+  // 턴제 전투 완료 - 실제 승자로 점수 업데이트
+  const handleTurnBattleComplete = (winner: 'PLAYER' | 'AI' | 'DRAW') => {
+    // 실제 전투 결과로 점수 업데이트
+    updateRoundWinner(winner);
+
     setShowTurnBattle(false);
     setRevealedAiCard(null);
     setRevealedPlayerCard(null);

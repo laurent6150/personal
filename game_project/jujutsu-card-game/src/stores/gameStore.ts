@@ -30,6 +30,7 @@ interface GameState {
   startGame: (playerCrew: string[], aiCrew: string[], difficulty: Difficulty) => void;
   selectCard: (cardId: string) => void;
   executeRound: () => RoundResult | null;
+  updateRoundWinner: (winner: 'PLAYER' | 'AI' | 'DRAW') => void;  // 실제 전투 결과로 점수 업데이트
   endGame: () => { winner: 'PLAYER' | 'AI'; score: { player: number; ai: number } } | null;
   resetGame: () => void;
 
@@ -120,7 +121,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const playerCharCard = CHARACTERS_BY_ID[selectedCardId];
     if (!playerCharCard) return null;
 
-    // 라운드 실행
+    // 라운드 실행 - 임시 결과 (점수는 아직 업데이트하지 않음)
+    // TurnBattleModal에서 실제 전투 후 updateRoundWinner로 점수 업데이트
     const roundResult = resolveRound(
       {
         cardId: selectedCardId,
@@ -135,57 +137,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       session.currentRound
     );
 
-    // 상태 업데이트
+    // 상태 업데이트 - 점수는 아직 반영하지 않음!
+    // 사용한 카드만 기록하고 점수는 updateRoundWinner에서 업데이트
     const newPlayerUsedCards = [...session.player.usedCards, selectedCardId];
     const newAiUsedCards = [...session.ai.usedCards, aiCard.id];
-
-    let newPlayerScore = session.player.score;
-    let newAiScore = session.ai.score;
-
-    if (roundResult.winner === 'PLAYER') {
-      newPlayerScore++;
-    } else if (roundResult.winner === 'AI') {
-      newAiScore++;
-    }
-
-    // 게임 종료 조건 체크
-    let newStatus: GameStatus = 'IN_PROGRESS';
-    if (newPlayerScore >= WIN_SCORE) {
-      newStatus = 'PLAYER_WIN';
-    } else if (newAiScore >= WIN_SCORE) {
-      newStatus = 'AI_WIN';
-    } else if (session.currentRound >= MAX_ROUNDS) {
-      // 5라운드 종료 후 점수로 판정
-      if (newPlayerScore > newAiScore) {
-        newStatus = 'PLAYER_WIN';
-      } else if (newAiScore > newPlayerScore) {
-        newStatus = 'AI_WIN';
-      } else {
-        // 동점이면 플레이어 승리 (홈 어드밴티지)
-        newStatus = 'PLAYER_WIN';
-      }
-    }
-
-    // 다음 경기장 선택 (게임 진행 중인 경우, 이미 사용된 경기장 제외)
-    const usedArenaIds = [...session.rounds.map(r => r.arena.id), arena.id];
-    const nextArena = newStatus === 'IN_PROGRESS' ? getRandomArenaExcluding(usedArenaIds) : null;
 
     const newSession: GameSession = {
       ...session,
       player: {
         ...session.player,
-        score: newPlayerScore,
         usedCards: newPlayerUsedCards
+        // score는 아직 업데이트하지 않음
       },
       ai: {
         ...session.ai,
-        score: newAiScore,
         usedCards: newAiUsedCards
+        // score는 아직 업데이트하지 않음
       },
       rounds: [...session.rounds, roundResult],
-      currentRound: session.currentRound + 1,
-      status: newStatus,
-      currentArena: nextArena
+      currentRound: session.currentRound + 1
+      // status와 currentArena는 updateRoundWinner에서 업데이트
     };
 
     set({
@@ -196,6 +167,68 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     return roundResult;
+  },
+
+  // 실제 전투 결과로 점수 업데이트 (TurnBattleModal에서 호출)
+  updateRoundWinner: (winner: 'PLAYER' | 'AI' | 'DRAW') => {
+    const { session, lastRoundResult } = get();
+    if (!session || !lastRoundResult) return;
+
+    // 점수 업데이트
+    let newPlayerScore = session.player.score;
+    let newAiScore = session.ai.score;
+
+    if (winner === 'PLAYER') {
+      newPlayerScore++;
+    } else if (winner === 'AI') {
+      newAiScore++;
+    }
+
+    // 게임 종료 조건 체크
+    let newStatus: GameStatus = 'IN_PROGRESS';
+    if (newPlayerScore >= WIN_SCORE) {
+      newStatus = 'PLAYER_WIN';
+    } else if (newAiScore >= WIN_SCORE) {
+      newStatus = 'AI_WIN';
+    } else if (session.currentRound > MAX_ROUNDS) {
+      // 5라운드 이후 점수로 판정
+      if (newPlayerScore > newAiScore) {
+        newStatus = 'PLAYER_WIN';
+      } else if (newAiScore > newPlayerScore) {
+        newStatus = 'AI_WIN';
+      } else {
+        // 동점이면 플레이어 승리 (홈 어드밴티지)
+        newStatus = 'PLAYER_WIN';
+      }
+    }
+
+    // 다음 경기장 선택 (게임 진행 중인 경우)
+    const usedArenaIds = session.rounds.map(r => r.arena.id);
+    const nextArena = newStatus === 'IN_PROGRESS' ? getRandomArenaExcluding(usedArenaIds) : null;
+
+    // 라운드 결과에 실제 승자 반영
+    const updatedRounds = session.rounds.map((r, idx) =>
+      idx === session.rounds.length - 1
+        ? { ...r, winner }
+        : r
+    );
+
+    const newSession: GameSession = {
+      ...session,
+      player: {
+        ...session.player,
+        score: newPlayerScore
+      },
+      ai: {
+        ...session.ai,
+        score: newAiScore
+      },
+      rounds: updatedRounds,
+      status: newStatus,
+      currentArena: nextArena
+    };
+
+    set({ session: newSession });
   },
 
   endGame: () => {

@@ -29,6 +29,7 @@ export function useBattle() {
     startGame,
     selectCard,
     executeRound,
+    updateRoundWinner,
     endGame,
     resetGame,
     setAnimating,
@@ -252,6 +253,7 @@ export function useBattle() {
     startGame: handleStartGame,
     selectCard: handleSelectCard,
     executeRound: handleExecuteRound,
+    updateRoundWinner,  // 실제 전투 결과로 점수 업데이트
     continueGame: handleContinue,
     endGame: handleEndGame,
     rematch: handleRematch,

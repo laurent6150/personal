@@ -24,7 +24,7 @@ interface TurnBattleModalProps {
   aiCard: CharacterCard;
   result: RoundResult;
   arena: Arena | null;
-  onComplete: () => void;
+  onComplete: (winner: 'PLAYER' | 'AI' | 'DRAW') => void;  // 실제 승자 전달
 }
 
 interface BattleLog {
@@ -637,7 +637,13 @@ export function TurnBattleModal({
                 {playerCard.name.ko} (HP: {playerState.hp}) vs {aiCard.name.ko} (HP: {aiState.hp})
               </div>
 
-              <Button onClick={onComplete} variant="primary" size="lg">
+              <Button
+                onClick={() => onComplete(
+                  winner === 'player' ? 'PLAYER' : winner === 'ai' ? 'AI' : 'DRAW'
+                )}
+                variant="primary"
+                size="lg"
+              >
                 계속하기
               </Button>
             </motion.div>
