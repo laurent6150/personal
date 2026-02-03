@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { Button } from '../UI/Button';
@@ -31,9 +32,19 @@ export function IndividualLeagueScreen({
     getNextPlayerMatch,
     getPlayerCardStatuses,
     finishLeague
-  } = useIndividualLeagueStore();
+  } = useIndividualLeagueStore(useShallow(state => ({
+    currentLeague: state.currentLeague,
+    currentSeason: state.currentSeason,
+    hallOfFame: state.hallOfFame,
+    startNewLeague: state.startNewLeague,
+    simulateAllRemainingMatches: state.simulateAllRemainingMatches,
+    advanceRound: state.advanceRound,
+    getNextPlayerMatch: state.getNextPlayerMatch,
+    getPlayerCardStatuses: state.getPlayerCardStatuses,
+    finishLeague: state.finishLeague
+  })));
 
-  const { playerCrew } = useSeasonStore();
+  const playerCrew = useSeasonStore(state => state.playerCrew);
 
   const [showBracket, setShowBracket] = useState(false);
   const [showGroups, setShowGroups] = useState(false);

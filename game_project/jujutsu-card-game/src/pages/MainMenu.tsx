@@ -14,7 +14,7 @@ interface MainMenuProps {
 }
 
 export function MainMenu({ onStartGame, onCrewManagement, onCollection, onProfile, onSettings }: MainMenuProps) {
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
 
   const crewCards = player.currentCrew
     .map(id => CHARACTERS_BY_ID[id])

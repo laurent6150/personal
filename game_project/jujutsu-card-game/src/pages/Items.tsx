@@ -20,7 +20,7 @@ type FilterType = 'ALL' | ItemRarity;
 type OwnershipFilter = 'all' | 'owned' | 'unowned';
 
 export function Items({ onBack }: ItemsProps) {
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('all');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);

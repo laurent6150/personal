@@ -15,8 +15,8 @@ interface CollectionProps {
 }
 
 export function Collection({ onBack }: CollectionProps) {
-  const { player } = usePlayerStore();
-  const { playerCrew } = useSeasonStore();
+  const player = usePlayerStore(state => state.player);
+  const playerCrew = useSeasonStore(state => state.playerCrew);
   const [selectedCard, setSelectedCard] = useState<CharacterCard | null>(null);
 
   // 내 크루 카드만 표시 (시즌에서 선택한 크루)

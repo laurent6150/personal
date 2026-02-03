@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
@@ -9,7 +10,11 @@ interface SettingsProps {
 }
 
 export function Settings({ onBack }: SettingsProps) {
-  const { player, updateSettings, resetProgress } = usePlayerStore();
+  const { player, updateSettings, resetProgress } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    updateSettings: state.updateSettings,
+    resetProgress: state.resetProgress
+  })));
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
 

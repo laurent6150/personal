@@ -5,6 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { PLAYER_CREW_ID } from '../data/aiCrews';
@@ -59,9 +60,25 @@ export function SeasonHub({
     resetGame,
     getAICrewById,
     getHeadToHead
-  } = useSeasonStore();
+  } = useSeasonStore(useShallow(state => ({
+    isInitialized: state.isInitialized,
+    playerCrew: state.playerCrew,
+    currentSeason: state.currentSeason,
+    seasonHistory: state.seasonHistory,
+    initializeGame: state.initializeGame,
+    startNewSeason: state.startNewSeason,
+    getNextMatch: state.getNextMatch,
+    getCurrentStandings: state.getCurrentStandings,
+    getPlayerRank: state.getPlayerRank,
+    endRegularSeason: state.endRegularSeason,
+    startPlayoff: state.startPlayoff,
+    getPlayoffOpponent: state.getPlayoffOpponent,
+    resetGame: state.resetGame,
+    getAICrewById: state.getAICrewById,
+    getHeadToHead: state.getHeadToHead
+  })));
 
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
   const standings = getCurrentStandings();
   const nextMatch = getNextMatch();
   const playerRank = getPlayerRank();

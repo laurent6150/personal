@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { GENERAL_ACHIEVEMENTS } from '../data/achievements';
 import { ITEMS_BY_ID, ALL_ITEMS } from '../data/items';
@@ -13,7 +14,10 @@ interface ProfileProps {
 type TabType = 'stats' | 'achievements' | 'items';
 
 export function Profile({ onBack }: ProfileProps) {
-  const { player, setPlayerName } = usePlayerStore();
+  const { player, setPlayerName } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    setPlayerName: state.setPlayerName
+  })));
   const [activeTab, setActiveTab] = useState<TabType>('stats');
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(player.name);

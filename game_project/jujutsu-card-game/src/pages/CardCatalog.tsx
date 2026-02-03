@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { ALL_CHARACTERS } from '../data/characters';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
@@ -56,9 +57,12 @@ const GRADE_ORDER: Record<LegacyGrade, number> = {
 };
 
 export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {
-  const { currentAICrews, playerCrew } = useSeasonStore();
-  const { player } = usePlayerStore();
-  const { getCareerStats } = useCardRecordStore();
+  const { currentAICrews, playerCrew } = useSeasonStore(useShallow(state => ({
+    currentAICrews: state.currentAICrews,
+    playerCrew: state.playerCrew
+  })));
+  const player = usePlayerStore(state => state.player);
+  const getCareerStats = useCardRecordStore(state => state.getCareerStats);
 
   const [gradeFilter, setGradeFilter] = useState<LegacyGrade | 'all'>('all');
   const [attributeFilter, setAttributeFilter] = useState<Attribute | 'all'>('all');

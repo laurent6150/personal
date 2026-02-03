@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
@@ -29,9 +30,21 @@ type MainTab = 'info' | 'seasonStats' | 'record';
 type RecordTab = 'career' | number; // 'career' for 통산, number for season
 
 export function CardDetail({ cardId, onBack }: CardDetailProps) {
-  const { player, equipItem, unequipItem } = usePlayerStore();
-  const { seasonHistory, currentSeason } = useSeasonStore();
-  const { getCardRecord, getCareerStats, getSeasonStats, getCardAwards } = useCardRecordStore();
+  const { player, equipItem, unequipItem } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    equipItem: state.equipItem,
+    unequipItem: state.unequipItem
+  })));
+  const { seasonHistory, currentSeason } = useSeasonStore(useShallow(state => ({
+    seasonHistory: state.seasonHistory,
+    currentSeason: state.currentSeason
+  })));
+  const { getCardRecord, getCareerStats, getSeasonStats, getCardAwards } = useCardRecordStore(useShallow(state => ({
+    getCardRecord: state.getCardRecord,
+    getCareerStats: state.getCareerStats,
+    getSeasonStats: state.getSeasonStats,
+    getCardAwards: state.getCardAwards
+  })));
 
   const [mainTab, setMainTab] = useState<MainTab>('info');
   const [recordTab, setRecordTab] = useState<RecordTab>('career');

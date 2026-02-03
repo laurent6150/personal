@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useTradeStore } from '../stores/tradeStore';
@@ -22,15 +23,25 @@ interface TradeProps {
 }
 
 export function Trade({ onBack }: TradeProps) {
-  const { currentSeason, playerCrew, currentAICrews } = useSeasonStore();
-  const { player } = usePlayerStore();
+  const { currentSeason, playerCrew, currentAICrews } = useSeasonStore(useShallow(state => ({
+    currentSeason: state.currentSeason,
+    playerCrew: state.playerCrew,
+    currentAICrews: state.currentAICrews
+  })));
+  const player = usePlayerStore(state => state.player);
   const {
     proposeTrade,
     forceTrade,
     getGradeLimits,
     getCardPoint,
     getTradeHistory
-  } = useTradeStore();
+  } = useTradeStore(useShallow(state => ({
+    proposeTrade: state.proposeTrade,
+    forceTrade: state.forceTrade,
+    getGradeLimits: state.getGradeLimits,
+    getCardPoint: state.getCardPoint,
+    getTradeHistory: state.getTradeHistory
+  })));
 
   const [selectedPlayerCard, setSelectedPlayerCard] = useState<string | null>(null);
   const [selectedTargetCrew, setSelectedTargetCrew] = useState<AICrew | null>(null);

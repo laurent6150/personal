@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { ALL_CHARACTERS } from '../data/characters';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
@@ -91,9 +92,14 @@ const RANKING_CATEGORIES: CategoryConfig[] = [
 ];
 
 export function PersonalRanking({ onBack, onCardSelect }: PersonalRankingProps) {
-  const { currentSeason, seasonHistory, currentAICrews, playerCrew } = useSeasonStore();
-  const { player } = usePlayerStore();
-  const { getAllCardStats } = useCardRecordStore();
+  const { currentSeason, seasonHistory, currentAICrews, playerCrew } = useSeasonStore(useShallow(state => ({
+    currentSeason: state.currentSeason,
+    seasonHistory: state.seasonHistory,
+    currentAICrews: state.currentAICrews,
+    playerCrew: state.playerCrew
+  })));
+  const player = usePlayerStore(state => state.player);
+  const getAllCardStats = useCardRecordStore(state => state.getAllCardStats);
 
   const [seasonFilter, setSeasonFilter] = useState<'career' | number>('career');
 

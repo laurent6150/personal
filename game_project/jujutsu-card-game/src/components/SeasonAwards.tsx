@@ -3,6 +3,7 @@
 // ========================================
 
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { GradeBadge } from './UI/Badge';
@@ -18,7 +19,10 @@ interface SeasonAwardsProps {
 }
 
 export function SeasonAwards({ seasonNumber, onContinue, playoffQualified, playerRank }: SeasonAwardsProps) {
-  const { getSeasonAwards, getSeasonStats } = useCardRecordStore();
+  const { getSeasonAwards, getSeasonStats } = useCardRecordStore(useShallow(state => ({
+    getSeasonAwards: state.getSeasonAwards,
+    getSeasonStats: state.getSeasonStats
+  })));
 
   const awards = getSeasonAwards(seasonNumber);
 
