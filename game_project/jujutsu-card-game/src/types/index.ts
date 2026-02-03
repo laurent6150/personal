@@ -297,6 +297,7 @@ export interface CharacterCard {
 // 플레이어 소유 카드 (성장 데이터)
 export interface PlayerCard {
   cardId: string;
+  odId?: string;                     // 개인 리그용 별칭 (cardId와 동일)
   level: number;           // 1-10
   exp: number;
   totalExp: number;        // 누적 총 경험치 (신규)
@@ -316,7 +317,15 @@ export interface PlayerCard {
   recentResults: boolean[];          // 최근 5경기 결과 (true = 승)
   currentWinStreak: number;          // 현재 연승
   maxWinStreak: number;              // 최대 연승
+
+  // FA 시스템 (Phase 4)
+  crewId?: string;                   // 현재 소속 크루 ID
+  consecutiveSeasons?: number;       // 현재 크루 연속 시즌
+  faStatus?: 'PENDING' | 'FA' | 'RENEWED'; // FA 상태
 }
+
+// 소유 카드 별칭 (하위 호환성)
+export type OwnedCard = PlayerCard;
 
 // 전투용 스탯 (최종 계산된)
 export interface CombatStats extends Stats {
@@ -1083,4 +1092,255 @@ export const INDIVIDUAL_LEAGUE_REWARDS: Record<IndividualLeagueStatus, {
   'SEMI': { exp: 300 },           // 4강 진출
   'FINAL': { exp: 500 },          // 결승 진출 (준우승)
   'FINISHED': { exp: 1000, title: '챔피언', badge: '🏆' }  // 우승
+};
+
+// ========================================
+// Phase 4: 추가 시스템들
+// ========================================
+
+// ========================================
+// 에이스 결정전 시스템
+// ========================================
+
+// 에이스전 상태
+export interface AceMatchState {
+  isActive: boolean;
+  playerAceId: string | null;
+  aiAceId: string | null;
+  result: 'PENDING' | 'PLAYER_WIN' | 'AI_WIN' | null;
+}
+
+// 에이스 카드 정보 (선택 UI용)
+export interface AceCandidate {
+  cardId: string;
+  name: string;
+  currentSeriesWins: number;
+  currentSeriesLosses: number;
+  condition: number;
+  recommendation?: string;  // 추천 이유
+}
+
+// ========================================
+// 올킬/역올킬 시즌 시스템
+// ========================================
+
+// 올킬 시즌 여부 체크 (3의 배수 시즌)
+export const ALLKILL_SEASONS = [3, 6, 9, 12, 15, 18, 21, 24];
+
+// 올킬 상태
+export interface AllKillState {
+  isAllKillSeason: boolean;
+  currentStreakCardId: string | null;  // 연승 중인 카드
+  currentStreak: number;               // 현재 연승 수
+  remainingHp: number;                 // 남은 HP
+  remainingHpPercent: number;          // 남은 HP %
+  activeStatusEffects: string[];       // 유지 중인 상태이상
+  conditionPenalty: number;            // 누적 컨디션 패널티
+}
+
+// 올킬 선택
+export type AllKillChoice = 'CONTINUE' | 'NEW_CARD';
+
+// 올킬 보상
+export const ALLKILL_REWARDS = {
+  allKill: { points: 10, badge: '🔥 올킬!' },       // 3연속 승리
+  reverseAllKill: { points: 5, badge: '🛡️ 역올킬' } // 상대 올킬 저지
+};
+
+// 올킬 시스템 상수
+export const ALLKILL_HP_DECAY = 15;         // 연승당 HP 감소 %
+export const ALLKILL_CONDITION_DECAY = 10;  // 연승당 컨디션 감소 %
+
+// ========================================
+// 트레이드 마감 시스템
+// ========================================
+
+// 트레이드 마감 기준
+export const TRADE_DEADLINE_THRESHOLD = 0.7;  // 70%
+
+// 트레이드 상태
+export interface TradeDeadlineState {
+  isLocked: boolean;
+  seasonProgress: number;      // 0.0 ~ 1.0
+  remainingMatches: number;
+  totalMatches: number;
+  warningShown: boolean;       // 60% 경고 표시 여부
+}
+
+// ========================================
+// FA (Free Agent) 시스템
+// ========================================
+
+// FA 자격 기준
+export const FA_QUALIFICATION_SEASONS = 3;  // 3시즌 연속
+
+// FA 상태
+export interface FAStatus {
+  cardId: string;
+  cardName: string;
+  currentCrewId: string;
+  currentCrewName: string;
+  seasonsWithCrew: number;     // 현재 크루에서 연속 시즌 수
+  isFreeAgent: boolean;        // FA 자격 보유 여부
+  hasDeclared: boolean;        // FA 선언 여부
+}
+
+// FA 이적 결과
+export interface FATransferResult {
+  cardId: string;
+  fromCrewId: string;
+  toCrewId: string;
+  season: number;
+}
+
+// FA 스토어 상태
+export interface FAState {
+  eligibleCards: FAStatus[];           // FA 자격 카드들
+  pendingDeclarations: string[];       // 선언 대기 중인 카드 ID
+  transferHistory: FATransferResult[]; // 이적 히스토리
+}
+
+// ========================================
+// 명예의 전당 시스템
+// ========================================
+
+// 시즌 챔피언 기록
+export interface SeasonChampionRecord {
+  season: number;
+  crewId: string;
+  crewName: string;
+  crewCardIds: string[];  // 우승 당시 크루 카드 ID 목록
+  wins: number;
+  losses: number;
+  isPlayoffChampion: boolean;
+}
+
+// 개인 리그 챔피언 기록
+export interface IndividualChampionRecord {
+  season: number;
+  championId: string;  // 우승 카드 ID
+  cardId: string;      // cardId 별칭 (호환성)
+  cardName: string;
+  crewName: string;
+}
+
+// 시즌 MVP 기록
+export interface SeasonMvpRecord {
+  season: number;
+  cardId: string;
+  cardName: string;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+// 통산 기록 항목
+export interface AllTimeRecord {
+  cardId: string;
+  cardName: string;
+  value: number;  // 승수, 승률(%), 연승 등
+  detail?: string;
+}
+
+// 명예의 전당 데이터
+export interface HallOfFameData {
+  seasonChampions: SeasonChampionRecord[];
+  individualChampions: IndividualChampionRecord[];
+  seasonMvps: SeasonMvpRecord[];
+  allTimeRecords: {
+    mostWins: AllTimeRecord[];
+    highestWinRate: AllTimeRecord[];
+    longestStreak: AllTimeRecord[];
+  };
+}
+
+// ========================================
+// 전투 해설 메시지 시스템
+// ========================================
+
+// 해설 메시지 타입
+export type BattleCommentType =
+  | 'battleStart'
+  | 'critical'
+  | 'ultimate'
+  | 'lowHp'
+  | 'comeback'
+  | 'dominance'
+  | 'closeMatch'
+  | 'statusApplied'
+  | 'battleEnd'
+  | 'aceMatch'
+  | 'allKill';
+
+// 해설 메시지 파라미터
+export interface BattleCommentParams {
+  player?: string;
+  enemy?: string;
+  arena?: string;
+  skillName?: string;
+  character?: string;
+  icon?: string;
+  target?: string;
+  status?: string;
+  winner?: string;
+  loser?: string;
+  streak?: number;
+}
+
+// 해설 메시지 정의
+export const BATTLE_COMMENTS: Record<BattleCommentType, string[]> = {
+  battleStart: [
+    "🎤 {player}와 {enemy}의 대결이 시작됩니다!",
+    "🎤 양측 선수 입장! 긴장감이 감돕니다!",
+    "🎤 {arena}에서 펼쳐지는 한판 승부!"
+  ],
+  critical: [
+    "🎤 💥 치명타! 완벽한 타이밍입니다!",
+    "🎤 💥 급소를 정확히 노렸습니다!",
+    "🎤 💥 대단한 일격! 관중석이 들썩입니다!"
+  ],
+  ultimate: [
+    "🎤 ⚡ 영역전개! {skillName}!",
+    "🎤 ⚡ 필살기 발동! 승부수를 던집니다!",
+    "🎤 ⚡ 이것이 {player}의 진정한 술식!"
+  ],
+  lowHp: [
+    "🎤 😰 {character}가 위험합니다! HP가 얼마 남지 않았어요!",
+    "🎤 😰 절체절명의 위기!",
+    "🎤 😰 여기서 버틸 수 있을까요?"
+  ],
+  comeback: [
+    "🎤 🔥 믿을 수 없습니다! 역전의 한 방!",
+    "🎤 🔥 포기하지 않는 자만이 승리합니다!",
+    "🎤 🔥 경기가 완전히 뒤집어졌습니다!"
+  ],
+  dominance: [
+    "🎤 💪 {player}의 일방적인 경기입니다!",
+    "🎤 💪 상대를 압도하고 있습니다!",
+    "🎤 💪 이대로 끝나는 걸까요?"
+  ],
+  closeMatch: [
+    "🎤 ⚔️ 박빙의 승부입니다!",
+    "🎤 ⚔️ 양측 한 치의 양보도 없습니다!",
+    "🎤 ⚔️ 어느 쪽이 이겨도 이상하지 않아요!"
+  ],
+  statusApplied: [
+    "🎤 {icon} {target}에게 {status} 부여!",
+    "🎤 {icon} 상태이상이 발동됩니다!"
+  ],
+  battleEnd: [
+    "🎤 🏆 {winner}의 승리입니다!",
+    "🎤 🏆 멋진 경기였습니다!",
+    "🎤 🏆 {loser}도 잘 싸웠습니다!"
+  ],
+  aceMatch: [
+    "🎤 ⚔️ 에이스 결정전! 시리즈의 운명이 결정됩니다!",
+    "🎤 ⚔️ 2:2 동점! 에이스끼리의 진검 승부!",
+    "🎤 ⚔️ 모든 것을 건 한 판 승부!"
+  ],
+  allKill: [
+    "🎤 🔥 {player} {streak}연승 중! 올킬까지 {remaining}승!",
+    "🎤 🔥 올킬 도전이 계속됩니다!",
+    "🎤 🔥 역올킬을 노리는 상대의 반격!"
+  ]
 };
