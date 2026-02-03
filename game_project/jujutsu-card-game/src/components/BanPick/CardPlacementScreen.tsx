@@ -1,10 +1,11 @@
 // ========================================
 // 카드 배치 화면
 // 5경기장에 미리 카드를 배치
+// 경기장 효과 및 추천도 표시
 // ========================================
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { Button } from '../UI/Button';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
@@ -14,7 +15,7 @@ import {
   autoAssignCards,
   getRecommendedCardsForArena
 } from '../../utils/banPickSystem';
-import type { Arena, CardAssignment } from '../../types';
+import type { Arena, CardAssignment, ArenaEffect } from '../../types';
 
 interface CardPlacementScreenProps {
   playerCrew: string[];
@@ -118,6 +119,79 @@ export function CardPlacementScreen({
     return null;
   };
 
+  // 카드-경기장 적합도 점수 계산 (1-5 별)
+  const getCardArenaScore = (cardId: string, arena: Arena): number => {
+    const card = CHARACTERS_BY_ID[cardId];
+    if (!card) return 0;
+
+    let score = 3; // 기본 점수
+
+    // 경기장 효과 분석
+    for (const effect of arena.effects) {
+      const target = effect.target;
+      const isTargetAll = target === 'ALL';
+      const isTargetAttribute = target === card.attribute;
+
+      if (isTargetAll || isTargetAttribute) {
+        if (effect.value > 0) {
+          score += effect.value >= 20 ? 2 : 1; // 강화 효과
+        } else if (effect.value < 0) {
+          score -= effect.value <= -20 ? 2 : 1; // 약화 효과
+        }
+      }
+    }
+
+    return Math.min(5, Math.max(1, score));
+  };
+
+  // 별 표시 생성
+  const renderStars = (score: number) => {
+    const fullStars = Math.floor(score);
+    const stars = [];
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(<span key={i} className="text-yellow-400">⭐</span>);
+      } else {
+        stars.push(<span key={i} className="text-gray-600">☆</span>);
+      }
+    }
+    return stars;
+  };
+
+  // 선택된 카드에 대한 경기장별 효과 분석
+  const getArenaEffectsForCard = (cardId: string, arena: Arena): {
+    effects: { effect: ArenaEffect; isRelevant: boolean; icon: string }[];
+    overallScore: 'GOOD' | 'BAD' | 'NEUTRAL';
+  } => {
+    const card = CHARACTERS_BY_ID[cardId];
+    if (!card) return { effects: [], overallScore: 'NEUTRAL' };
+
+    const analyzedEffects = arena.effects.map(effect => {
+      const isTargetAll = effect.target === 'ALL';
+      const isTargetAttribute = effect.target === card.attribute;
+      const isRelevant = isTargetAll || isTargetAttribute;
+
+      let icon = '➖';
+      if (isRelevant) {
+        if (effect.value > 0) icon = '⬆️';
+        else if (effect.value < 0) icon = '⬇️';
+      }
+
+      return { effect, isRelevant, icon };
+    });
+
+    // 전체 점수 계산
+    const relevantEffects = analyzedEffects.filter(e => e.isRelevant);
+    const positiveCount = relevantEffects.filter(e => e.effect.value > 0).length;
+    const negativeCount = relevantEffects.filter(e => e.effect.value < 0).length;
+
+    let overallScore: 'GOOD' | 'BAD' | 'NEUTRAL' = 'NEUTRAL';
+    if (positiveCount > negativeCount) overallScore = 'GOOD';
+    else if (negativeCount > positiveCount) overallScore = 'BAD';
+
+    return { effects: analyzedEffects, overallScore };
+  };
+
   return (
     <div className="min-h-screen bg-bg-primary p-4">
       {/* 헤더 */}
@@ -160,53 +234,85 @@ export function CardPlacementScreen({
                 <div className="text-center text-text-secondary text-xl">↓</div>
 
                 {/* 카드 슬롯 */}
-                <motion.button
-                  onClick={() => handleSlotClick(index)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`
-                    aspect-[3/4] rounded-lg border-2 transition-all overflow-hidden
-                    ${assignedCard
-                      ? 'border-accent bg-accent/10'
-                      : selectedCardId
-                        ? 'border-yellow-500 border-dashed bg-yellow-500/10 animate-pulse'
-                        : 'border-white/20 border-dashed bg-bg-secondary'
-                    }
-                  `}
-                >
-                  {assignedCard ? (
-                    <div className="w-full h-full relative">
-                      <img
-                        src={getCharacterImage(assignedCard.id, assignedCard.name.ko, assignedCard.attribute)}
-                        alt={assignedCard.name.ko}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = getPlaceholderImage(assignedCard.name.ko, assignedCard.attribute);
-                        }}
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
-                        <div className="text-xs font-bold text-white truncate">
-                          {assignedCard.name.ko}
+                {(() => {
+                  const cardScore = assignedCard
+                    ? getCardArenaScore(assignments[index]!, arena)
+                    : 0;
+                  const analysis = assignedCard
+                    ? getArenaEffectsForCard(assignments[index]!, arena)
+                    : null;
+
+                  return (
+                    <motion.button
+                      onClick={() => handleSlotClick(index)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`
+                        aspect-[3/4] rounded-lg border-2 transition-all overflow-hidden
+                        ${assignedCard
+                          ? analysis?.overallScore === 'GOOD'
+                            ? 'border-green-500 bg-green-500/10'
+                            : analysis?.overallScore === 'BAD'
+                              ? 'border-red-500 bg-red-500/10'
+                              : 'border-accent bg-accent/10'
+                          : selectedCardId
+                            ? 'border-yellow-500 border-dashed bg-yellow-500/10 animate-pulse'
+                            : 'border-white/20 border-dashed bg-bg-secondary'
+                        }
+                      `}
+                    >
+                      {assignedCard ? (
+                        <div className="w-full h-full relative">
+                          <img
+                            src={getCharacterImage(assignedCard.id, assignedCard.name.ko, assignedCard.attribute)}
+                            alt={assignedCard.name.ko}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = getPlaceholderImage(assignedCard.name.ko, assignedCard.attribute);
+                            }}
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                            <div className="text-xs font-bold text-white truncate">
+                              {assignedCard.name.ko}
+                            </div>
+                            {/* 적합도 별 표시 */}
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              <span className="text-[8px]">{renderStars(cardScore)}</span>
+                            </div>
+                          </div>
+                          <div className="absolute top-1 left-1">
+                            <GradeBadge grade={assignedCard.grade} size="sm" />
+                          </div>
+                          {/* 적합도 배지 */}
+                          <div className="absolute top-1 right-1">
+                            {analysis?.overallScore === 'GOOD' && (
+                              <span className="bg-green-500 text-white text-[8px] px-1 py-0.5 rounded font-bold">
+                                유리
+                              </span>
+                            )}
+                            {analysis?.overallScore === 'BAD' && (
+                              <span className="bg-red-500 text-white text-[8px] px-1 py-0.5 rounded font-bold">
+                                불리
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="absolute top-1 left-1">
-                        <GradeBadge grade={assignedCard.grade} size="sm" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-2">
-                      <div className="text-2xl text-white/30 mb-1">+</div>
-                      <div className="text-[10px] text-text-secondary text-center">
-                        {selectedCardId ? '클릭하여 배치' : '빈 슬롯'}
-                      </div>
-                      {recommendation && !selectedCardId && (
-                        <div className="text-[10px] text-accent mt-1 truncate w-full text-center">
-                          추천: {recommendation}
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                          <div className="text-2xl text-white/30 mb-1">+</div>
+                          <div className="text-[10px] text-text-secondary text-center">
+                            {selectedCardId ? '클릭하여 배치' : '빈 슬롯'}
+                          </div>
+                          {recommendation && !selectedCardId && (
+                            <div className="text-[10px] text-accent mt-1 truncate w-full text-center">
+                              추천: {recommendation}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
-                </motion.button>
+                    </motion.button>
+                  );
+                })()}
               </div>
             );
           })}
@@ -280,28 +386,88 @@ export function CardPlacementScreen({
         </div>
       </div>
 
-      {/* 선택된 카드 정보 & 추천 */}
-      {selectedCard && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-6xl mx-auto mb-6"
-        >
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-            <div className="flex items-center gap-4">
-              <div className="text-lg">👆</div>
-              <div>
-                <div className="text-sm font-bold text-yellow-500">
-                  {selectedCard.name.ko} 선택됨
+      {/* 선택된 카드 정보 & 경기장별 적합도 */}
+      <AnimatePresence>
+        {selectedCard && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="max-w-6xl mx-auto mb-6"
+          >
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              {/* 기본 안내 */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="text-lg">👆</div>
+                <div>
+                  <div className="text-sm font-bold text-yellow-500">
+                    {selectedCard.name.ko} 선택됨
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    위 경기장 슬롯을 클릭하여 배치하세요
+                  </div>
                 </div>
-                <div className="text-xs text-text-secondary">
-                  위 경기장 슬롯을 클릭하여 배치하세요
+                <div className="flex-1" />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-text-secondary">속성:</span>
+                  <AttributeBadge attribute={selectedCard.attribute} size="sm" />
+                </div>
+              </div>
+
+              {/* 경기장별 적합도 표시 */}
+              <div className="border-t border-yellow-500/20 pt-3">
+                <div className="text-xs text-yellow-500/80 mb-2">📊 경기장별 적합도</div>
+                <div className="grid grid-cols-5 gap-2">
+                  {arenas.map((arena, index) => {
+                    const score = getCardArenaScore(selectedCardId!, arena);
+                    const analysis = getArenaEffectsForCard(selectedCardId!, arena);
+                    const isAssignedHere = assignments[index] === selectedCardId;
+
+                    return (
+                      <div
+                        key={arena.id}
+                        className={`
+                          p-2 rounded-lg text-center transition-all
+                          ${isAssignedHere
+                            ? 'bg-accent/20 border border-accent'
+                            : analysis.overallScore === 'GOOD'
+                              ? 'bg-green-500/10 border border-green-500/30'
+                              : analysis.overallScore === 'BAD'
+                                ? 'bg-red-500/10 border border-red-500/30'
+                                : 'bg-white/5 border border-white/10'
+                          }
+                        `}
+                      >
+                        <div className="text-[10px] text-text-secondary mb-1 truncate">
+                          {index + 1}경기 - {arena.name.ko}
+                        </div>
+                        <div className="text-xs">
+                          {renderStars(score)}
+                        </div>
+                        {analysis.overallScore === 'GOOD' && (
+                          <div className="text-[10px] text-green-400 mt-1">유리</div>
+                        )}
+                        {analysis.overallScore === 'BAD' && (
+                          <div className="text-[10px] text-red-400 mt-1">불리</div>
+                        )}
+                        {/* 관련 효과 미니 표시 */}
+                        <div className="flex justify-center gap-0.5 mt-1">
+                          {analysis.effects
+                            .filter(e => e.isRelevant)
+                            .slice(0, 3)
+                            .map((e, idx) => (
+                              <span key={idx} className="text-[10px]">{e.icon}</span>
+                            ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 버튼 영역 */}
       <div className="max-w-6xl mx-auto">

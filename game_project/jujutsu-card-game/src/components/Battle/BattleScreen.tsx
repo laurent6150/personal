@@ -57,7 +57,9 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     submitBan,
     confirmBanResult,
     submitPlacements,
-    startAfterPlacements
+    startAfterPlacements,
+    // 배치 모드에서 현재 라운드에 배치된 카드
+    assignedCardForCurrentRound
   } = useBattle();
 
   const hasCalledBattleEnd = useRef(false);
@@ -82,6 +84,29 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   // 선택된 카드 정보
   const selectedCardData = selectedCardId ? CHARACTERS_BY_ID[selectedCardId] : null;
 
+  // 카드별 라운드 결과 집계 (게임 종료 화면용)
+  const cardBattleResults = useMemo(() => {
+    if (!session) return {};
+    const results: Record<string, { wins: number; losses: number; draws: number; rounds: number[] }> = {};
+
+    session.rounds.forEach((round, idx) => {
+      const cardId = round.playerCardId;
+      if (!results[cardId]) {
+        results[cardId] = { wins: 0, losses: 0, draws: 0, rounds: [] };
+      }
+      results[cardId].rounds.push(idx + 1);
+      if (round.winner === 'PLAYER') {
+        results[cardId].wins++;
+      } else if (round.winner === 'AI') {
+        results[cardId].losses++;
+      } else {
+        results[cardId].draws++;
+      }
+    });
+
+    return results;
+  }, [session]);
+
   // 게임 종료 콜백
   useEffect(() => {
     if (gameEndResult && onBattleEnd && !hasCalledBattleEnd.current) {
@@ -100,6 +125,19 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       hasCalledBattleEnd.current = false;
     }
   }, [isGameOver]);
+
+  // 배치 모드: 라운드 시작 시 미리 배치된 카드 자동 선택
+  useEffect(() => {
+    if (
+      battlePhase === 'SELECT' &&
+      assignedCardForCurrentRound &&
+      !selectedCardId &&
+      session?.status === 'IN_PROGRESS' &&
+      session.cardAssignments // 배치 모드인지 확인
+    ) {
+      selectCard(assignedCardForCurrentRound);
+    }
+  }, [battlePhase, assignedCardForCurrentRound, selectedCardId, session, selectCard]);
 
   // 라운드 결과 처리
   useEffect(() => {
@@ -262,48 +300,193 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
         className="min-h-screen flex items-center justify-center p-4"
         style={bgStyle}
       >
-        <div className="bg-bg-secondary rounded-xl p-8 max-w-md w-full text-center border border-white/10 shadow-2xl">
+        <div className="bg-bg-secondary rounded-xl p-6 max-w-2xl w-full border border-white/10 shadow-2xl">
+          {/* 헤더 */}
+          <div className="text-center mb-6">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', delay: 0.2 }}
+              className={`text-5xl mb-3 ${isPlayerWin ? 'text-win' : 'text-lose'}`}
+            >
+              {isPlayerWin ? '🎉' : '😢'}
+            </motion.div>
+
+            <h1 className={`text-2xl font-bold mb-1 ${isPlayerWin ? 'text-win' : 'text-lose'}`}>
+              {isPlayerWin ? '승리!' : '패배'}
+            </h1>
+
+            <p className="text-text-secondary">
+              최종 스코어: <span className="text-win font-bold">{currentScore.player}</span>
+              {' - '}
+              <span className="text-lose font-bold">{currentScore.ai}</span>
+            </p>
+          </div>
+
+          {/* 라운드 요약 */}
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', delay: 0.2 }}
-            className={`text-6xl mb-4 ${isPlayerWin ? 'text-win' : 'text-lose'}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-black/30 rounded-lg p-4 mb-4"
           >
-            {isPlayerWin ? '🎉' : '😢'}
+            <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+              <span>📊</span> 라운드 요약
+            </h3>
+            <div className="flex justify-center gap-2 flex-wrap">
+              {session?.rounds.map((round, idx) => (
+                <div
+                  key={idx}
+                  className={`
+                    w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold
+                    ${round.winner === 'PLAYER' ? 'bg-green-500/30 text-green-400 border border-green-500/50' :
+                      round.winner === 'AI' ? 'bg-red-500/30 text-red-400 border border-red-500/50' :
+                      'bg-yellow-500/30 text-yellow-400 border border-yellow-500/50'}
+                  `}
+                  title={`${idx + 1}R: ${CHARACTERS_BY_ID[round.playerCardId]?.name.ko || '?'} vs ${CHARACTERS_BY_ID[round.aiCardId]?.name.ko || '?'}`}
+                >
+                  {idx + 1}R
+                </div>
+              ))}
+            </div>
           </motion.div>
 
-          <h1 className={`text-3xl font-bold mb-2 ${isPlayerWin ? 'text-win' : 'text-lose'}`}>
-            {isPlayerWin ? '승리!' : '패배'}
-          </h1>
-
-          <p className="text-text-secondary mb-4">
-            최종 스코어: {currentScore.player} - {currentScore.ai}
-          </p>
-
+          {/* 카드별 상세 경험치 */}
           {gameEndResult?.expGained && Object.keys(gameEndResult.expGained).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-black/30 rounded-lg p-4 mb-4 text-left"
+              className="bg-black/30 rounded-lg p-4 mb-4"
             >
-              <h3 className="text-sm text-text-secondary mb-2">획득 경험치</h3>
-              <div className="space-y-1">
-                {Object.entries(gameEndResult.expGained).map(([cardId, exp]) => (
-                  <div key={cardId} className="flex justify-between text-sm">
-                    <span className="truncate">{CHARACTERS_BY_ID[cardId]?.name.ko || cardId}</span>
-                    <span className="text-win">+{exp} EXP</span>
-                  </div>
+              <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                <span>⚡</span> 카드별 경험치 획득
+              </h3>
+              <div className="space-y-3">
+                {Object.entries(gameEndResult.expGained).map(([cardId, exp]) => {
+                  const card = CHARACTERS_BY_ID[cardId];
+                  const battleResult = cardBattleResults[cardId];
+                  const isPositiveExp = exp >= 0;
+
+                  return (
+                    <div
+                      key={cardId}
+                      className="bg-black/20 rounded-lg p-3"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {card?.attribute === 'BODY' ? '💪' :
+                             card?.attribute === 'CURSE' ? '👁️' :
+                             card?.attribute === 'SOUL' ? '👻' :
+                             card?.attribute === 'BARRIER' ? '🛡️' : '🎯'}
+                          </span>
+                          <span className="font-bold text-text-primary">
+                            {card?.name.ko || cardId}
+                          </span>
+                        </div>
+                        <span className={`font-bold ${isPositiveExp ? 'text-win' : 'text-lose'}`}>
+                          {isPositiveExp ? '+' : ''}{exp} EXP
+                        </span>
+                      </div>
+
+                      {/* 전투 결과 */}
+                      {battleResult && (
+                        <div className="flex items-center gap-4 text-xs">
+                          <div className="flex items-center gap-1">
+                            <span className="text-green-400">승 {battleResult.wins}</span>
+                            <span className="text-text-secondary">/</span>
+                            <span className="text-red-400">패 {battleResult.losses}</span>
+                            {battleResult.draws > 0 && (
+                              <>
+                                <span className="text-text-secondary">/</span>
+                                <span className="text-yellow-400">무 {battleResult.draws}</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-text-secondary">
+                            참가: {battleResult.rounds.map(r => `${r}R`).join(', ')}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 경험치 상세 (계산된 값) */}
+                      <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
+                        {battleResult && battleResult.wins > 0 && (
+                          <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
+                            승리 보너스 +{battleResult.wins * 100}
+                          </span>
+                        )}
+                        {battleResult && battleResult.losses > 0 && (
+                          <span className="bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">
+                            패배 -{battleResult.losses * 30}
+                          </span>
+                        )}
+                        {isPlayerWin && (
+                          <span className="bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">
+                            팀 승리 보너스
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* 레벨업 알림 */}
+          {gameEndResult?.levelUps && gameEndResult.levelUps.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4"
+            >
+              <h3 className="text-sm font-bold text-yellow-400 mb-2 flex items-center gap-2">
+                <span>🎉</span> 레벨 업!
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {gameEndResult.levelUps.map((cardId) => (
+                  <span key={cardId} className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-sm">
+                    {CHARACTERS_BY_ID[cardId]?.name.ko || cardId}
+                  </span>
                 ))}
               </div>
             </motion.div>
           )}
 
-          <div className="space-y-3">
+          {/* 업적 알림 */}
+          {gameEndResult?.newAchievements && gameEndResult.newAchievements.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-4"
+            >
+              <h3 className="text-sm font-bold text-purple-400 mb-2 flex items-center gap-2">
+                <span>🏆</span> 새 업적!
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {gameEndResult.newAchievements.map((achievement, idx) => (
+                  <span key={idx} className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded text-sm">
+                    {achievement}
+                  </span>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* 버튼 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+          >
             <Button onClick={handleReturnToMenuClick} variant="primary" className="w-full">
               시즌 허브로
             </Button>
-          </div>
+          </motion.div>
         </div>
       </motion.div>
     );
@@ -449,22 +632,29 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       <div className="flex-1 flex p-4 gap-4 max-w-7xl mx-auto w-full">
         {/* 좌측: 내 크루 */}
         <div className="w-32 flex-shrink-0">
-          <div className="text-sm text-text-secondary mb-2 text-center">내 크루</div>
+          <div className="text-sm text-text-secondary mb-2 text-center">
+            {session.cardAssignments ? '배치된 카드' : '내 크루'}
+          </div>
           <div className="space-y-2">
             {playerCrewCards.map(card => {
               const isUsed = session.player.usedCards.includes(card.id);
               const isSelected = selectedCardId === card.id;
-              const isAvailable = !isUsed && battlePhase === 'SELECT';
+              const isPreAssigned = assignedCardForCurrentRound === card.id;
+              const isPlacementMode = !!session.cardAssignments;
+              // 배치 모드에서는 미리 배치된 카드만 선택 가능
+              const isAvailable = !isUsed && battlePhase === 'SELECT' && (!isPlacementMode || isPreAssigned);
 
               return (
                 <motion.div
                   key={card.id}
                   whileHover={isAvailable ? { scale: 1.05 } : undefined}
                   whileTap={isAvailable ? { scale: 0.95 } : undefined}
-                  className={`cursor-pointer transition-all ${
+                  className={`cursor-pointer transition-all relative ${
                     isUsed ? 'opacity-30 grayscale' : ''
                   } ${isSelected ? 'ring-2 ring-accent' : ''} ${
-                    !isAvailable && !isUsed ? 'pointer-events-none' : ''
+                    isPreAssigned && !isUsed && !isSelected ? 'ring-2 ring-yellow-500 animate-pulse' : ''
+                  } ${
+                    !isAvailable && !isUsed ? 'pointer-events-none opacity-50' : ''
                   }`}
                   onClick={() => isAvailable && selectCard(card.id)}
                 >
@@ -477,6 +667,11 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   />
                   {isUsed && (
                     <div className="text-[10px] text-center text-text-secondary mt-1">사용됨</div>
+                  )}
+                  {isPreAssigned && !isUsed && (
+                    <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[8px] px-1 py-0.5 rounded font-bold">
+                      이번 경기
+                    </div>
                   )}
                 </motion.div>
               );
