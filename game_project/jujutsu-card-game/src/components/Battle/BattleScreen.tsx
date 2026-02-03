@@ -70,6 +70,12 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   const [revealedAiCard, setRevealedAiCard] = useState<CharacterCard | null>(null);
   const [revealedPlayerCard, setRevealedPlayerCard] = useState<CharacterCard | null>(null);
   const [showTurnBattle, setShowTurnBattle] = useState(false);
+  const [showAceSelection, setShowAceSelection] = useState(false);
+
+  // 에이스 결정전 여부 (5라운드 + 2:2 동점)
+  const isAceMatch = useMemo(() => {
+    return currentRound === 5 && currentScore.player === 2 && currentScore.ai === 2;
+  }, [currentRound, currentScore]);
 
   // 플레이어 전체 크루 (세션에서)
   const playerCrewCards = useMemo(() => {
@@ -142,6 +148,19 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       selectCard(assignedCardForCurrentRound);
     }
   }, [battlePhase, assignedCardForCurrentRound, selectedCardId, session, selectCard]);
+
+  // 에이스 결정전 진입 시 자동으로 선택 모달 표시
+  useEffect(() => {
+    if (
+      isAceMatch &&
+      battlePhase === 'SELECT' &&
+      !selectedCardId &&
+      session?.status === 'IN_PROGRESS' &&
+      !showAceSelection
+    ) {
+      setShowAceSelection(true);
+    }
+  }, [isAceMatch, battlePhase, selectedCardId, session, showAceSelection]);
 
   // 라운드 결과 처리
   useEffect(() => {
@@ -510,6 +529,103 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
         onCancel={() => setShowExitModal(false)}
       />
 
+      {/* 에이스 결정전 선택 모달 */}
+      <AnimatePresence>
+        {showAceSelection && isAceMatch && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-gradient-to-br from-orange-900/90 to-red-900/90 rounded-xl border-2 border-orange-500/50 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              {/* 헤더 */}
+              <div className="text-center mb-6">
+                <div className="text-4xl mb-2">⚔️</div>
+                <h2 className="text-2xl font-bold text-orange-400 mb-1">에이스 결정전!</h2>
+                <div className="text-xl font-bold text-white">
+                  {currentScore.player} : {currentScore.ai}
+                </div>
+                <p className="text-text-secondary text-sm mt-2">
+                  시리즈의 운명을 결정할 에이스를 선택하세요!
+                </p>
+                <p className="text-orange-300 text-xs mt-1">
+                  ※ 1~4라운드 출전 카드도 다시 선택 가능합니다
+                </p>
+              </div>
+
+              {/* 경기장 정보 */}
+              {currentArena && (
+                <div className="bg-black/30 rounded-lg p-3 mb-4 text-center">
+                  <div className="text-xs text-text-secondary mb-1">결전의 경기장</div>
+                  <div className="text-lg font-bold text-orange-400">{currentArena.name.ko}</div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    {currentArena.effects.map(e => e.description).join(' / ')}
+                  </div>
+                </div>
+              )}
+
+              {/* 카드 선택 그리드 */}
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
+                {playerCrewCards.map(card => {
+                  const isUsed = session?.player.usedCards.includes(card.id);
+                  const isSelected = selectedCardId === card.id;
+
+                  return (
+                    <motion.div
+                      key={card.id}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        selectCard(card.id);
+                        setShowAceSelection(false);
+                      }}
+                      className={`
+                        cursor-pointer rounded-lg overflow-hidden transition-all
+                        ${isSelected ? 'ring-4 ring-orange-500' : 'ring-2 ring-white/20'}
+                        ${isUsed ? 'opacity-80' : ''}
+                      `}
+                    >
+                      <CardDisplay
+                        character={card}
+                        size="sm"
+                        isSelected={isSelected}
+                        statsDisplayMode="gradeTotal"
+                        showSkill={false}
+                      />
+                      {isUsed && (
+                        <div className="bg-orange-500/80 text-center text-[9px] text-white py-0.5">
+                          재출전 가능
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* 선택 안내 */}
+              <div className="text-center">
+                <div className="text-sm text-text-secondary">
+                  좌측 카드 목록에서도 선택할 수 있습니다
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAceSelection(false)}
+                  className="mt-2"
+                >
+                  닫기
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 턴제 전투 모달 */}
       <AnimatePresence>
         {showTurnBattle && roundResultInfo && (
@@ -651,7 +767,11 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
               const isPreAssigned = assignedCardForCurrentRound === card.id;
               const isPlacementMode = !!session.cardAssignments;
               // 배치 모드에서는 미리 배치된 카드만 선택 가능
-              const isAvailable = !isUsed && battlePhase === 'SELECT' && (!isPlacementMode || isPreAssigned);
+              // 단, 에이스 결정전에서는 모든 카드(사용된 카드 포함) 선택 가능
+              const isAvailable = battlePhase === 'SELECT' && (
+                isAceMatch || // 에이스 결정전에서는 모든 카드 선택 가능
+                (!isUsed && (!isPlacementMode || isPreAssigned))
+              );
 
               return (
                 <motion.div
@@ -659,23 +779,35 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   whileHover={isAvailable ? { scale: 1.05 } : undefined}
                   whileTap={isAvailable ? { scale: 0.95 } : undefined}
                   className={`cursor-pointer transition-all relative ${
-                    isUsed ? 'opacity-30 grayscale' : ''
+                    isUsed && !isAceMatch ? 'opacity-30 grayscale' : ''
                   } ${isSelected ? 'ring-2 ring-accent' : ''} ${
                     isPreAssigned && !isUsed && !isSelected ? 'ring-2 ring-yellow-500 animate-pulse' : ''
                   } ${
                     !isAvailable && !isUsed ? 'pointer-events-none opacity-50' : ''
+                  } ${
+                    isAceMatch && !isSelected ? 'ring-2 ring-orange-500/50' : ''
                   }`}
-                  onClick={() => isAvailable && selectCard(card.id)}
+                  onClick={() => {
+                    if (isAvailable) {
+                      selectCard(card.id);
+                      if (isAceMatch) {
+                        setShowAceSelection(false);
+                      }
+                    }
+                  }}
                 >
                   <CardDisplay
                     character={card}
                     size="sm"
                     isSelected={isSelected}
-                    showStats={false}
+                    statsDisplayMode="gradeTotal"
                     showSkill={false}
                   />
-                  {isUsed && (
+                  {isUsed && !isAceMatch && (
                     <div className="text-[10px] text-center text-text-secondary mt-1">사용됨</div>
+                  )}
+                  {isUsed && isAceMatch && (
+                    <div className="text-[10px] text-center text-orange-400 mt-1">재선택 가능</div>
                   )}
                   {isPreAssigned && !isUsed && (
                     <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[8px] px-1 py-0.5 rounded font-bold">
@@ -878,7 +1010,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   <CardDisplay
                     character={card}
                     size="sm"
-                    showStats={false}
+                    statsDisplayMode="gradeTotal"
                     showSkill={false}
                   />
                   {isUsed && (

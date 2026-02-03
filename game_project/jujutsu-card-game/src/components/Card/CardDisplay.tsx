@@ -1,10 +1,54 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { CharacterCard, PlayerCard } from '../../types';
+import type { CharacterCard, PlayerCard, Grade, BaseStats } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { StatsDisplay } from '../UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
+
+// 등급 + 총합 표시 컴포넌트
+interface GradeTotalDisplayProps {
+  grade: Grade;
+  stats: BaseStats;
+  size: 'xs' | 'sm' | 'md' | 'lg';
+  gradeInfo: { bg: string; text: string };
+}
+
+function GradeTotalDisplay({ grade, stats, size, gradeInfo }: GradeTotalDisplayProps) {
+  // 총합 계산 (8스탯)
+  const statValues = stats as unknown as Record<string, number>;
+  const total = ['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt']
+    .reduce((sum, key) => sum + (statValues[key] ?? 0), 0);
+
+  // 크기별 스타일
+  const sizeStyles = {
+    xs: { container: 'gap-1', grade: 'text-lg', total: 'text-[10px]', label: 'text-[8px]' },
+    sm: { container: 'gap-1.5', grade: 'text-xl', total: 'text-xs', label: 'text-[9px]' },
+    md: { container: 'gap-2', grade: 'text-2xl', total: 'text-sm', label: 'text-[10px]' },
+    lg: { container: 'gap-2', grade: 'text-3xl', total: 'text-base', label: 'text-xs' }
+  };
+
+  const style = sizeStyles[size];
+
+  return (
+    <div className={`flex items-center justify-center ${style.container}`}>
+      {/* 등급 표시 */}
+      <div
+        className={`${style.grade} font-black`}
+        style={{ color: gradeInfo.bg, textShadow: `0 0 10px ${gradeInfo.bg}50` }}
+      >
+        {grade}
+      </div>
+      {/* 총합 점수 */}
+      <div className="flex flex-col items-center">
+        <span className={`${style.total} font-bold text-text-primary font-mono`}>
+          {total}
+        </span>
+        <span className={`${style.label} text-text-secondary`}>총합</span>
+      </div>
+    </div>
+  );
+}
 
 interface CardDisplayProps {
   character: CharacterCard;
@@ -17,6 +61,7 @@ interface CardDisplayProps {
   showStats?: boolean;
   showSkill?: boolean;
   showAllStats?: boolean;  // 8스탯 전체 표시 여부
+  statsDisplayMode?: 'bars' | 'gradeTotal';  // 스탯 표시 방식: 바 또는 등급+총합
 }
 
 export function CardDisplay({
@@ -29,7 +74,8 @@ export function CardDisplay({
   onClick,
   showStats = true,
   showSkill = true,
-  showAllStats = false
+  showAllStats = false,
+  statsDisplayMode = 'bars'
 }: CardDisplayProps) {
   const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[character.attribute];
@@ -141,7 +187,17 @@ export function CardDisplay({
       {/* 스탯 - 모든 사이즈에서 표시 */}
       {showStats && (
         <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
-          <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
+          {statsDisplayMode === 'gradeTotal' ? (
+            // 등급 + 총합 표시 모드
+            <GradeTotalDisplay
+              grade={character.grade}
+              stats={character.baseStats}
+              size={size}
+              gradeInfo={gradeInfo}
+            />
+          ) : (
+            <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
+          )}
         </div>
       )}
 
