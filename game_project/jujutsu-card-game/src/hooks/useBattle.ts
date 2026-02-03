@@ -3,12 +3,8 @@
 // ========================================
 
 import { useCallback, useMemo, useState } from 'react';
-import {
-  useGameStore,
-  selectSeriesScoreboard,
-  selectSelectedArenas,
-  selectAssignedCardForCurrentRound
-} from '../stores/gameStore';
+import { useShallow } from 'zustand/shallow';
+import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
@@ -24,7 +20,7 @@ export interface GameEndResult {
 }
 
 export function useBattle() {
-  // Game store
+  // Game store (useShallow로 안정적인 참조 유지 - React 19 호환)
   const {
     session,
     selectedCardId,
@@ -49,24 +45,67 @@ export function useBattle() {
     submitCardPlacements,
     startGameWithPlacements,
     setBanPickPhase
-  } = useGameStore();
+  } = useGameStore(useShallow(state => ({
+    session: state.session,
+    selectedCardId: state.selectedCardId,
+    isAnimating: state.isAnimating,
+    showResult: state.showResult,
+    lastRoundResult: state.lastRoundResult,
+    banPickPhase: state.banPickPhase,
+    pendingBanPickInfo: state.pendingBanPickInfo,
+    startGame: state.startGame,
+    selectCard: state.selectCard,
+    executeRound: state.executeRound,
+    updateRoundWinner: state.updateRoundWinner,
+    endGame: state.endGame,
+    resetGame: state.resetGame,
+    setAnimating: state.setAnimating,
+    setShowResult: state.setShowResult,
+    clearLastResult: state.clearLastResult,
+    initBanPick: state.initBanPick,
+    submitPlayerBan: state.submitPlayerBan,
+    confirmBanResult: state.confirmBanResult,
+    submitCardPlacements: state.submitCardPlacements,
+    startGameWithPlacements: state.startGameWithPlacements,
+    setBanPickPhase: state.setBanPickPhase
+  })));
 
-  // 밴픽 관련 셀렉터
-  const seriesScoreboard = useGameStore(selectSeriesScoreboard);
-  const selectedArenas = useGameStore(selectSelectedArenas);
-  const assignedCardForCurrentRound = useGameStore(selectAssignedCardForCurrentRound);
+  // 밴픽 관련 셀렉터 (useShallow로 안정적인 참조 유지)
+  const seriesScoreboard = useGameStore(useShallow(state => {
+    if (!state.session) return null;
+    return {
+      playerScore: state.session.player.score,
+      aiScore: state.session.ai.score,
+      currentRound: state.session.currentRound,
+      totalRounds: state.session.banPickInfo?.selectedArenas.length ?? 5,
+      rounds: state.session.rounds,
+      selectedArenas: state.session.banPickInfo?.selectedArenas ?? [],
+      cardAssignments: state.session.cardAssignments ?? []
+    };
+  }));
+  const selectedArenas = useGameStore(useShallow(state =>
+    state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? []
+  ));
+  const assignedCardForCurrentRound = useGameStore(state => {
+    if (!state.session?.cardAssignments) return null;
+    const currentRoundIndex = (state.session.currentRound ?? 1) - 1;
+    return state.session.cardAssignments[currentRoundIndex]?.cardId ?? null;
+  });
 
-  // Player store
-  const {
-    player,
-    processGameResult
-  } = usePlayerStore();
+  // Player store (useShallow로 안정적인 참조 유지)
+  const { player, processGameResult } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    processGameResult: state.processGameResult
+  })));
 
   // Season store (플레이어 크루 가져오기)
-  const { playerCrew, currentSeason } = useSeasonStore();
+  const { playerCrew, currentSeason } = useSeasonStore(useShallow(state => ({
+    playerCrew: state.playerCrew,
+    currentSeason: state.currentSeason
+  })));
 
   // Card record store (개인 기록)
-  const { recordBattle } = useCardRecordStore();
+  const recordBattle = useCardRecordStore(state => state.recordBattle);
 
   // Game end result
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
@@ -345,7 +384,15 @@ export function useCrewManagement() {
     swapCrewCard,
     canAddToCrew,
     isCardInCrew
-  } = usePlayerStore();
+  } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    setCurrentCrew: state.setCurrentCrew,
+    addCardToCrew: state.addCardToCrew,
+    removeCardFromCrew: state.removeCardFromCrew,
+    swapCrewCard: state.swapCrewCard,
+    canAddToCrew: state.canAddToCrew,
+    isCardInCrew: state.isCardInCrew
+  })));
 
   // 현재 크루 카드 정보
   const crewCards = useMemo(() => {
@@ -396,7 +443,7 @@ export function useCrewManagement() {
 
 // 플레이어 통계 훅
 export function usePlayerStats() {
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
 
   const totalStats = player.totalStats;
 
