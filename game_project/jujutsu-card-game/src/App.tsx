@@ -253,10 +253,11 @@ function App() {
               onReturnToMenu={handleReturnToSeasonHub}
               opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
               onBattleEnd={(result) => {
-                // 결과 기록 (정규시즌 vs 플레이오프)
+                // 결과 기록 (정규시즌 vs 플레이오프) - 실제 점수 사용
                 if (currentOpponent) {
-                  const playerScore = result.won ? 3 : 0;
-                  const opponentScore = result.won ? 0 : 3;
+                  // 실제 라운드 승리 점수 사용
+                  const playerScore = result.playerScore;
+                  const opponentScore = result.aiScore;
 
                   const isPlayoff = currentSeason?.status === 'PLAYOFF_SEMI' ||
                     currentSeason?.status === 'PLAYOFF_FINAL';

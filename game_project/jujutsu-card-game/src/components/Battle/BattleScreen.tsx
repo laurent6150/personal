@@ -19,6 +19,8 @@ import type { CharacterCard } from '../../types';
 
 interface BattleEndResult {
   won: boolean;
+  playerScore: number;  // 실제 플레이어 승리 라운드 수
+  aiScore: number;      // 실제 AI 승리 라운드 수
   levelUps?: string[];
   newAchievements?: string[];
   expGained?: Record<string, number>;
@@ -113,12 +115,14 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       hasCalledBattleEnd.current = true;
       onBattleEnd({
         won: gameEndResult.won,
+        playerScore: currentScore.player,  // 실제 플레이어 점수
+        aiScore: currentScore.ai,          // 실제 AI 점수
         levelUps: gameEndResult.levelUps,
         newAchievements: gameEndResult.newAchievements,
         expGained: gameEndResult.expGained
       });
     }
-  }, [gameEndResult, onBattleEnd]);
+  }, [gameEndResult, onBattleEnd, currentScore]);
 
   useEffect(() => {
     if (!isGameOver) {
@@ -150,7 +154,12 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   const handleExit = () => {
     setShowExitModal(false);
     if (onBattleEnd) {
-      onBattleEnd({ won: false });
+      // 중도 포기 시 현재 점수 전달 (패배 처리)
+      onBattleEnd({
+        won: false,
+        playerScore: currentScore.player,
+        aiScore: currentScore.ai
+      });
     }
     returnToMenu();
     onReturnToMenu();
@@ -778,14 +787,14 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                     <div className="bg-black/30 rounded-lg p-3">
                       <div className="text-xs text-accent mb-2">📊 스탯</div>
                       <div className="grid grid-cols-4 gap-1 text-[10px] mb-2">
-                        <span className="text-red-400">ATK {selectedCardData.baseStats.atk}</span>
-                        <span className="text-blue-400">DEF {selectedCardData.baseStats.def}</span>
-                        <span className="text-yellow-400">SPD {selectedCardData.baseStats.spd}</span>
-                        <span className="text-purple-400">CE {selectedCardData.baseStats.ce}</span>
-                        <span className="text-pink-400">HP {selectedCardData.baseStats.hp}</span>
-                        <span className="text-pink-300">CRT {(selectedCardData.baseStats as unknown as Record<string, number>).crt ?? 0}</span>
-                        <span className="text-teal-400">TEC {(selectedCardData.baseStats as unknown as Record<string, number>).tec ?? 0}</span>
-                        <span className="text-indigo-400">MNT {(selectedCardData.baseStats as unknown as Record<string, number>).mnt ?? 0}</span>
+                        <span className="text-red-400">⚔️ 공격 {selectedCardData.baseStats.atk}</span>
+                        <span className="text-blue-400">🛡️ 방어 {selectedCardData.baseStats.def}</span>
+                        <span className="text-yellow-400">⚡ 속도 {selectedCardData.baseStats.spd}</span>
+                        <span className="text-purple-400">🔮 주력 {selectedCardData.baseStats.ce}</span>
+                        <span className="text-pink-400">❤️ 체력 {selectedCardData.baseStats.hp}</span>
+                        <span className="text-pink-300">💥 치명 {(selectedCardData.baseStats as unknown as Record<string, number>).crt ?? 0}</span>
+                        <span className="text-teal-400">🎯 기술 {(selectedCardData.baseStats as unknown as Record<string, number>).tec ?? 0}</span>
+                        <span className="text-indigo-400">🧠 정신 {(selectedCardData.baseStats as unknown as Record<string, number>).mnt ?? 0}</span>
                       </div>
                       <div className="text-xs text-text-secondary">
                         강함: <span className="text-win">{selectedCardData.attribute === 'BODY' ? '저주' : selectedCardData.attribute === 'CURSE' ? '혼백' : selectedCardData.attribute === 'SOUL' ? '결계' : selectedCardData.attribute === 'BARRIER' ? '신체' : '-'}</span>
