@@ -861,7 +861,7 @@ function RecordTab({
   awards: Award[];
 }) {
   // 통산 기록일 때 모든 시즌의 경기장/상대 기록 합산
-  const { getCardRecord } = useCardRecordStore();
+  const getCardRecord = useCardRecordStore(state => state.getCardRecord);
   const cardRecord = getCardRecord(cardId);
 
   const aggregatedRecords = useMemo(() => {

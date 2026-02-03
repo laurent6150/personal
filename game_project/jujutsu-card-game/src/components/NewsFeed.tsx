@@ -4,6 +4,7 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { useNewsFeedStore } from '../stores/newsFeedStore';
 import type { NewsItem, NewsType } from '../types';
 
@@ -43,7 +44,11 @@ function getRelativeTime(timestamp: number): string {
 }
 
 export function NewsFeed({ maxItems = 15, showHeader = true, compact = false }: NewsFeedProps) {
-  const { news, lastReadTimestamp, markAsRead } = useNewsFeedStore();
+  const { news, lastReadTimestamp, markAsRead } = useNewsFeedStore(useShallow(state => ({
+    news: state.news,
+    lastReadTimestamp: state.lastReadTimestamp,
+    markAsRead: state.markAsRead
+  })));
 
   const displayNews = useMemo(() => {
     return news.slice(0, maxItems);
@@ -158,7 +163,7 @@ interface NewsFeedPreviewProps {
 }
 
 export function NewsFeedPreview({ onViewAll }: NewsFeedPreviewProps) {
-  const { news } = useNewsFeedStore();
+  const news = useNewsFeedStore(state => state.news);
   const latestNews = news.slice(0, 3);
 
   if (latestNews.length === 0) {

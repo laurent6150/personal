@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { SeasonHub } from './pages/SeasonHub';
 import { CrewManager } from './pages/CrewManager';
 import { Collection } from './pages/Collection';
@@ -42,9 +43,14 @@ function App() {
   }, []);
 
   const { startGame } = useBattle();
-  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
-  const { addMatchResultNews } = useNewsFeedStore();
-  const { player } = usePlayerStore();
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore(useShallow(state => ({
+    currentSeason: state.currentSeason,
+    playMatch: state.playMatch,
+    playPlayoffMatch: state.playPlayoffMatch,
+    getAICrewById: state.getAICrewById
+  })));
+  const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
+  const player = usePlayerStore(state => state.player);
 
   // 리그 매치 시작 (시즌 시스템용)
   const handleStartMatch = useCallback((opponentCrewId: string) => {
