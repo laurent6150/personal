@@ -272,6 +272,20 @@ export function IndividualLeagueScreen({
           )}
         </div>
 
+        {/* 테스트 버튼 - 디버깅용 */}
+        <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-2 mb-4 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              console.log('테스트 버튼 클릭됨!');
+              alert('테스트 버튼 작동함!');
+            }}
+            className="px-4 py-2 bg-yellow-500 text-black font-bold rounded"
+          >
+            🧪 테스트 버튼 (여기를 클릭해보세요)
+          </button>
+        </div>
+
         {/* 현재 단계 */}
         <div className="bg-accent/20 border border-accent/50 rounded-lg px-4 py-2 mb-4 text-center">
           <span className="text-accent font-bold">
@@ -347,17 +361,38 @@ export function IndividualLeagueScreen({
               </Button>
             )}
 
-            {!roundComplete && hasNextPlayerMatch() && (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  console.log('>>> 버튼 클릭됨! <<<');
-                  handleNextMatch();
-                }}
-              >
-                ⚔️ 다음 경기 진행
-              </Button>
-            )}
+            {/* 항상 렌더링 - 디버깅용 */}
+            <button
+              type="button"
+              disabled={roundComplete || !hasNextPlayerMatch()}
+              onMouseDown={(e) => {
+                console.log('>>> onMouseDown 발생! <<<', e.target);
+              }}
+              onMouseUp={(e) => {
+                console.log('>>> onMouseUp 발생! <<<', e.target);
+              }}
+              onClick={(e) => {
+                console.log('>>> 네이티브 버튼 클릭됨! <<<', e.target);
+                e.stopPropagation();
+                alert('버튼 클릭됨! handleNextMatch 호출 전');
+                handleNextMatch();
+              }}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: roundComplete || !hasNextPlayerMatch() ? '#888' : '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: roundComplete || !hasNextPlayerMatch() ? 'not-allowed' : 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                zIndex: 9999,
+                position: 'relative',
+                opacity: roundComplete || !hasNextPlayerMatch() ? 0.5 : 1
+              }}
+            >
+              ⚔️ 다음 경기 진행 (hasNext: {hasNextPlayerMatch() ? 'YES' : 'NO'}, roundComplete: {roundComplete ? 'YES' : 'NO'})
+            </button>
 
             {!roundComplete && (
               <Button
