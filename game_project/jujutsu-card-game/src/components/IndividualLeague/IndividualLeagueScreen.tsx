@@ -2,7 +2,7 @@
 // 개인 리그 메인 화면
 // ========================================
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -52,9 +52,6 @@ export function IndividualLeagueScreen({
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
   const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
 
-  // 버튼 ref - 직접 이벤트 바인딩용
-  const nextMatchBtnRef = useRef<HTMLButtonElement>(null);
-
   // 리그 시작
   const handleStartLeague = () => {
     if (playerCrew.length >= 5) {
@@ -64,78 +61,21 @@ export function IndividualLeagueScreen({
 
   // 다음 경기 진행 - useCallback으로 안정화
   const handleNextMatch = useCallback(() => {
-    console.log('=== handleNextMatch 호출됨 ===');
-
     const nextMatch = getNextPlayerMatch();
-    console.log('[handleNextMatch] nextMatch:', nextMatch);
 
     if (!nextMatch) {
-      console.log('[handleNextMatch] 다음 경기 없음');
       alert('진행할 경기가 없습니다.');
       return;
     }
 
-    console.log('[handleNextMatch] 다음 경기 상세:', {
-      playerCardId: nextMatch.playerCardId,
-      opponentId: nextMatch.opponentId,
-      matchId: nextMatch.match?.id,
-      matchType: nextMatch.matchType,
-      onStartMatch: !!onStartMatch
-    });
-
     // onStartMatch 콜백이 있으면 전투 화면으로 이동
     if (nextMatch.playerCardId && nextMatch.opponentId && nextMatch.match && onStartMatch) {
-      console.log('[handleNextMatch] 전투 화면으로 이동');
       onStartMatch(nextMatch.playerCardId, nextMatch.opponentId, nextMatch.match.id);
     } else {
       // 콜백이 없거나 데이터 누락 시 시뮬레이션으로 대체
-      console.log('[handleNextMatch] 시뮬레이션으로 대체 - 누락된 데이터:', {
-        hasPlayerCardId: !!nextMatch.playerCardId,
-        hasOpponentId: !!nextMatch.opponentId,
-        hasMatch: !!nextMatch.match,
-        hasOnStartMatch: !!onStartMatch
-      });
       simulateAllRemainingMatches();
     }
   }, [getNextPlayerMatch, onStartMatch, simulateAllRemainingMatches]);
-
-  // DOM 이벤트 직접 바인딩 (React 우회)
-  useEffect(() => {
-    const btn = nextMatchBtnRef.current;
-    if (!btn) return;
-
-    const handleClick = (e: MouseEvent) => {
-      console.log('[useEffect] DOM 클릭 이벤트 발생!', e);
-      alert('DOM 직접 클릭 감지됨!');
-      handleNextMatch();
-    };
-
-    console.log('[useEffect] 버튼에 이벤트 리스너 등록');
-    btn.addEventListener('click', handleClick);
-
-    return () => {
-      console.log('[useEffect] 버튼 이벤트 리스너 제거');
-      btn.removeEventListener('click', handleClick);
-    };
-  }, [handleNextMatch]);
-
-  // 전역 클릭 모니터링 (디버깅)
-  useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      console.log('[GLOBAL] document 클릭 감지:', {
-        target: e.target,
-        currentTarget: e.currentTarget,
-        x: e.clientX,
-        y: e.clientY
-      });
-    };
-
-    document.addEventListener('click', handleGlobalClick, true); // capture phase
-
-    return () => {
-      document.removeEventListener('click', handleGlobalClick, true);
-    };
-  }, []);
 
   // 경기 스킵 (모두 시뮬레이션)
   const handleSkipMatches = () => {
@@ -171,10 +111,10 @@ export function IndividualLeagueScreen({
   };
 
   // 플레이어 다음 경기 존재 여부
-  const hasNextPlayerMatch = () => {
+  const hasNextPlayerMatch = useCallback(() => {
     const nextMatch = getNextPlayerMatch();
     return nextMatch !== null;
-  };
+  }, [getNextPlayerMatch]);
 
   // 라운드 이름 가져오기
   const getRoundName = (status: string) => {
@@ -227,7 +167,7 @@ export function IndividualLeagueScreen({
               <div className="text-sm font-bold text-accent mb-2">📋 토너먼트 형식</div>
               <ul className="text-sm text-text-secondary space-y-1">
                 <li>• 32강: 단판 (1승)</li>
-                <li>• 16강: A~H조 2명씩, 2선승제</li>
+                <li>• 16강: A~H조 4인 토너먼트</li>
                 <li>• 8강/4강/결승: 5판 3선승</li>
               </ul>
             </div>
@@ -297,6 +237,7 @@ export function IndividualLeagueScreen({
   // 리그 진행 중
   const playerStatuses = getPlayerCardStatuses();
   const roundComplete = isRoundComplete();
+  const canPlayNextMatch = !roundComplete && hasNextPlayerMatch();
 
   return (
     <div className="min-h-screen bg-bg-primary p-4">
@@ -311,20 +252,6 @@ export function IndividualLeagueScreen({
               뒤로
             </Button>
           )}
-        </div>
-
-        {/* 테스트 버튼 - 디버깅용 */}
-        <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-2 mb-4 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              console.log('테스트 버튼 클릭됨!');
-              alert('테스트 버튼 작동함!');
-            }}
-            className="px-4 py-2 bg-yellow-500 text-black font-bold rounded"
-          >
-            🧪 테스트 버튼 (여기를 클릭해보세요)
-          </button>
         </div>
 
         {/* 현재 단계 */}
@@ -402,38 +329,14 @@ export function IndividualLeagueScreen({
               </Button>
             )}
 
-            {/* 항상 렌더링 - disabled 완전 제거 */}
-            <button
-              ref={nextMatchBtnRef}
-              id="next-match-btn"
-              type="button"
-              onMouseDown={(e) => {
-                console.log('>>> onMouseDown 발생! <<<', e.target);
-              }}
-              onMouseUp={(e) => {
-                console.log('>>> onMouseUp 발생! <<<', e.target);
-              }}
-              onClick={(e) => {
-                console.log('>>> React onClick 발생! <<<', e.target);
-                e.stopPropagation();
-                alert('React onClick 감지됨!');
-                handleNextMatch();
-              }}
-              style={{
-                padding: '16px 32px',
-                backgroundColor: '#22c55e',
-                color: 'white',
-                border: '4px solid red',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                zIndex: 99999,
-                position: 'relative'
-              }}
-            >
-              🔥 다음 경기 진행 (hasNext: {String(hasNextPlayerMatch())}) 🔥
-            </button>
+            {canPlayNextMatch && (
+              <Button
+                variant="primary"
+                onClick={handleNextMatch}
+              >
+                ⚔️ 다음 경기 진행
+              </Button>
+            )}
 
             {!roundComplete && (
               <Button
