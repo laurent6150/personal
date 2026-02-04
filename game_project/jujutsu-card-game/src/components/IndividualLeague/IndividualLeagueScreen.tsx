@@ -2,7 +2,7 @@
 // 개인 리그 메인 화면
 // ========================================
 
-import { useState, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -59,23 +59,29 @@ export function IndividualLeagueScreen({
     }
   };
 
-  // 다음 경기 진행 - useCallback으로 안정화
-  const handleNextMatch = useCallback(() => {
-    const nextMatch = getNextPlayerMatch();
+  // 플레이어 다음 경기 존재 여부 - useMemo로 캐싱
+  const nextPlayerMatch = useMemo(() => {
+    if (!currentLeague) return null;
+    return getNextPlayerMatch();
+  }, [currentLeague, getNextPlayerMatch]);
 
-    if (!nextMatch) {
+  const hasNextMatch = nextPlayerMatch !== null;
+
+  // 다음 경기 진행
+  const handleNextMatch = () => {
+    if (!nextPlayerMatch) {
       alert('진행할 경기가 없습니다.');
       return;
     }
 
     // onStartMatch 콜백이 있으면 전투 화면으로 이동
-    if (nextMatch.playerCardId && nextMatch.opponentId && nextMatch.match && onStartMatch) {
-      onStartMatch(nextMatch.playerCardId, nextMatch.opponentId, nextMatch.match.id);
+    if (nextPlayerMatch.playerCardId && nextPlayerMatch.opponentId && nextPlayerMatch.match && onStartMatch) {
+      onStartMatch(nextPlayerMatch.playerCardId, nextPlayerMatch.opponentId, nextPlayerMatch.match.id);
     } else {
       // 콜백이 없거나 데이터 누락 시 시뮬레이션으로 대체
       simulateAllRemainingMatches();
     }
-  }, [getNextPlayerMatch, onStartMatch, simulateAllRemainingMatches]);
+  };
 
   // 경기 스킵 (모두 시뮬레이션)
   const handleSkipMatches = () => {
@@ -109,12 +115,6 @@ export function IndividualLeagueScreen({
     }
     return false;
   };
-
-  // 플레이어 다음 경기 존재 여부
-  const hasNextPlayerMatch = useCallback(() => {
-    const nextMatch = getNextPlayerMatch();
-    return nextMatch !== null;
-  }, [getNextPlayerMatch]);
 
   // 라운드 이름 가져오기
   const getRoundName = (status: string) => {
@@ -237,7 +237,7 @@ export function IndividualLeagueScreen({
   // 리그 진행 중
   const playerStatuses = getPlayerCardStatuses();
   const roundComplete = isRoundComplete();
-  const canPlayNextMatch = !roundComplete && hasNextPlayerMatch();
+  const canPlayNextMatch = !roundComplete && hasNextMatch;
 
   return (
     <div className="min-h-screen bg-bg-primary p-4">
