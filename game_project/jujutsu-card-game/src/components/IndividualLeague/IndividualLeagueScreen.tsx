@@ -350,7 +350,10 @@ export function IndividualLeagueScreen({
             {!roundComplete && hasNextPlayerMatch() && (
               <Button
                 variant="primary"
-                onClick={handleNextMatch}
+                onClick={() => {
+                  console.log('>>> 버튼 클릭됨! <<<');
+                  handleNextMatch();
+                }}
               >
                 ⚔️ 다음 경기 진행
               </Button>
