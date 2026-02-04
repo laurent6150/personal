@@ -981,11 +981,22 @@ export interface TradeState {
 export type IndividualLeagueStatus =
   | 'NOT_STARTED'
   | 'ROUND_32'
+  | 'ROUND_16_NOMINATION'  // 16강 지명 단계
   | 'ROUND_16'
   | 'QUARTER'
   | 'SEMI'
   | 'FINAL'
   | 'FINISHED';
+
+// 16강 지명 단계
+export interface NominationStep {
+  groupId: string;           // 조 ID ('A' ~ 'H')
+  nominatorId: string | null;  // 지명하는 참가자 ID
+  nominatorPosition: number;   // 지명자의 조 내 순서 (1=시드, 2, 3)
+  targetPosition: number;      // 지명할 위치 (2, 3, 4)
+  nomineeId: string | null;    // 지명된 참가자 ID
+  isCompleted: boolean;        // 지명 완료 여부
+}
 
 // 개인 리그 매치 형식
 export type LeagueMatchFormat = '1WIN' | '2WIN' | '3WIN';
@@ -1000,6 +1011,11 @@ export interface LeagueParticipant {
   // 토너먼트 진행 상태
   status: 'ACTIVE' | 'ELIMINATED';
   eliminatedAt?: IndividualLeagueStatus;  // 탈락 라운드
+  // 성적 (Phase 3 - 시드 결정용)
+  wins?: number;          // 총 승리 수
+  losses?: number;        // 총 패배 수
+  dominantWins?: number;  // 압승 횟수 (HP 70% 이상 남기고 승리)
+  totalStats?: number;    // 총 스탯
 }
 
 // 개인 리그 매치
@@ -1014,12 +1030,13 @@ export interface IndividualMatch {
   arenas?: string[];      // 사용된 경기장 ID들
 }
 
-// 개인 리그 조
+// 개인 리그 조 (16강 - 4명 조별 리그)
 export interface LeagueGroup {
   id: string;             // 'A' ~ 'H'
-  participants: string[]; // 참가자 odId 2명
+  participants: string[]; // 참가자 odId (4명 - 시드 + 지명된 3명)
+  seedId: string | null;  // 시드 참가자 ID
   matches: IndividualMatch[];
-  winner: string | null;  // 2선승한 참가자
+  winner: string | null;  // 조 우승자
   // 각 참가자별 승리 수
   winsCount: Record<string, number>;
 }
@@ -1047,6 +1064,10 @@ export interface IndividualLeague {
     finalResult: IndividualLeagueStatus;  // 탈락 라운드
     rewardClaimed: boolean;
   }[];
+  // 16강 지명 시스템 (Phase 3)
+  nominationSteps?: NominationStep[];      // 지명 단계들 (24단계)
+  currentNominationIndex?: number;          // 현재 지명 단계
+  round16Seeds?: string[];                  // 16강 시드 (32강 우승자 8명)
 }
 
 // 개인 리그 히스토리
@@ -1086,11 +1107,12 @@ export const INDIVIDUAL_LEAGUE_REWARDS: Record<IndividualLeagueStatus, {
   badge?: string;
 }> = {
   'NOT_STARTED': { exp: 0 },
-  'ROUND_32': { exp: 50 },        // 32강 탈락
-  'ROUND_16': { exp: 100 },       // 16강 진출
-  'QUARTER': { exp: 200 },        // 8강 진출
-  'SEMI': { exp: 300 },           // 4강 진출
-  'FINAL': { exp: 500 },          // 결승 진출 (준우승)
+  'ROUND_32': { exp: 50 },              // 32강 탈락
+  'ROUND_16_NOMINATION': { exp: 75 },   // 16강 지명 (지명됨)
+  'ROUND_16': { exp: 100 },             // 16강 진출
+  'QUARTER': { exp: 200 },              // 8강 진출
+  'SEMI': { exp: 300 },                 // 4강 진출
+  'FINAL': { exp: 500 },                // 결승 진출 (준우승)
   'FINISHED': { exp: 1000, title: '챔피언', badge: '🏆' }  // 우승
 };
 

@@ -12,6 +12,8 @@ import { CHARACTERS_BY_ID } from '../../data/characters';
 import { TournamentBracket } from './TournamentBracket';
 import { GroupStageView } from './GroupStageView';
 import { PlayerCardStatus } from './PlayerCardStatus';
+import { NominationScreen } from './NominationScreen';
+import { Round16Bracket } from './Round16Bracket';
 
 interface IndividualLeagueScreenProps {
   onStartMatch?: (playerCardId: string, opponentId: string, matchId: string) => void;
@@ -48,6 +50,7 @@ export function IndividualLeagueScreen({
 
   const [showBracket, setShowBracket] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
+  const [showRound16Bracket, setShowRound16Bracket] = useState(false);
 
   // 리그 시작
   const handleStartLeague = () => {
@@ -113,6 +116,7 @@ export function IndividualLeagueScreen({
     const names: Record<string, string> = {
       'NOT_STARTED': '시작 전',
       'ROUND_32': '32강',
+      'ROUND_16_NOMINATION': '16강 지명',
       'ROUND_16': '16강 (A~H조)',
       'QUARTER': '8강',
       'SEMI': '4강',
@@ -271,6 +275,13 @@ export function IndividualLeagueScreen({
           </motion.div>
         )}
 
+        {/* 16강 지명 단계 */}
+        {currentLeague.status === 'ROUND_16_NOMINATION' && (
+          <div className="bg-bg-secondary rounded-xl border border-white/10 p-4 mb-4">
+            <NominationScreen />
+          </div>
+        )}
+
         {/* 내 카드 현황 */}
         <div className="bg-bg-secondary rounded-xl border border-white/10 p-4 mb-4">
           <div className="text-sm font-bold text-text-primary mb-3">
@@ -292,7 +303,7 @@ export function IndividualLeagueScreen({
         </div>
 
         {/* 액션 버튼 */}
-        {currentLeague.status !== 'FINISHED' && (
+        {currentLeague.status !== 'FINISHED' && currentLeague.status !== 'ROUND_16_NOMINATION' && (
           <div className="flex flex-wrap justify-center gap-3 mb-4">
             <Button
               variant="ghost"
@@ -302,12 +313,20 @@ export function IndividualLeagueScreen({
             </Button>
 
             {currentLeague.status === 'ROUND_16' && (
-              <Button
-                variant="ghost"
-                onClick={() => setShowGroups(true)}
-              >
-                📊 조별 현황
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowRound16Bracket(true)}
+                >
+                  📊 16강 대진표
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowGroups(true)}
+                >
+                  📊 조별 현황
+                </Button>
+              </>
             )}
 
             {!roundComplete && hasNextPlayerMatch() && (
@@ -354,6 +373,11 @@ export function IndividualLeagueScreen({
             participants={currentLeague.participants}
             onClose={() => setShowGroups(false)}
           />
+        )}
+
+        {/* 16강 대진표 모달 */}
+        {showRound16Bracket && currentLeague.status === 'ROUND_16' && (
+          <Round16Bracket onClose={() => setShowRound16Bracket(false)} />
         )}
       </div>
     </div>

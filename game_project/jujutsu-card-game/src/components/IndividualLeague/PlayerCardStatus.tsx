@@ -24,6 +24,7 @@ export function PlayerCardStatus({
   const stageNames: Record<IndividualLeagueStatus, string> = {
     'NOT_STARTED': '대기',
     'ROUND_32': '32강',
+    'ROUND_16_NOMINATION': '16강 지명',
     'ROUND_16': '16강',
     'QUARTER': '8강',
     'SEMI': '4강',

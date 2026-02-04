@@ -142,7 +142,7 @@ function generateRound32Matches(participants: LeagueParticipant[]): IndividualMa
 
 /**
  * 16강 조별 리그 생성 (A~H 8개 조)
- * 32강 승자 16명을 8개 조에 2명씩 배정
+ * 32강 승자 16명을 8개 조에 배정 (Phase 3에서는 지명 시스템으로 배정)
  */
 function generateRound16Groups(): LeagueGroup[] {
   const groups: LeagueGroup[] = [];
@@ -151,7 +151,8 @@ function generateRound16Groups(): LeagueGroup[] {
   for (const groupId of groupIds) {
     groups.push({
       id: groupId,
-      participants: [],  // 32강 결과 후 배정
+      participants: [],  // 지명 단계에서 배정
+      seedId: null,      // 지명 단계에서 설정
       matches: [],
       winner: null,
       winsCount: {}
@@ -181,7 +182,7 @@ export function generateInitialBrackets(participants: LeagueParticipant[]): Indi
 /**
  * 캐릭터 총 스탯 계산
  */
-function calculateTotalStat(card: CharacterCard): number {
+export function calculateTotalStat(card: CharacterCard): number {
   const stats = card.baseStats;
   return (stats.atk || 0) + (stats.def || 0) + (stats.spd || 0) +
          (stats.ce || 0) + (stats.hp || 0);
@@ -611,7 +612,8 @@ export function isRoundComplete(league: IndividualLeague): boolean {
 export function getNextRoundStatus(current: IndividualLeagueStatus): IndividualLeagueStatus {
   const progression: Record<IndividualLeagueStatus, IndividualLeagueStatus> = {
     'NOT_STARTED': 'ROUND_32',
-    'ROUND_32': 'ROUND_16',
+    'ROUND_32': 'ROUND_16_NOMINATION',  // Phase 3: 32강 후 지명 단계
+    'ROUND_16_NOMINATION': 'ROUND_16',
     'ROUND_16': 'QUARTER',
     'QUARTER': 'SEMI',
     'SEMI': 'FINAL',
