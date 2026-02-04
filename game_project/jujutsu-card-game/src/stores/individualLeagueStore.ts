@@ -582,14 +582,17 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 카드 지명 (내 카드가 지명할 때)
       nominateCard: (nomineeId: string) => {
-        const { currentLeague, getPlayerCrewIds } = get();
+        const { currentLeague } = get();
         if (!currentLeague || !currentLeague.nominationSteps) return;
 
         const currentIndex = currentLeague.currentNominationIndex ?? 0;
         const currentStep = currentLeague.nominationSteps[currentIndex];
-        if (!currentStep || currentStep.isCompleted) return;
+        if (!currentStep || currentStep.isCompleted) {
+          console.log('[nominateCard] 현재 스텝 없거나 완료됨');
+          return;
+        }
 
-        const playerCardIds = getPlayerCrewIds();
+        console.log(`[nominateCard] ${currentStep.nominatorId}가 ${nomineeId}를 지명`);
 
         // 지명 완료 처리
         const updatedSteps = [...currentLeague.nominationSteps];
@@ -605,7 +608,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           const nextStep = updatedSteps[nextStepIndex];
 
           // 같은 조의 다음 단계면 지명자 설정
-          if (nextStep.groupId === currentStep.groupId) {
+          if (nextStep.groupId === currentStep.groupId && nextStep.nominatorPosition > 1) {
             updatedSteps[nextStepIndex] = {
               ...nextStep,
               nominatorId: nomineeId,
@@ -624,6 +627,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return g;
         });
 
+        // 상태 업데이트
         set({
           currentLeague: {
             ...currentLeague,
@@ -636,32 +640,37 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           },
         });
 
-        // 자동 지명 체크 (다음 지명자가 내 카드가 아니면)
-        if (nextStepIndex < updatedSteps.length) {
-          const nextStep = updatedSteps[nextStepIndex];
-          if (nextStep.nominatorId && !playerCardIds.includes(nextStep.nominatorId)) {
-            // 약간의 딜레이 후 자동 지명
-            setTimeout(() => get().autoNominate(), 800);
-          }
-        } else {
-          // 모든 지명 완료
-          setTimeout(() => get().completeNomination(), 500);
+        console.log(`[nominateCard] 다음 인덱스: ${nextStepIndex}, 총 스텝: ${updatedSteps.length}`);
+
+        // 지명 완료 체크 (모든 스텝 완료 시)
+        if (nextStepIndex >= updatedSteps.length) {
+          console.log('[nominateCard] 모든 지명 완료');
+          setTimeout(() => get().completeNomination(), 300);
         }
+        // AI 자동 지명은 NominationScreen의 useEffect에서 처리
       },
 
-      // AI 자동 지명
+      // AI 자동 지명 (직접 상태 업데이트)
       autoNominate: () => {
-        const { currentLeague, getAvailableForNomination, nominateCard } = get();
-        if (!currentLeague || !currentLeague.nominationSteps) return;
+        const { currentLeague, getAvailableForNomination } = get();
+        if (!currentLeague || !currentLeague.nominationSteps) {
+          console.log('[autoNominate] 리그 또는 지명 스텝 없음');
+          return;
+        }
 
         const currentIndex = currentLeague.currentNominationIndex ?? 0;
         const currentStep = currentLeague.nominationSteps[currentIndex];
-        if (!currentStep || currentStep.isCompleted) return;
+        if (!currentStep || currentStep.isCompleted) {
+          console.log('[autoNominate] 현재 스텝 없거나 완료됨');
+          return;
+        }
 
         const availableCards = getAvailableForNomination();
 
         if (availableCards.length === 0) {
-          console.error('지명 가능한 카드가 없습니다');
+          console.error('[autoNominate] 지명 가능한 카드가 없습니다');
+          // 지명 완료 체크
+          get().completeNomination();
           return;
         }
 
@@ -671,8 +680,62 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         );
         const nomineeId = sorted[0].odId;
 
-        // 지명 처리
-        nominateCard(nomineeId);
+        console.log(`[autoNominate] ${currentStep.nominatorId}가 ${nomineeId}를 지명`);
+
+        // 직접 상태 업데이트 (nominateCard 호출 대신)
+        const updatedSteps = [...currentLeague.nominationSteps];
+        updatedSteps[currentIndex] = {
+          ...currentStep,
+          nomineeId,
+          isCompleted: true,
+        };
+
+        // 다음 지명자 설정
+        const nextStepIndex = currentIndex + 1;
+        if (nextStepIndex < updatedSteps.length) {
+          const nextStep = updatedSteps[nextStepIndex];
+
+          // 같은 조의 다음 단계면 지명자 설정
+          if (nextStep.groupId === currentStep.groupId && nextStep.nominatorPosition > 1) {
+            updatedSteps[nextStepIndex] = {
+              ...nextStep,
+              nominatorId: nomineeId,
+            };
+          }
+        }
+
+        // 16강 조에 참가자 추가
+        const updatedGroups = currentLeague.brackets.round16.map(g => {
+          if (g.id === currentStep.groupId) {
+            return {
+              ...g,
+              participants: [...g.participants, nomineeId],
+            };
+          }
+          return g;
+        });
+
+        // 상태 업데이트
+        set({
+          currentLeague: {
+            ...currentLeague,
+            nominationSteps: updatedSteps,
+            currentNominationIndex: nextStepIndex,
+            brackets: {
+              ...currentLeague.brackets,
+              round16: updatedGroups,
+            },
+          },
+        });
+
+        console.log(`[autoNominate] 다음 인덱스: ${nextStepIndex}, 총 스텝: ${updatedSteps.length}`);
+
+        // 지명 완료 체크
+        if (nextStepIndex >= updatedSteps.length) {
+          console.log('[autoNominate] 모든 지명 완료');
+          setTimeout(() => get().completeNomination(), 300);
+        }
+        // 다음 AI 지명은 NominationScreen의 useEffect에서 처리
       },
 
       // 지명 완료 처리

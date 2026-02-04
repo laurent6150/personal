@@ -62,8 +62,21 @@ export function IndividualLeagueScreen({
   // 다음 경기 진행
   const handleNextMatch = () => {
     const nextMatch = getNextPlayerMatch();
-    if (nextMatch && nextMatch.playerCardId && nextMatch.opponentId && onStartMatch) {
-      onStartMatch(nextMatch.playerCardId, nextMatch.opponentId, nextMatch.match!.id);
+    if (!nextMatch) {
+      console.log('[handleNextMatch] 다음 경기 없음');
+      return;
+    }
+
+    console.log('[handleNextMatch] 다음 경기:', nextMatch);
+
+    // onStartMatch 콜백이 있으면 전투 화면으로 이동
+    if (nextMatch.playerCardId && nextMatch.opponentId && nextMatch.match && onStartMatch) {
+      console.log('[handleNextMatch] 전투 화면으로 이동');
+      onStartMatch(nextMatch.playerCardId, nextMatch.opponentId, nextMatch.match.id);
+    } else {
+      // 콜백이 없으면 시뮬레이션으로 대체
+      console.log('[handleNextMatch] 시뮬레이션으로 대체');
+      simulateAllRemainingMatches();
     }
   };
 
