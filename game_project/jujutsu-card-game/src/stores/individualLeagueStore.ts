@@ -442,6 +442,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const { currentLeague } = get();
         if (!currentLeague) return;
 
+        console.log('[startNomination] === 16강 지명 시작 ===');
+
         // 32강 통과자 수집 (각 경기 승자)
         const advancerIds: string[] = [];
         for (const match of currentLeague.brackets.round32) {
@@ -449,6 +451,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             advancerIds.push(match.winner);
           }
         }
+
+        console.log(`[startNomination] 32강 통과자: ${advancerIds.length}명`);
 
         // 참가자 정보 업데이트 (totalStats 계산)
         const updatedParticipants = currentLeague.participants.map(p => {
@@ -469,6 +473,12 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           }
         }
 
+        // 32강 탈락자 수 확인
+        const eliminated = updatedParticipants.filter(p =>
+          p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32'
+        );
+        console.log(`[startNomination] 32강 탈락자: ${eliminated.length}명`);
+
         // 시드 결정 (승리수 → 압승수 → 총능력치)
         const advancerParticipants = advancerIds.map(id =>
           updatedParticipants.find(p => p.odId === id)!
@@ -481,6 +491,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         });
 
         const round16Seeds = sortedSeeds.slice(0, 8).map(p => p.odId);
+        const nonSeedWinners = advancerIds.filter(id => !round16Seeds.includes(id));
+
+        console.log(`[startNomination] 시드 (상위 8명): ${round16Seeds.length}명`);
+        console.log(`[startNomination] 비시드 승자 (하위 8명): ${nonSeedWinners.length}명`);
+        console.log(`[startNomination] 지명 가능 총합: ${eliminated.length + nonSeedWinners.length}명 (24명이어야 함)`);
 
         // 지명 순서 생성 (A조 → B조 → ... → H조, 각 조 3번씩)
         const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -559,25 +574,37 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const { currentLeague } = get();
         if (!currentLeague || !currentLeague.nominationSteps) return [];
 
-        // 이미 지명된 카드 ID
-        const nominatedIds = new Set<string>();
+        // 이미 지명/배정된 카드 ID
+        const assignedIds = new Set<string>();
 
-        // 조에 이미 배정된 참가자
+        // 조에 이미 배정된 참가자 (시드 포함)
         currentLeague.brackets.round16.forEach(g => {
-          g.participants.forEach(id => nominatedIds.add(id));
+          g.participants.forEach(id => assignedIds.add(id));
         });
 
         // 지명 단계에서 지명된 참가자
         currentLeague.nominationSteps.forEach(step => {
-          if (step.nomineeId) nominatedIds.add(step.nomineeId);
+          if (step.nomineeId) assignedIds.add(step.nomineeId);
         });
 
-        // 지명 가능한 카드 (32강 탈락자 중 아직 지명 안 된 카드)
-        return currentLeague.participants.filter(p =>
-          p.status === 'ELIMINATED' &&
-          p.eliminatedAt === 'ROUND_32' &&
-          !nominatedIds.has(p.odId)
-        );
+        // 시드 ID 목록
+        const seedIds = new Set(currentLeague.round16Seeds || []);
+
+        // 지명 가능한 카드:
+        // 1. 32강 탈락자 (16명)
+        // 2. 32강 통과자 중 시드가 아닌 자 (8명) - ACTIVE 상태
+        return currentLeague.participants.filter(p => {
+          // 이미 배정됨
+          if (assignedIds.has(p.odId)) return false;
+
+          // 32강 탈락자
+          if (p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32') return true;
+
+          // 32강 통과자 중 시드가 아닌 자 (비시드 승자)
+          if (p.status === 'ACTIVE' && !seedIds.has(p.odId)) return true;
+
+          return false;
+        });
       },
 
       // 카드 지명 (내 카드가 지명할 때)
@@ -665,10 +692,26 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return;
         }
 
+        console.log(`[autoNominate] === 지명 ${currentIndex + 1}/${currentLeague.nominationSteps.length} ===`);
+        console.log(`[autoNominate] 지명자: ${currentStep.nominatorId}, 조: ${currentStep.groupId}`);
+
         const availableCards = getAvailableForNomination();
+        console.log(`[autoNominate] 지명 가능 카드 수: ${availableCards.length}`);
 
         if (availableCards.length === 0) {
-          console.error('[autoNominate] 지명 가능한 카드가 없습니다');
+          console.error('[autoNominate] ❌ 지명 가능한 카드가 없습니다!');
+          console.log('[autoNominate] 디버깅 정보:');
+          const seedIds = new Set(currentLeague.round16Seeds || []);
+          const eliminated = currentLeague.participants.filter(p =>
+            p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32'
+          );
+          const nonSeedWinners = currentLeague.participants.filter(p =>
+            p.status === 'ACTIVE' && !seedIds.has(p.odId)
+          );
+          console.log(`- 시드: ${seedIds.size}명`);
+          console.log(`- 32강 탈락자: ${eliminated.length}명`);
+          console.log(`- 비시드 승자: ${nonSeedWinners.length}명`);
+          console.log(`- 이미 배정된 카드:`, currentLeague.brackets.round16.flatMap(g => g.participants).length);
           // 지명 완료 체크
           get().completeNomination();
           return;
@@ -680,7 +723,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         );
         const nomineeId = sorted[0].odId;
 
-        console.log(`[autoNominate] ${currentStep.nominatorId}가 ${nomineeId}를 지명`);
+        console.log(`[autoNominate] ✅ ${currentStep.nominatorId}가 ${sorted[0].odName}(${nomineeId})를 지명`);
 
         // 직접 상태 업데이트 (nominateCard 호출 대신)
         const updatedSteps = [...currentLeague.nominationSteps];
