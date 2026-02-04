@@ -26,7 +26,6 @@ import {
   isRoundComplete,
   getNextRoundStatus,
   getPlayerCardStatuses,
-  updateGroupWins,
   calculateTotalStat
 } from '../utils/individualLeagueSystem';
 
@@ -120,39 +119,81 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           );
         }
 
-        // 16강 조별 경기
+        // 16강 조별 경기 (4인 토너먼트: 준결승 2경기 + 조 결승 1경기)
         if (status === 'ROUND_16') {
           updatedBrackets.round16 = updatedBrackets.round16.map(group => {
             const matchIndex = group.matches.findIndex(m => m.id === matchId);
             if (matchIndex === -1) return group;
 
-            const updatedMatches = group.matches.map(m =>
-              m.id === matchId
-                ? { ...m, winner, score, played: true }
-                : m
-            );
+            const updatedMatches = [...group.matches];
+            updatedMatches[matchIndex] = { ...updatedMatches[matchIndex], winner, score, played: true };
 
-            // 승리 수 업데이트
-            const updatedGroup = updateGroupWins(
-              { ...group, matches: updatedMatches },
-              { ...group.matches[matchIndex], winner, score, played: true }
-            );
+            // 준결승 경기인지 확인 (semi1 또는 semi2)
+            const isSemi1 = matchId.includes('_semi1');
+            const isSemi2 = matchId.includes('_semi2');
+            const isFinal = matchId.includes('_final');
 
-            // 2선승 미달 시 다음 경기 추가
-            if (!updatedGroup.winner && updatedMatches.length < 3) {
-              const [p1, p2] = group.participants;
-              updatedMatches.push({
-                id: `r16_${group.id}_${updatedMatches.length + 1}`,
-                participant1: p1,
-                participant2: p2,
-                winner: null,
-                score: { p1: 0, p2: 0 },
-                format: '2WIN',
-                played: false
-              });
+            // 조 결승 경기가 완료되면 조 승자 결정
+            if (isFinal) {
+              // 탈락자 처리 (조 결승 패자는 16강 탈락)
+              const loserId = winner === updatedMatches[matchIndex].participant1
+                ? updatedMatches[matchIndex].participant2
+                : updatedMatches[matchIndex].participant1;
+              const loserIdx = updatedParticipants.findIndex(p => p.odId === loserId);
+              if (loserIdx !== -1) {
+                updatedParticipants[loserIdx] = {
+                  ...updatedParticipants[loserIdx],
+                  status: 'ELIMINATED',
+                  eliminatedAt: 'ROUND_16'
+                };
+              }
+
+              return {
+                ...group,
+                matches: updatedMatches,
+                winner
+              };
             }
 
-            return { ...updatedGroup, matches: updatedMatches };
+            // 준결승 경기가 완료되면 조 결승 참가자 업데이트
+            if (isSemi1 || isSemi2) {
+              // 준결승 패자 탈락 처리
+              const loserId = winner === updatedMatches[matchIndex].participant1
+                ? updatedMatches[matchIndex].participant2
+                : updatedMatches[matchIndex].participant1;
+              const loserIdx = updatedParticipants.findIndex(p => p.odId === loserId);
+              if (loserIdx !== -1) {
+                updatedParticipants[loserIdx] = {
+                  ...updatedParticipants[loserIdx],
+                  status: 'ELIMINATED',
+                  eliminatedAt: 'ROUND_16'
+                };
+              }
+
+              // 조 결승 매치 찾기 (인덱스 2)
+              const finalMatchIdx = updatedMatches.findIndex(m => m.id.includes('_final'));
+              if (finalMatchIdx !== -1) {
+                const finalMatch = updatedMatches[finalMatchIdx];
+                // 준결승1 승자는 조 결승 participant1
+                // 준결승2 승자는 조 결승 participant2
+                if (isSemi1) {
+                  updatedMatches[finalMatchIdx] = {
+                    ...finalMatch,
+                    participant1: winner
+                  };
+                } else if (isSemi2) {
+                  updatedMatches[finalMatchIdx] = {
+                    ...finalMatch,
+                    participant2: winner
+                  };
+                }
+              }
+            }
+
+            return {
+              ...group,
+              matches: updatedMatches
+            };
           });
         }
 
@@ -210,25 +251,48 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         }
 
         if (status === 'ROUND_16') {
+          // 4인 토너먼트 구조: 각 조별로 준결승 2경기 → 조 결승 1경기
           for (const group of currentLeague.brackets.round16) {
             // 조별 승자가 결정될 때까지 반복
-            while (!group.winner) {
-              const unplayedMatch = group.matches.find(m => !m.played);
-              if (unplayedMatch) {
-                const result = simulateMatch(
-                  unplayedMatch.participant1,
-                  unplayedMatch.participant2,
-                  unplayedMatch.format
-                );
-                playMatch(unplayedMatch.id, result.winner, result.score);
-                // 상태 갱신을 위해 다시 가져오기
-                const updatedLeague = get().currentLeague;
-                if (!updatedLeague) break;
-                const updatedGroup = updatedLeague.brackets.round16.find(g => g.id === group.id);
-                if (updatedGroup?.winner) break;
-              } else {
-                break;
+            let loopCount = 0;
+            const maxLoops = 10; // 무한 루프 방지
+
+            while (loopCount < maxLoops) {
+              loopCount++;
+
+              // 최신 상태 가져오기
+              const updatedLeague = get().currentLeague;
+              if (!updatedLeague) break;
+
+              const updatedGroup = updatedLeague.brackets.round16.find(g => g.id === group.id);
+              if (!updatedGroup) break;
+              if (updatedGroup.winner) break;
+
+              // 1. 먼저 준결승 경기 처리 (semi1, semi2)
+              const semi1 = updatedGroup.matches.find(m => m.id.includes('_semi1') && !m.played);
+              const semi2 = updatedGroup.matches.find(m => m.id.includes('_semi2') && !m.played);
+
+              if (semi1) {
+                const result = simulateMatch(semi1.participant1, semi1.participant2, semi1.format);
+                playMatch(semi1.id, result.winner, result.score);
+                continue;
               }
+
+              if (semi2) {
+                const result = simulateMatch(semi2.participant1, semi2.participant2, semi2.format);
+                playMatch(semi2.id, result.winner, result.score);
+                continue;
+              }
+
+              // 2. 준결승 완료 후 조 결승 처리
+              const finalMatch = updatedGroup.matches.find(m => m.id.includes('_final'));
+              if (finalMatch && !finalMatch.played && finalMatch.participant1 && finalMatch.participant2) {
+                const result = simulateMatch(finalMatch.participant1, finalMatch.participant2, finalMatch.format);
+                playMatch(finalMatch.id, result.winner, result.score);
+                continue;
+              }
+
+              break;
             }
           }
         }

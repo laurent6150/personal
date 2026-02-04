@@ -306,6 +306,8 @@ export function processRound32Results(
 
 /**
  * 16강 조별 결과 처리 및 8강 대진 생성
+ * 4인 토너먼트 구조: 각 조 승자 8명이 8강 진출
+ * (탈락자 처리는 playMatch에서 이미 처리됨)
  */
 export function processRound16Results(
   brackets: IndividualBrackets,
@@ -313,20 +315,10 @@ export function processRound16Results(
 ): { brackets: IndividualBrackets; participants: LeagueParticipant[] } {
   const quarterParticipants: string[] = [];
 
-  // 각 조 승자 수집 및 탈락자 처리
+  // 각 조 승자 수집 (탈락자 처리는 playMatch에서 이미 완료)
   for (const group of brackets.round16) {
     if (group.winner) {
       quarterParticipants.push(group.winner);
-
-      // 패배자 탈락 처리
-      const loserId = group.participants.find(p => p !== group.winner);
-      if (loserId) {
-        const loser = participants.find(p => p.odId === loserId);
-        if (loser) {
-          loser.status = 'ELIMINATED';
-          loser.eliminatedAt = 'ROUND_16';
-        }
-      }
     }
   }
 
@@ -515,16 +507,33 @@ export function findNextPlayerMatch(
 
   if (status === 'ROUND_16') {
     for (const group of league.brackets.round16) {
-      for (const match of group.matches) {
-        if (!match.played) {
-          const isP1Player = playerCardIds.includes(match.participant1);
-          const isP2Player = playerCardIds.includes(match.participant2);
+      // 4인 토너먼트: 준결승 먼저, 그 다음 조 결승
+      // 준결승 1, 2 먼저 체크
+      const semis = group.matches.filter(m => m.id.includes('_semi') && !m.played);
+      for (const match of semis) {
+        // 참가자가 유효한지 확인
+        if (!match.participant1 || !match.participant2) continue;
 
-          if (isP1Player || isP2Player) {
-            const playerCardId = isP1Player ? match.participant1 : match.participant2;
-            const opponentId = isP1Player ? match.participant2 : match.participant1;
-            return { match, matchType: 'round16', groupId: group.id, opponentId, playerCardId };
-          }
+        const isP1Player = playerCardIds.includes(match.participant1);
+        const isP2Player = playerCardIds.includes(match.participant2);
+
+        if (isP1Player || isP2Player) {
+          const playerCardId = isP1Player ? match.participant1 : match.participant2;
+          const opponentId = isP1Player ? match.participant2 : match.participant1;
+          return { match, matchType: 'round16', groupId: group.id, opponentId, playerCardId };
+        }
+      }
+
+      // 준결승 완료 후 조 결승 체크
+      const finalMatch = group.matches.find(m => m.id.includes('_final') && !m.played);
+      if (finalMatch && finalMatch.participant1 && finalMatch.participant2) {
+        const isP1Player = playerCardIds.includes(finalMatch.participant1);
+        const isP2Player = playerCardIds.includes(finalMatch.participant2);
+
+        if (isP1Player || isP2Player) {
+          const playerCardId = isP1Player ? finalMatch.participant1 : finalMatch.participant2;
+          const opponentId = isP1Player ? finalMatch.participant2 : finalMatch.participant1;
+          return { match: finalMatch, matchType: 'round16', groupId: group.id, opponentId, playerCardId };
         }
       }
     }
