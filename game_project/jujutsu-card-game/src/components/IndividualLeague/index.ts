@@ -9,3 +9,5 @@ export { GroupStageView } from './GroupStageView';
 export { NominationScreen } from './NominationScreen';
 export { NominationAlert } from './NominationAlert';
 export { Round16Bracket } from './Round16Bracket';
+export { KnockoutBracket } from './KnockoutBracket';
+export { LeagueFinishedScreen } from './LeagueFinishedScreen';

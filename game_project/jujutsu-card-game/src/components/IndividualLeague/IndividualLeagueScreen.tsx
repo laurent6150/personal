@@ -8,12 +8,13 @@ import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { Button } from '../UI/Button';
-import { CHARACTERS_BY_ID } from '../../data/characters';
 import { TournamentBracket } from './TournamentBracket';
 import { GroupStageView } from './GroupStageView';
 import { PlayerCardStatus } from './PlayerCardStatus';
 import { NominationScreen } from './NominationScreen';
 import { Round16Bracket } from './Round16Bracket';
+import { KnockoutBracket } from './KnockoutBracket';
+import { LeagueFinishedScreen } from './LeagueFinishedScreen';
 
 interface IndividualLeagueScreenProps {
   onStartMatch?: (playerCardId: string, opponentId: string, matchId: string) => void;
@@ -32,8 +33,7 @@ export function IndividualLeagueScreen({
     simulateAllRemainingMatches,
     advanceRound,
     getNextPlayerMatch,
-    getPlayerCardStatuses,
-    finishLeague
+    getPlayerCardStatuses
   } = useIndividualLeagueStore(useShallow(state => ({
     currentLeague: state.currentLeague,
     currentSeason: state.currentSeason,
@@ -42,8 +42,7 @@ export function IndividualLeagueScreen({
     simulateAllRemainingMatches: state.simulateAllRemainingMatches,
     advanceRound: state.advanceRound,
     getNextPlayerMatch: state.getNextPlayerMatch,
-    getPlayerCardStatuses: state.getPlayerCardStatuses,
-    finishLeague: state.finishLeague
+    getPlayerCardStatuses: state.getPlayerCardStatuses
   })));
 
   const playerCrew = useSeasonStore(state => state.playerCrew);
@@ -51,6 +50,7 @@ export function IndividualLeagueScreen({
   const [showBracket, setShowBracket] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
+  const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
 
   // 리그 시작
   const handleStartLeague = () => {
@@ -75,11 +75,6 @@ export function IndividualLeagueScreen({
   // 다음 라운드로
   const handleAdvanceRound = () => {
     advanceRound();
-  };
-
-  // 리그 종료
-  const handleFinishLeague = () => {
-    finishLeague();
   };
 
   // 라운드 완료 여부
@@ -257,22 +252,7 @@ export function IndividualLeagueScreen({
 
         {/* 리그 종료 시 */}
         {currentLeague.status === 'FINISHED' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 mb-6 text-center"
-          >
-            <div className="text-4xl mb-2">🏆</div>
-            <div className="text-xl font-bold text-yellow-400 mb-2">
-              챔피언: {CHARACTERS_BY_ID[currentLeague.champion!]?.name.ko || '???'}
-            </div>
-            <div className="text-text-secondary mb-4">
-              준우승: {CHARACTERS_BY_ID[currentLeague.runnerUp!]?.name.ko || '???'}
-            </div>
-            <Button variant="primary" onClick={handleFinishLeague}>
-              리그 종료 및 보상 수령
-            </Button>
-          </motion.div>
+          <LeagueFinishedScreen onFinish={onBack} />
         )}
 
         {/* 16강 지명 단계 */}
@@ -329,6 +309,15 @@ export function IndividualLeagueScreen({
               </>
             )}
 
+            {(currentLeague.status === 'QUARTER' || currentLeague.status === 'SEMI' || currentLeague.status === 'FINAL') && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowKnockoutBracket(true)}
+              >
+                📊 토너먼트 대진표
+              </Button>
+            )}
+
             {!roundComplete && hasNextPlayerMatch() && (
               <Button
                 variant="primary"
@@ -378,6 +367,11 @@ export function IndividualLeagueScreen({
         {/* 16강 대진표 모달 */}
         {showRound16Bracket && currentLeague.status === 'ROUND_16' && (
           <Round16Bracket onClose={() => setShowRound16Bracket(false)} />
+        )}
+
+        {/* 8강/4강/결승 대진표 모달 */}
+        {showKnockoutBracket && (currentLeague.status === 'QUARTER' || currentLeague.status === 'SEMI' || currentLeague.status === 'FINAL') && (
+          <KnockoutBracket onClose={() => setShowKnockoutBracket(false)} />
         )}
       </div>
     </div>
