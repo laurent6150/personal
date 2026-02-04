@@ -171,12 +171,18 @@ export function useBattle() {
 
   // 밴픽 모드로 게임 시작 (customPlayerCrew: 개인 리그 1v1용)
   const handleStartGameWithBanPick = useCallback((aiCrew: string[], difficulty: Difficulty, customPlayerCrew?: string[]) => {
+    console.log('🔥🔥🔥 NEW CODE v2 - startGameWithBanPick 🔥🔥🔥');
+    console.log('받은 파라미터:', { aiCrewLen: aiCrew?.length, difficulty, customPlayerCrewLen: customPlayerCrew?.length });
+
     // 커스텀 플레이어 크루가 있으면 사용 (개인 리그 1v1)
     const crew = customPlayerCrew || (playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew);
+    console.log('사용할 crew:', crew?.length, 'CREW_SIZE:', CREW_SIZE);
+
     if (crew.length !== CREW_SIZE || aiCrew.length !== CREW_SIZE) {
-      console.error('크루 사이즈가 맞지 않습니다. player:', crew.length, 'ai:', aiCrew.length);
+      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', CREW_SIZE);
       return false;
     }
+    console.log('✅ initBanPick 호출');
     initBanPick(crew, aiCrew, difficulty);
     return true;
   }, [playerCrew, player.currentCrew, initBanPick]);

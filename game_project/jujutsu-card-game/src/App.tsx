@@ -93,9 +93,9 @@ function App() {
       return;
     }
 
-    // 1v1 배틀을 위해 같은 카드를 5장으로 만들어서 크루 구성
-    const playerCrew = [playerCardId, playerCardId, playerCardId, playerCardId, playerCardId];
-    const opponentCrew = [opponentId, opponentId, opponentId, opponentId, opponentId];
+    // 1v1 배틀을 위해 같은 카드를 6장으로 만들어서 크루 구성 (CREW_SIZE = 6)
+    const playerCrew = [playerCardId, playerCardId, playerCardId, playerCardId, playerCardId, playerCardId];
+    const opponentCrew = [opponentId, opponentId, opponentId, opponentId, opponentId, opponentId];
 
     // 개인 리그 컨텍스트 저장
     setIndividualLeagueMatch({
