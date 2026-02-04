@@ -93,8 +93,8 @@ function App() {
       return;
     }
 
-    // 1v1 배틀을 위해 같은 카드를 5장으로 만들어서 상대 크루 구성
-    // (플레이어 크루는 startGameWithBanPick 내부에서 seasonStore의 playerCrew 사용)
+    // 1v1 배틀을 위해 같은 카드를 5장으로 만들어서 크루 구성
+    const playerCrew = [playerCardId, playerCardId, playerCardId, playerCardId, playerCardId];
     const opponentCrew = [opponentId, opponentId, opponentId, opponentId, opponentId];
 
     // 개인 리그 컨텍스트 저장
@@ -106,8 +106,8 @@ function App() {
       opponentName: opponentCard.name.ko
     });
 
-    // 밴/픽 모드로 게임 시작 (NORMAL 난이도 사용)
-    const success = startGameWithBanPick(opponentCrew, 'NORMAL');
+    // 밴/픽 모드로 게임 시작 (NORMAL 난이도, 커스텀 플레이어 크루 전달)
+    const success = startGameWithBanPick(opponentCrew, 'NORMAL', playerCrew);
     if (success) {
       setCurrentPage('battle');
     }
