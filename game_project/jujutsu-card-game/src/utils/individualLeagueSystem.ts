@@ -483,7 +483,11 @@ export function findNextPlayerMatch(
     .filter(p => p.isPlayerCrew && p.status === 'ACTIVE')
     .map(p => p.odId);
 
+  console.log('[findNextPlayerMatch] 현재 상태:', league.status);
+  console.log('[findNextPlayerMatch] 활성 플레이어 카드:', playerCardIds);
+
   if (playerCardIds.length === 0) {
+    console.log('[findNextPlayerMatch] 활성 플레이어 카드 없음');
     return null;  // 모든 플레이어 카드 탈락
   }
 
@@ -491,6 +495,9 @@ export function findNextPlayerMatch(
   const status = league.status;
 
   if (status === 'ROUND_32') {
+    const unplayedMatches = league.brackets.round32.filter(m => !m.played);
+    console.log('[findNextPlayerMatch] 32강 미진행 경기 수:', unplayedMatches.length);
+
     for (const match of league.brackets.round32) {
       if (!match.played) {
         const isP1Player = playerCardIds.includes(match.participant1);
@@ -499,20 +506,29 @@ export function findNextPlayerMatch(
         if (isP1Player || isP2Player) {
           const playerCardId = isP1Player ? match.participant1 : match.participant2;
           const opponentId = isP1Player ? match.participant2 : match.participant1;
+          console.log('[findNextPlayerMatch] 32강 다음 경기 찾음:', { matchId: match.id, playerCardId, opponentId });
           return { match, matchType: 'round32', opponentId, playerCardId };
         }
       }
     }
+    console.log('[findNextPlayerMatch] 32강에서 플레이어 경기 없음');
   }
 
   if (status === 'ROUND_16') {
+    console.log('[findNextPlayerMatch] 16강 조 수:', league.brackets.round16.length);
+
     for (const group of league.brackets.round16) {
       // 4인 토너먼트: 준결승 먼저, 그 다음 조 결승
       // 준결승 1, 2 먼저 체크
       const semis = group.matches.filter(m => m.id.includes('_semi') && !m.played);
+      console.log(`[findNextPlayerMatch] ${group.id}조 미진행 준결승:`, semis.map(m => m.id));
+
       for (const match of semis) {
         // 참가자가 유효한지 확인
-        if (!match.participant1 || !match.participant2) continue;
+        if (!match.participant1 || !match.participant2) {
+          console.log(`[findNextPlayerMatch] ${match.id} 참가자 미설정`);
+          continue;
+        }
 
         const isP1Player = playerCardIds.includes(match.participant1);
         const isP2Player = playerCardIds.includes(match.participant2);
@@ -520,12 +536,17 @@ export function findNextPlayerMatch(
         if (isP1Player || isP2Player) {
           const playerCardId = isP1Player ? match.participant1 : match.participant2;
           const opponentId = isP1Player ? match.participant2 : match.participant1;
+          console.log('[findNextPlayerMatch] 16강 준결승 찾음:', { groupId: group.id, matchId: match.id, playerCardId, opponentId });
           return { match, matchType: 'round16', groupId: group.id, opponentId, playerCardId };
         }
       }
 
       // 준결승 완료 후 조 결승 체크
       const finalMatch = group.matches.find(m => m.id.includes('_final') && !m.played);
+      if (finalMatch) {
+        console.log(`[findNextPlayerMatch] ${group.id}조 결승:`, { p1: finalMatch.participant1, p2: finalMatch.participant2 });
+      }
+
       if (finalMatch && finalMatch.participant1 && finalMatch.participant2) {
         const isP1Player = playerCardIds.includes(finalMatch.participant1);
         const isP2Player = playerCardIds.includes(finalMatch.participant2);
@@ -533,10 +554,12 @@ export function findNextPlayerMatch(
         if (isP1Player || isP2Player) {
           const playerCardId = isP1Player ? finalMatch.participant1 : finalMatch.participant2;
           const opponentId = isP1Player ? finalMatch.participant2 : finalMatch.participant1;
+          console.log('[findNextPlayerMatch] 16강 조 결승 찾음:', { groupId: group.id, playerCardId, opponentId });
           return { match: finalMatch, matchType: 'round16', groupId: group.id, opponentId, playerCardId };
         }
       }
     }
+    console.log('[findNextPlayerMatch] 16강에서 플레이어 경기 없음');
   }
 
   if (status === 'QUARTER') {

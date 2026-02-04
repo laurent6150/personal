@@ -932,7 +932,21 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
     }),
     {
       name: 'individual-league-storage',
-      version: 2
+      version: 3,
+      migrate: (persistedState: unknown, version: number) => {
+        console.log('[IndividualLeague] 스토리지 마이그레이션:', { version, persistedState });
+        // 버전 2 이하에서 마이그레이션: 리그 초기화
+        if (version < 3) {
+          console.log('[IndividualLeague] 이전 버전 데이터 초기화');
+          return {
+            currentSeason: 1,
+            currentLeague: null,
+            history: [],
+            hallOfFame: []
+          };
+        }
+        return persistedState as IndividualLeagueState;
+      }
     }
   )
 );
