@@ -2,7 +2,7 @@
 // 개인 리그 메인 화면
 // ========================================
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -52,6 +52,9 @@ export function IndividualLeagueScreen({
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
   const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
 
+  // 버튼 ref - 직접 이벤트 바인딩용
+  const nextMatchBtnRef = useRef<HTMLButtonElement>(null);
+
   // 리그 시작
   const handleStartLeague = () => {
     if (playerCrew.length >= 5) {
@@ -59,8 +62,8 @@ export function IndividualLeagueScreen({
     }
   };
 
-  // 다음 경기 진행
-  const handleNextMatch = () => {
+  // 다음 경기 진행 - useCallback으로 안정화
+  const handleNextMatch = useCallback(() => {
     console.log('=== handleNextMatch 호출됨 ===');
 
     const nextMatch = getNextPlayerMatch();
@@ -94,7 +97,45 @@ export function IndividualLeagueScreen({
       });
       simulateAllRemainingMatches();
     }
-  };
+  }, [getNextPlayerMatch, onStartMatch, simulateAllRemainingMatches]);
+
+  // DOM 이벤트 직접 바인딩 (React 우회)
+  useEffect(() => {
+    const btn = nextMatchBtnRef.current;
+    if (!btn) return;
+
+    const handleClick = (e: MouseEvent) => {
+      console.log('[useEffect] DOM 클릭 이벤트 발생!', e);
+      alert('DOM 직접 클릭 감지됨!');
+      handleNextMatch();
+    };
+
+    console.log('[useEffect] 버튼에 이벤트 리스너 등록');
+    btn.addEventListener('click', handleClick);
+
+    return () => {
+      console.log('[useEffect] 버튼 이벤트 리스너 제거');
+      btn.removeEventListener('click', handleClick);
+    };
+  }, [handleNextMatch]);
+
+  // 전역 클릭 모니터링 (디버깅)
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      console.log('[GLOBAL] document 클릭 감지:', {
+        target: e.target,
+        currentTarget: e.currentTarget,
+        x: e.clientX,
+        y: e.clientY
+      });
+    };
+
+    document.addEventListener('click', handleGlobalClick, true); // capture phase
+
+    return () => {
+      document.removeEventListener('click', handleGlobalClick, true);
+    };
+  }, []);
 
   // 경기 스킵 (모두 시뮬레이션)
   const handleSkipMatches = () => {
@@ -361,8 +402,10 @@ export function IndividualLeagueScreen({
               </Button>
             )}
 
-            {/* 항상 렌더링 - 디버깅용 */}
+            {/* 항상 렌더링 - 디버깅용 + ref 바인딩 */}
             <button
+              ref={nextMatchBtnRef}
+              id="next-match-btn"
               type="button"
               disabled={roundComplete || !hasNextPlayerMatch()}
               onMouseDown={(e) => {
@@ -372,16 +415,16 @@ export function IndividualLeagueScreen({
                 console.log('>>> onMouseUp 발생! <<<', e.target);
               }}
               onClick={(e) => {
-                console.log('>>> 네이티브 버튼 클릭됨! <<<', e.target);
+                console.log('>>> React onClick 발생! <<<', e.target);
                 e.stopPropagation();
-                alert('버튼 클릭됨! handleNextMatch 호출 전');
+                alert('React onClick 감지됨!');
                 handleNextMatch();
               }}
               style={{
                 padding: '12px 24px',
                 backgroundColor: roundComplete || !hasNextPlayerMatch() ? '#888' : '#6366f1',
                 color: 'white',
-                border: 'none',
+                border: '3px solid yellow',
                 borderRadius: '8px',
                 cursor: roundComplete || !hasNextPlayerMatch() ? 'not-allowed' : 'pointer',
                 fontWeight: 'bold',
