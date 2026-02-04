@@ -308,10 +308,26 @@ export function IndividualLeagueScreen({
               <button
                 type="button"
                 onClick={() => {
+                  console.log('=== 버튼 클릭됨 ===');
                   const match = getNextPlayerMatch();
+                  console.log('찾은 경기:', match);
+                  console.log('onStartMatch 존재:', !!onStartMatch);
+
                   if (match?.playerCardId && match?.opponentId && match?.match && onStartMatch) {
+                    console.log('전투 화면으로 이동 시도:', {
+                      playerCardId: match.playerCardId,
+                      opponentId: match.opponentId,
+                      matchId: match.match.id
+                    });
                     onStartMatch(match.playerCardId, match.opponentId, match.match.id);
+                    console.log('onStartMatch 호출 완료');
                   } else {
+                    console.log('시뮬레이션으로 대체 - 조건 미충족:', {
+                      hasPlayerCardId: !!match?.playerCardId,
+                      hasOpponentId: !!match?.opponentId,
+                      hasMatch: !!match?.match,
+                      hasOnStartMatch: !!onStartMatch
+                    });
                     simulateAllRemainingMatches();
                   }
                 }}
