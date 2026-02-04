@@ -19,12 +19,23 @@ import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
 import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
+import { useIndividualLeagueStore } from './stores/individualLeagueStore';
+import { CHARACTERS_BY_ID } from './data/characters';
 
 type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague';
 
 interface LevelUpInfo {
   cardId: string;
   newLevel: number;
+}
+
+// 개인 리그 매치 컨텍스트
+interface IndividualLeagueMatchContext {
+  playerCardId: string;
+  opponentId: string;
+  matchId: string;
+  playerCardName: string;
+  opponentName: string;
 }
 
 function App() {
@@ -35,6 +46,9 @@ function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [achievementToast, setAchievementToast] = useState<string | null>(null);
   const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
+
+  // 개인 리그 배틀 컨텍스트
+  const [individualLeagueMatch, setIndividualLeagueMatch] = useState<IndividualLeagueMatchContext | null>(null);
 
   // 카드 상세로 이동 (반환 페이지 지정)
   const goToCardDetail = useCallback((cardId: string, returnPage: Page = 'collection') => {
@@ -53,6 +67,9 @@ function App() {
   const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
   const player = usePlayerStore(state => state.player);
 
+  // 개인 리그 스토어
+  const playIndividualLeagueMatch = useIndividualLeagueStore(state => state.playMatch);
+
   // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
   const handleStartMatch = useCallback((opponentCrewId: string) => {
     const opponent = getAICrewById(opponentCrewId);
@@ -66,10 +83,47 @@ function App() {
     }
   }, [startGameWithBanPick, getAICrewById]);
 
+  // 개인 리그 매치 시작
+  const handleStartIndividualLeagueMatch = useCallback((playerCardId: string, opponentId: string, matchId: string) => {
+    const playerCard = CHARACTERS_BY_ID[playerCardId];
+    const opponentCard = CHARACTERS_BY_ID[opponentId];
+
+    if (!playerCard || !opponentCard) {
+      console.error('[IndividualLeague] 카드를 찾을 수 없음:', playerCardId, opponentId);
+      return;
+    }
+
+    // 1v1 배틀을 위해 같은 카드를 5장으로 만들어서 상대 크루 구성
+    // (플레이어 크루는 startGameWithBanPick 내부에서 seasonStore의 playerCrew 사용)
+    const opponentCrew = [opponentId, opponentId, opponentId, opponentId, opponentId];
+
+    // 개인 리그 컨텍스트 저장
+    setIndividualLeagueMatch({
+      playerCardId,
+      opponentId,
+      matchId,
+      playerCardName: playerCard.name.ko,
+      opponentName: opponentCard.name.ko
+    });
+
+    // 밴/픽 모드로 게임 시작 (NORMAL 난이도 사용)
+    const success = startGameWithBanPick(opponentCrew, 'NORMAL');
+    if (success) {
+      setCurrentPage('battle');
+    }
+  }, [startGameWithBanPick]);
+
+  // 개인 리그 화면으로 돌아가기
+  const handleReturnToIndividualLeague = useCallback(() => {
+    setCurrentPage('individualLeague');
+    setIndividualLeagueMatch(null);
+  }, []);
+
   const handleReturnToSeasonHub = useCallback(() => {
     setCurrentPage('seasonHub');
     setSelectedCardId(null);
     setCurrentOpponent(null);
+    setIndividualLeagueMatch(null);
   }, []);
 
   const handleShowLevelUps = useCallback((levelUpData: LevelUpInfo[]) => {
@@ -237,7 +291,10 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             className="flex-1 w-full"
           >
-            <IndividualLeagueScreen onBack={handleReturnToSeasonHub} />
+            <IndividualLeagueScreen
+              onBack={handleReturnToSeasonHub}
+              onStartMatch={handleStartIndividualLeagueMatch}
+            />
           </motion.div>
         )}
 
@@ -250,11 +307,36 @@ function App() {
             className="flex-1 w-full"
           >
             <BattleScreen
-              onReturnToMenu={handleReturnToSeasonHub}
-              opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
+              onReturnToMenu={individualLeagueMatch ? handleReturnToIndividualLeague : handleReturnToSeasonHub}
+              opponentName={
+                individualLeagueMatch
+                  ? individualLeagueMatch.opponentName
+                  : (currentOpponent ? getAICrewById(currentOpponent)?.name : undefined)
+              }
               onBattleEnd={(result) => {
-                // 결과 기록 (정규시즌 vs 플레이오프) - 실제 점수 사용
-                if (currentOpponent) {
+                // 개인 리그 배틀인 경우
+                if (individualLeagueMatch) {
+                  const playerScore = result.playerScore;
+                  const opponentScore = result.aiScore;
+                  const winner = playerScore > opponentScore
+                    ? individualLeagueMatch.playerCardId
+                    : individualLeagueMatch.opponentId;
+
+                  // 개인 리그 결과 기록
+                  playIndividualLeagueMatch(
+                    individualLeagueMatch.matchId,
+                    winner,
+                    { p1: playerScore, p2: opponentScore }
+                  );
+
+                  console.log('[IndividualLeague] 배틀 결과:', {
+                    matchId: individualLeagueMatch.matchId,
+                    winner,
+                    score: { p1: playerScore, p2: opponentScore }
+                  });
+                }
+                // 시즌 시스템 배틀인 경우
+                else if (currentOpponent) {
                   // 실제 라운드 승리 점수 사용
                   const playerScore = result.playerScore;
                   const opponentScore = result.aiScore;
