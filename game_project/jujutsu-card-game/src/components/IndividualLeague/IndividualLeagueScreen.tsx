@@ -2,7 +2,7 @@
 // 개인 리그 메인 화면
 // ========================================
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -56,30 +56,6 @@ export function IndividualLeagueScreen({
   const handleStartLeague = () => {
     if (playerCrew.length >= 5) {
       startNewLeague(playerCrew, '내 크루');
-    }
-  };
-
-  // 플레이어 다음 경기 존재 여부 - useMemo로 캐싱
-  const nextPlayerMatch = useMemo(() => {
-    if (!currentLeague) return null;
-    return getNextPlayerMatch();
-  }, [currentLeague, getNextPlayerMatch]);
-
-  const hasNextMatch = nextPlayerMatch !== null;
-
-  // 다음 경기 진행
-  const handleNextMatch = () => {
-    if (!nextPlayerMatch) {
-      alert('진행할 경기가 없습니다.');
-      return;
-    }
-
-    // onStartMatch 콜백이 있으면 전투 화면으로 이동
-    if (nextPlayerMatch.playerCardId && nextPlayerMatch.opponentId && nextPlayerMatch.match && onStartMatch) {
-      onStartMatch(nextPlayerMatch.playerCardId, nextPlayerMatch.opponentId, nextPlayerMatch.match.id);
-    } else {
-      // 콜백이 없거나 데이터 누락 시 시뮬레이션으로 대체
-      simulateAllRemainingMatches();
     }
   };
 
@@ -237,7 +213,6 @@ export function IndividualLeagueScreen({
   // 리그 진행 중
   const playerStatuses = getPlayerCardStatuses();
   const roundComplete = isRoundComplete();
-  const canPlayNextMatch = !roundComplete && hasNextMatch;
 
   return (
     <div className="min-h-screen bg-bg-primary p-4">
@@ -329,13 +304,21 @@ export function IndividualLeagueScreen({
               </Button>
             )}
 
-            {canPlayNextMatch && (
-              <Button
-                variant="primary"
-                onClick={handleNextMatch}
+            {!roundComplete && (
+              <button
+                type="button"
+                onClick={() => {
+                  const match = getNextPlayerMatch();
+                  if (match?.playerCardId && match?.opponentId && match?.match && onStartMatch) {
+                    onStartMatch(match.playerCardId, match.opponentId, match.match.id);
+                  } else {
+                    simulateAllRemainingMatches();
+                  }
+                }}
+                className="px-4 py-2 bg-accent hover:bg-accent/80 text-white font-bold rounded-lg transition-colors"
               >
                 ⚔️ 다음 경기 진행
-              </Button>
+              </button>
             )}
 
             {!roundComplete && (
