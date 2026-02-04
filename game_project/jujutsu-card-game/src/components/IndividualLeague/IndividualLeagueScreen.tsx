@@ -402,12 +402,11 @@ export function IndividualLeagueScreen({
               </Button>
             )}
 
-            {/* 항상 렌더링 - 디버깅용 + ref 바인딩 */}
+            {/* 항상 렌더링 - disabled 완전 제거 */}
             <button
               ref={nextMatchBtnRef}
               id="next-match-btn"
               type="button"
-              disabled={roundComplete || !hasNextPlayerMatch()}
               onMouseDown={(e) => {
                 console.log('>>> onMouseDown 발생! <<<', e.target);
               }}
@@ -421,20 +420,19 @@ export function IndividualLeagueScreen({
                 handleNextMatch();
               }}
               style={{
-                padding: '12px 24px',
-                backgroundColor: roundComplete || !hasNextPlayerMatch() ? '#888' : '#6366f1',
+                padding: '16px 32px',
+                backgroundColor: '#22c55e',
                 color: 'white',
-                border: '3px solid yellow',
+                border: '4px solid red',
                 borderRadius: '8px',
-                cursor: roundComplete || !hasNextPlayerMatch() ? 'not-allowed' : 'pointer',
+                cursor: 'pointer',
                 fontWeight: 'bold',
-                fontSize: '16px',
-                zIndex: 9999,
-                position: 'relative',
-                opacity: roundComplete || !hasNextPlayerMatch() ? 0.5 : 1
+                fontSize: '18px',
+                zIndex: 99999,
+                position: 'relative'
               }}
             >
-              ⚔️ 다음 경기 진행 (hasNext: {hasNextPlayerMatch() ? 'YES' : 'NO'}, roundComplete: {roundComplete ? 'YES' : 'NO'})
+              🔥 다음 경기 진행 (hasNext: {String(hasNextPlayerMatch())}) 🔥
             </button>
 
             {!roundComplete && (
