@@ -718,10 +718,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return g;
         });
 
+        // 지명된 참가자 상태 업데이트: ELIMINATED → ACTIVE (16강 참가)
+        const updatedParticipants = currentLeague.participants.map(p => {
+          if (p.odId === nomineeId && p.status === 'ELIMINATED') {
+            console.log(`[nominateCard] ${p.odName} 상태 변경: ELIMINATED → ACTIVE (16강 지명)`);
+            return {
+              ...p,
+              status: 'ACTIVE' as const,
+              eliminatedAt: undefined, // 탈락 단계 초기화
+            };
+          }
+          return p;
+        });
+
         // 상태 업데이트
         set({
           currentLeague: {
             ...currentLeague,
+            participants: updatedParticipants,
             nominationSteps: updatedSteps,
             currentNominationIndex: nextStepIndex,
             brackets: {
@@ -785,9 +799,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const sorted = [...availableCards].sort((a, b) =>
           (a.totalStats || 0) - (b.totalStats || 0)
         );
-        const nomineeId = sorted[0].odId;
+        const nominee = sorted[0];
+        const nomineeId = nominee.odId;
 
-        console.log(`[autoNominate] ✅ ${currentStep.nominatorId}가 ${sorted[0].odName}(${nomineeId})를 지명`);
+        console.log(`[autoNominate] ✅ ${currentStep.nominatorId}가 ${nominee.odName}(${nomineeId})를 지명`);
 
         // 직접 상태 업데이트 (nominateCard 호출 대신)
         const updatedSteps = [...currentLeague.nominationSteps];
@@ -822,10 +837,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return g;
         });
 
+        // 지명된 참가자 상태 업데이트: ELIMINATED → ACTIVE (16강 참가)
+        const updatedParticipants = currentLeague.participants.map(p => {
+          if (p.odId === nomineeId && p.status === 'ELIMINATED') {
+            console.log(`[autoNominate] ${p.odName} 상태 변경: ELIMINATED → ACTIVE (16강 지명)`);
+            return {
+              ...p,
+              status: 'ACTIVE' as const,
+              eliminatedAt: undefined, // 탈락 단계 초기화
+            };
+          }
+          return p;
+        });
+
         // 상태 업데이트
         set({
           currentLeague: {
             ...currentLeague,
+            participants: updatedParticipants,
             nominationSteps: updatedSteps,
             currentNominationIndex: nextStepIndex,
             brackets: {
@@ -932,11 +961,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
     }),
     {
       name: 'individual-league-storage',
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, version: number) => {
         console.log('[IndividualLeague] 스토리지 마이그레이션:', { version, persistedState });
-        // 버전 2 이하에서 마이그레이션: 리그 초기화
-        if (version < 3) {
+        // 버전 3 이하에서 마이그레이션: 리그 초기화
+        if (version < 4) {
           console.log('[IndividualLeague] 이전 버전 데이터 초기화');
           return {
             currentSeason: 1,
