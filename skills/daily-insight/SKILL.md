@@ -1,3 +1,4 @@
+---
 name: daily-insight
 description: 매일 관심 분야의 양질의 콘텐츠를 WebSearch로 수집하여 마크다운 파일로 저장하는 스킬. 실행 트리거: "/daily-insight", "오늘 인사이트", "daily insight 수집". AI 활용, Self-Development, Growth Insights, Leadership, Teams 5개 카테고리에서 요일별로 2개 콘텐츠를 수집하여 GitHub 레포에 저장.
 ---
