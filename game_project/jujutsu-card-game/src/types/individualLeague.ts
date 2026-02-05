@@ -2,7 +2,7 @@
 // 개인 리그 1:1 배틀 타입 정의
 // ========================================
 
-import type { Attribute } from './index';
+import type { Attribute, LeagueMatchFormat } from './index';
 
 // 경기장 효과
 export interface ArenaEffect {
@@ -13,6 +13,26 @@ export interface ArenaEffect {
   penaltyAttribute: Attribute; // 페널티 받는 속성
   penaltyPercent: number;        // 페널티 퍼센트 (예: 5 = -5%)
   description: string;
+}
+
+// format에 따른 필요 승리 수 계산
+export function getRequiredWins(format: LeagueMatchFormat): number {
+  switch (format) {
+    case '1WIN': return 1;
+    case '2WIN': return 2;
+    case '3WIN': return 3;
+    default: return 1;
+  }
+}
+
+// format 표시 문자열
+export function getFormatDisplayText(format: LeagueMatchFormat): string {
+  switch (format) {
+    case '1WIN': return '단판';
+    case '2WIN': return '2선승';
+    case '3WIN': return '3선승';
+    default: return '단판';
+  }
 }
 
 // 배틀 턴 (한 턴의 결과)
@@ -57,9 +77,11 @@ export interface BattleState {
   playerCardId: string | null;
   opponentId: string | null;
   arena: ArenaEffect | null;
-  currentSet: number;       // 현재 세트 (1-based)
-  currentTurn: number;      // 현재 턴 (1-based)
-  sets: SetResult[];        // 완료된 세트들
+  format: LeagueMatchFormat;  // 경기 포맷 (1WIN, 2WIN, 3WIN)
+  requiredWins: number;       // 승리에 필요한 세트 수
+  currentSet: number;         // 현재 세트 (1-based)
+  currentTurn: number;        // 현재 턴 (1-based)
+  sets: SetResult[];          // 완료된 세트들
   currentSetTurns: BattleTurn[]; // 현재 세트의 턴들
   playerSetWins: number;
   opponentSetWins: number;
@@ -100,6 +122,8 @@ export const initialBattleState: BattleState = {
   playerCardId: null,
   opponentId: null,
   arena: null,
+  format: '1WIN',
+  requiredWins: 1,
   currentSet: 0,
   currentTurn: 0,
   sets: [],

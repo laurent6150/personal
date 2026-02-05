@@ -20,7 +20,8 @@ import type {
   SetResult,
   ArenaEffect
 } from '../types/individualLeague';
-import { initialBattleState } from '../types/individualLeague';
+import { initialBattleState, getRequiredWins } from '../types/individualLeague';
+import type { LeagueMatchFormat } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { getRandomArena, applyArenaEffect } from '../data/arenaEffects';
 import {
@@ -74,7 +75,7 @@ interface IndividualLeagueState {
   createRound16Matches: () => void;
 
   // 1:1 배틀 액션
-  startBattle: (matchId: string, playerCardId: string, opponentId: string) => void;
+  startBattle: (matchId: string, playerCardId: string, opponentId: string, format: import('../types').LeagueMatchFormat) => void;
   executeTurn: () => BattleTurn | null;
   executeSet: () => SetResult | null;
   finishBattle: () => IndividualMatchResult | null;
@@ -83,6 +84,8 @@ interface IndividualLeagueState {
     playerCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
     opponentCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
     arena: ArenaEffect | null;
+    format: LeagueMatchFormat;
+    requiredWins: number;
   };
 }
 
@@ -993,9 +996,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       // ========================================
 
       // 배틀 시작
-      startBattle: (matchId: string, playerCardId: string, opponentId: string) => {
+      startBattle: (matchId: string, playerCardId: string, opponentId: string, format: LeagueMatchFormat) => {
         const arena = getRandomArena();
-        console.log(`[Battle] 배틀 시작: ${playerCardId} vs ${opponentId}, 경기장: ${arena.name}`);
+        const requiredWins = getRequiredWins(format);
+        console.log(`[Battle] 배틀 시작: ${playerCardId} vs ${opponentId}, 경기장: ${arena.name}, 포맷: ${format} (${requiredWins}선승)`);
 
         set({
           currentBattleState: {
@@ -1004,6 +1008,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             playerCardId,
             opponentId,
             arena,
+            format,
+            requiredWins,
             currentSet: 1,
             currentTurn: 1,
             sets: [],
@@ -1074,46 +1080,46 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const playerTurnWins = newSetTurns.filter(t => t.winner === 'player').length;
         const opponentTurnWins = newSetTurns.filter(t => t.winner === 'opponent').length;
 
-        // 세트 승자 확인 (3판 2선승)
-        const setWinner = playerTurnWins >= 2 ? 'player' : opponentTurnWins >= 2 ? 'opponent' : null;
+        // 필요 승수 (format에 따라 결정)
+        const { requiredWins } = currentBattleState;
 
-        if (setWinner) {
-          // 세트 완료
+        // 경기 승자 확인 (requiredWins 기반)
+        const matchWinner = playerTurnWins >= requiredWins ? 'player' : opponentTurnWins >= requiredWins ? 'opponent' : null;
+
+        console.log(`[Battle] 현재 스코어: ${playerTurnWins}-${opponentTurnWins} (${requiredWins}선승)`);
+
+        if (matchWinner) {
+          // 경기 완료
           const setResult: SetResult = {
-            setNumber: currentBattleState.currentSet,
+            setNumber: 1,
             turns: newSetTurns,
             playerWins: playerTurnWins,
             opponentWins: opponentTurnWins,
-            winner: setWinner,
+            winner: matchWinner,
           };
 
-          const newPlayerSetWins = currentBattleState.playerSetWins + (setWinner === 'player' ? 1 : 0);
-          const newOpponentSetWins = currentBattleState.opponentSetWins + (setWinner === 'opponent' ? 1 : 0);
-
-          console.log(`[Battle] 세트 ${setResult.setNumber} 완료: ${setWinner} 승 (세트 스코어: ${newPlayerSetWins}-${newOpponentSetWins})`);
-
-          // 경기 승자 확인 (5판 3선승)
-          const matchWinner = newPlayerSetWins >= 3 ? 'player' : newOpponentSetWins >= 3 ? 'opponent' : null;
+          console.log(`[Battle] 경기 완료: ${matchWinner} 승 (${playerTurnWins}-${opponentTurnWins})`);
 
           set({
             currentBattleState: {
               ...currentBattleState,
-              sets: [...currentBattleState.sets, setResult],
-              currentSetTurns: [],
-              currentTurn: 1,
-              currentSet: currentBattleState.currentSet + 1,
-              playerSetWins: newPlayerSetWins,
-              opponentSetWins: newOpponentSetWins,
-              phase: matchWinner ? 'MATCH_END' : 'SET_END',
+              sets: [setResult],
+              currentSetTurns: newSetTurns,
+              currentTurn: currentBattleState.currentTurn + 1,
+              playerSetWins: playerTurnWins,
+              opponentSetWins: opponentTurnWins,
+              phase: 'MATCH_END',
             },
           });
         } else {
-          // 세트 진행 중
+          // 경기 진행 중
           set({
             currentBattleState: {
               ...currentBattleState,
               currentSetTurns: newSetTurns,
               currentTurn: currentBattleState.currentTurn + 1,
+              playerSetWins: playerTurnWins,
+              opponentSetWins: opponentTurnWins,
               phase: 'BATTLING',
             },
           });
@@ -1150,7 +1156,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return null;
         }
 
-        const matchWinner = currentBattleState.playerSetWins >= 3 ? 'player' : 'opponent';
+        const { requiredWins } = currentBattleState;
+        const matchWinner = currentBattleState.playerSetWins >= requiredWins ? 'player' : 'opponent';
         const winnerId = matchWinner === 'player'
           ? currentBattleState.playerCardId!
           : currentBattleState.opponentId!;
@@ -1196,7 +1203,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       getBattleStats: () => {
         const { currentBattleState } = get();
         if (!currentBattleState.isActive) {
-          return { playerCard: null, opponentCard: null, arena: null };
+          return { playerCard: null, opponentCard: null, arena: null, format: '1WIN' as LeagueMatchFormat, requiredWins: 1 };
         }
 
         const playerCard = currentBattleState.playerCardId ? CHARACTERS_BY_ID[currentBattleState.playerCardId] : null;
@@ -1204,7 +1211,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const arena = currentBattleState.arena;
 
         if (!playerCard || !opponentCard || !arena) {
-          return { playerCard: null, opponentCard: null, arena: null };
+          return { playerCard: null, opponentCard: null, arena: null, format: currentBattleState.format, requiredWins: currentBattleState.requiredWins };
         }
 
         const playerBasePower = calculateTotalStat(playerCard);
@@ -1228,6 +1235,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             arenaBonusPercent: opponentArenaEffect.bonusPercent,
           },
           arena,
+          format: currentBattleState.format,
+          requiredWins: currentBattleState.requiredWins,
         };
       },
     }),

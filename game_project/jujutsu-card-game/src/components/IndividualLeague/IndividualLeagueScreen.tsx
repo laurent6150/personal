@@ -17,7 +17,7 @@ import { KnockoutBracket } from './KnockoutBracket';
 import { LeagueFinishedScreen } from './LeagueFinishedScreen';
 
 interface IndividualLeagueScreenProps {
-  onStartMatch?: (playerCardId: string, opponentId: string, matchId: string) => void;
+  onStartMatch?: (playerCardId: string, opponentId: string, matchId: string, format: import('../../types').LeagueMatchFormat) => void;
   onBack?: () => void;
 }
 
@@ -317,9 +317,10 @@ export function IndividualLeagueScreen({
                     console.log('전투 화면으로 이동 시도:', {
                       playerCardId: match.playerCardId,
                       opponentId: match.opponentId,
-                      matchId: match.match.id
+                      matchId: match.match.id,
+                      format: match.match.format
                     });
-                    onStartMatch(match.playerCardId, match.opponentId, match.match.id);
+                    onStartMatch(match.playerCardId, match.opponentId, match.match.id, match.match.format);
                     console.log('onStartMatch 호출 완료');
                   } else {
                     console.log('시뮬레이션으로 대체 - 조건 미충족:', {

@@ -75,7 +75,7 @@ function App() {
   }, [startGameWithBanPick, getAICrewById]);
 
   // 개인 리그 매치 시작 (새로운 1:1 배틀 시스템 사용)
-  const handleStartIndividualLeagueMatch = useCallback((playerCardId: string, opponentId: string, matchId: string) => {
+  const handleStartIndividualLeagueMatch = useCallback((playerCardId: string, opponentId: string, matchId: string, format: import('./types').LeagueMatchFormat) => {
     const playerCard = CHARACTERS_BY_ID[playerCardId];
     const opponentCard = CHARACTERS_BY_ID[opponentId];
 
@@ -84,10 +84,10 @@ function App() {
       return;
     }
 
-    console.log('[IndividualLeague] 1:1 배틀 시작:', playerCard.name.ko, 'vs', opponentCard.name.ko);
+    console.log('[IndividualLeague] 1:1 배틀 시작:', playerCard.name.ko, 'vs', opponentCard.name.ko, '포맷:', format);
 
     // 새로운 1:1 배틀 시스템 시작
-    startIndividualBattle(matchId, playerCardId, opponentId);
+    startIndividualBattle(matchId, playerCardId, opponentId, format);
     setCurrentPage('individualBattle');
   }, [startIndividualBattle]);
 
