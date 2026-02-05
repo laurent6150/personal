@@ -88,8 +88,8 @@ export interface BattleState {
   phase: 'READY' | 'BATTLING' | 'SET_END' | 'MATCH_END';
 }
 
-// 배틀 통계 (UI 표시용)
-export interface BattleStats {
+// 배틀 통계 (UI 표시용 - 기존)
+export interface BattleStatsUI {
   playerCard: {
     id: string;
     name: string;
@@ -113,6 +113,95 @@ export interface BattleStats {
     player: number;
     opponent: number;
   };
+}
+
+// 전투 스탯 (시뮬레이터용)
+export interface BattleStats {
+  odId: string;
+  name: string;
+  attribute: string;
+  baseStats: {
+    atk: number;
+    def: number;
+    spd: number;
+    ce: number;
+    hp: number;
+    crt: number;
+    tec: number;
+    mnt: number;
+    total: number;
+  };
+  adjustedTotal: number;
+  arenaBonus: number;
+  arenaPenalty: number;
+  currentHp: number;
+  maxHp: number;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 시뮬레이터용 타입 (Step 2)
+// ═══════════════════════════════════════════════════════════
+
+// 참가자 타입 (시뮬레이터용)
+export interface Participant {
+  odId: string;
+  odName: string;
+  crewId: string;
+  crewName: string;
+  isPlayerCrew: boolean;
+  totalStats: number;
+  attribute?: string;
+}
+
+// 배틀 턴 (시뮬레이터용 - HP 기반)
+export interface SimBattleTurn {
+  turnNumber: number;
+  attackerId: string;
+  attackerName: string;
+  defenderId: string;
+  defenderName: string;
+  actionType: 'basic' | 'skill' | 'ultimate';
+  actionName: string;
+  damage: number;
+  isCritical: boolean;
+  attackerHpBefore: number;
+  attackerHpAfter: number;
+  defenderHpBefore: number;
+  defenderHpAfter: number;
+}
+
+// 세트 결과 (시뮬레이터용 - HP 기반)
+export interface SimSetResult {
+  setNumber: number;
+  arenaId: string;
+  arenaName: string;
+  arenaEffect: ArenaEffect | null;
+  winnerId: string;
+  winnerName: string;
+  loserId: string;
+  loserName: string;
+  winnerHpPercent: number;
+  loserHpPercent: number;
+  isDominantWin: boolean;
+  turns: SimBattleTurn[];
+  totalTurns: number;
+}
+
+// 개인전 매치 결과 (시뮬레이터용)
+export interface SimMatchResult {
+  matchId: string;
+  groupId?: string;
+  round: string;
+  matchType: string;
+  participant1: Participant;
+  participant2: Participant;
+  winnerId: string;
+  loserId: string;
+  bestOf: number;
+  score: [number, number];
+  sets: SimSetResult[];
+  isPlayerMatch: boolean;
+  isCompleted: boolean;
 }
 
 // 초기 배틀 상태

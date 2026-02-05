@@ -125,6 +125,21 @@ export function getRandomArena(): ArenaEffect {
   return arenas[Math.floor(Math.random() * arenas.length)];
 }
 
+// ID로 경기장 찾기
+export function getArenaById(id: string): ArenaEffect | null {
+  return ARENA_EFFECTS[id] || null;
+}
+
+// 여러 개의 랜덤 경기장 선택 (중복 가능)
+export function getRandomArenas(count: number): string[] {
+  const arenaIds = Object.keys(ARENA_EFFECTS);
+  const result: string[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(arenaIds[Math.floor(Math.random() * arenaIds.length)]);
+  }
+  return result;
+}
+
 // 특정 속성에 유리한 경기장 찾기
 export function getArenaFavoringAttribute(attribute: string): ArenaEffect | undefined {
   return ARENA_EFFECTS_LIST.find(arena => arena.bonusAttribute === attribute);

@@ -30,19 +30,27 @@ export function IndividualLeagueScreen({
     currentSeason,
     hallOfFame,
     startNewLeague,
-    simulateAllRemainingMatches,
     advanceRound,
     getNextPlayerMatch,
-    getPlayerCardStatuses
+    getPlayerCardStatuses,
+    // Step 2: 시뮬레이션 기반 배틀
+    simulateIndividualMatch,
+    skipToNextPlayerMatch,
+    findNextMatch,
+    lastSimMatchResult
   } = useIndividualLeagueStore(useShallow(state => ({
     currentLeague: state.currentLeague,
     currentSeason: state.currentSeason,
     hallOfFame: state.hallOfFame,
     startNewLeague: state.startNewLeague,
-    simulateAllRemainingMatches: state.simulateAllRemainingMatches,
     advanceRound: state.advanceRound,
     getNextPlayerMatch: state.getNextPlayerMatch,
-    getPlayerCardStatuses: state.getPlayerCardStatuses
+    getPlayerCardStatuses: state.getPlayerCardStatuses,
+    // Step 2: 시뮬레이션 기반 배틀
+    simulateIndividualMatch: state.simulateIndividualMatch,
+    skipToNextPlayerMatch: state.skipToNextPlayerMatch,
+    findNextMatch: state.findNextMatch,
+    lastSimMatchResult: state.lastSimMatchResult
   })));
 
   const playerCrew = useSeasonStore(state => state.playerCrew);
@@ -51,6 +59,7 @@ export function IndividualLeagueScreen({
   const [showGroups, setShowGroups] = useState(false);
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
   const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
+  const [showMatchResult, setShowMatchResult] = useState(false);
 
   // 리그 시작
   const handleStartLeague = () => {
@@ -59,9 +68,41 @@ export function IndividualLeagueScreen({
     }
   };
 
-  // 경기 스킵 (모두 시뮬레이션)
-  const handleSkipMatches = () => {
-    simulateAllRemainingMatches();
+  // Step 2: 다음 경기 진행 (시뮬레이션 기반)
+  const handleNextMatch = () => {
+    console.log('[handleNextMatch] 클릭');
+
+    // 내 카드 경기까지 자동 스킵
+    const nextPlayerMatch = skipToNextPlayerMatch();
+
+    if (!nextPlayerMatch) {
+      console.log('[handleNextMatch] 내 카드 경기 없음');
+      // 현재 라운드 완료 체크
+      return;
+    }
+
+    console.log('[handleNextMatch] 내 카드 경기 시작:', nextPlayerMatch.id);
+
+    // 시뮬레이션 실행
+    const result = simulateIndividualMatch(nextPlayerMatch.id);
+
+    if (result) {
+      // 결과 화면 표시 (Step 3에서 구현)
+      setShowMatchResult(true);
+    }
+  };
+
+  // Step 2: 모든 경기 스킵 (시뮬레이션)
+  const handleSkipAll = () => {
+    console.log('[handleSkipAll] 모든 경기 스킵');
+
+    let safetyCounter = 0;
+    while (safetyCounter < 100) {
+      safetyCounter++;
+      const nextMatch = findNextMatch();
+      if (!nextMatch) break;
+      simulateIndividualMatch(nextMatch.id);
+    }
   };
 
   // 다음 라운드로
@@ -326,13 +367,9 @@ export function IndividualLeagueScreen({
                     onStartMatch(match.playerCardId, match.opponentId, match.match.id, match.match.format);
                     console.log('onStartMatch 호출 완료');
                   } else {
-                    console.log('시뮬레이션으로 대체 - 조건 미충족:', {
-                      hasPlayerCardId: !!match?.playerCardId,
-                      hasOpponentId: !!match?.opponentId,
-                      hasMatch: !!match?.match,
-                      hasOnStartMatch: !!onStartMatch
-                    });
-                    simulateAllRemainingMatches();
+                    // Step 2: 시뮬레이션 기반 배틀로 대체
+                    console.log('[Step 2] 시뮬레이션 기반 배틀 실행');
+                    handleNextMatch();
                   }
                 }}
                 className="px-4 py-2 bg-accent hover:bg-accent/80 text-white font-bold rounded-lg transition-colors"
@@ -344,9 +381,9 @@ export function IndividualLeagueScreen({
             {!roundComplete && (
               <Button
                 variant="secondary"
-                onClick={handleSkipMatches}
+                onClick={handleSkipAll}
               >
-                ⏩ 경기 스킵
+                ⏩ 모든 경기 스킵
               </Button>
             )}
 
@@ -386,6 +423,65 @@ export function IndividualLeagueScreen({
         {/* 8강/4강/결승 대진표 모달 */}
         {showKnockoutBracket && (currentLeague.status === 'QUARTER' || currentLeague.status === 'SEMI' || currentLeague.status === 'FINAL') && (
           <KnockoutBracket onClose={() => setShowKnockoutBracket(false)} />
+        )}
+
+        {/* Step 2: 경기 결과 모달 (임시 - Step 3에서 애니메이션 UI로 대체) */}
+        {showMatchResult && lastSimMatchResult && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-bg-secondary rounded-xl border border-white/20 p-6 max-w-md w-full"
+            >
+              <div className="text-center mb-4">
+                <div className="text-2xl font-bold text-yellow-400 mb-2">
+                  {lastSimMatchResult.isPlayerMatch
+                    ? (lastSimMatchResult.winnerId === lastSimMatchResult.participant1.odId && lastSimMatchResult.participant1.isPlayerCrew) ||
+                      (lastSimMatchResult.winnerId === lastSimMatchResult.participant2.odId && lastSimMatchResult.participant2.isPlayerCrew)
+                      ? '🎉 승리!'
+                      : '😢 패배'
+                    : '⚔️ 경기 종료'}
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center mb-4">
+                <div className={`text-center flex-1 ${lastSimMatchResult.winnerId === lastSimMatchResult.participant1.odId ? 'text-green-400' : 'text-text-secondary'}`}>
+                  <div className="text-lg font-bold">{lastSimMatchResult.participant1.odName}</div>
+                  <div className="text-sm">{lastSimMatchResult.participant1.crewName}</div>
+                </div>
+                <div className="text-2xl font-bold text-white mx-4">
+                  {lastSimMatchResult.score[0]} : {lastSimMatchResult.score[1]}
+                </div>
+                <div className={`text-center flex-1 ${lastSimMatchResult.winnerId === lastSimMatchResult.participant2.odId ? 'text-green-400' : 'text-text-secondary'}`}>
+                  <div className="text-lg font-bold">{lastSimMatchResult.participant2.odName}</div>
+                  <div className="text-sm">{lastSimMatchResult.participant2.crewName}</div>
+                </div>
+              </div>
+
+              {/* 세트별 결과 */}
+              <div className="bg-bg-primary/50 rounded-lg p-3 mb-4">
+                <div className="text-sm font-bold text-text-primary mb-2">세트별 결과</div>
+                <div className="space-y-1">
+                  {lastSimMatchResult.sets.map((set, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-text-secondary">세트 {set.setNumber} ({set.arenaName})</span>
+                      <span className={set.winnerId === lastSimMatchResult.participant1.odId ? 'text-green-400' : 'text-red-400'}>
+                        {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                variant="primary"
+                onClick={() => setShowMatchResult(false)}
+                className="w-full"
+              >
+                확인
+              </Button>
+            </motion.div>
+          </div>
         )}
       </div>
     </div>
