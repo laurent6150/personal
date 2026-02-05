@@ -2,7 +2,7 @@
 // AI 크루 데이터 - 54명 캐릭터 / 8팀 체계
 // ========================================
 
-import type { AICrew, Difficulty, Grade } from '../types';
+import type { AICrew, Difficulty, LegacyGrade } from '../types';
 import { ALL_CHARACTERS } from './characters';
 import { CREW_SIZE, CREW_COUNT } from './constants';
 
@@ -15,7 +15,7 @@ export interface AICrewTemplate {
 }
 
 // 등급별 최대 장수 (크루당)
-const GRADE_LIMITS: Record<Grade, number> = {
+const GRADE_LIMITS: Record<LegacyGrade, number> = {
   '특급': 1,
   '1급': 3,
   '준1급': 6,
@@ -81,9 +81,9 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 // 캐릭터의 등급 가져오기
-function getCharacterGrade(characterId: string): Grade | null {
+function getCharacterGrade(characterId: string): LegacyGrade | null {
   const char = ALL_CHARACTERS.find(c => c.id === characterId);
-  return char?.grade || null;
+  return (char?.grade as LegacyGrade) || null;
 }
 
 // 등급을 고려하여 캐릭터를 크루에 배치 (등급 제한 준수)
@@ -210,7 +210,7 @@ export function validatePlayerCrew(crew: string[]): { valid: boolean; error?: st
   }
 
   // 등급별 카운트
-  const gradeCount: Partial<Record<Grade, number>> = {};
+  const gradeCount: Partial<Record<LegacyGrade, number>> = {};
 
   for (const charId of crew) {
     const grade = getCharacterGrade(charId);

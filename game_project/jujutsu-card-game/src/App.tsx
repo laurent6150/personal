@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { SeasonHub } from './pages/SeasonHub';
 import { CrewManager } from './pages/CrewManager';
 import { Collection } from './pages/Collection';
@@ -8,16 +9,21 @@ import { CardCatalog } from './pages/CardCatalog';
 import { PersonalRanking } from './pages/PersonalRanking';
 import { Trade } from './pages/Trade';
 import { Profile } from './pages/Profile';
+import { Items } from './pages/Items';
 import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
+import { IndividualLeagueScreen } from './components/IndividualLeague/IndividualLeagueScreen';
+import { IndividualBattleScreen } from './components/IndividualLeague/IndividualBattleScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
 import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
+import { useIndividualLeagueStore } from './stores/individualLeagueStore';
+import { CHARACTERS_BY_ID } from './data/characters';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague' | 'individualBattle';
 
 interface LevelUpInfo {
   cardId: string;
@@ -40,23 +46,50 @@ function App() {
     setCurrentPage('cardDetail');
   }, []);
 
-  const { startGame } = useBattle();
-  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore();
-  const { addMatchResultNews } = useNewsFeedStore();
-  const { player } = usePlayerStore();
+  const { startGameWithBanPick } = useBattle();
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore(useShallow(state => ({
+    currentSeason: state.currentSeason,
+    playMatch: state.playMatch,
+    playPlayoffMatch: state.playPlayoffMatch,
+    getAICrewById: state.getAICrewById
+  })));
+  const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
+  const player = usePlayerStore(state => state.player);
 
-  // 리그 매치 시작 (시즌 시스템용)
+  // 개인 리그 스토어
+  const { startBattle: startIndividualBattle } = useIndividualLeagueStore(useShallow(state => ({
+    startBattle: state.startBattle,
+  })));
+
+  // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
   const handleStartMatch = useCallback((opponentCrewId: string) => {
     const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
-    // 시즌에서 배정된 AI 크루 사용 (카드 중복 방지)
-    const success = startGame(opponent.crew, opponent.difficulty);
+    // 밴/픽 모드로 게임 시작 (시즌에서 배정된 AI 크루 사용)
+    const success = startGameWithBanPick(opponent.crew, opponent.difficulty);
     if (success) {
       setCurrentOpponent(opponentCrewId);
       setCurrentPage('battle');
     }
-  }, [startGame, getAICrewById]);
+  }, [startGameWithBanPick, getAICrewById]);
+
+  // 개인 리그 매치 시작 (새로운 1:1 배틀 시스템 사용)
+  const handleStartIndividualLeagueMatch = useCallback((playerCardId: string, opponentId: string, matchId: string) => {
+    const playerCard = CHARACTERS_BY_ID[playerCardId];
+    const opponentCard = CHARACTERS_BY_ID[opponentId];
+
+    if (!playerCard || !opponentCard) {
+      console.error('[IndividualLeague] 카드를 찾을 수 없음:', playerCardId, opponentId);
+      return;
+    }
+
+    console.log('[IndividualLeague] 1:1 배틀 시작:', playerCard.name.ko, 'vs', opponentCard.name.ko);
+
+    // 새로운 1:1 배틀 시스템 시작
+    startIndividualBattle(matchId, playerCardId, opponentId);
+    setCurrentPage('individualBattle');
+  }, [startIndividualBattle]);
 
   const handleReturnToSeasonHub = useCallback(() => {
     setCurrentPage('seasonHub');
@@ -91,9 +124,12 @@ function App() {
               onCrewManagement={() => setCurrentPage('crew')}
               onCollection={() => setCurrentPage('collection')}
               onCatalog={() => setCurrentPage('catalog')}
+              onItems={() => setCurrentPage('items')}
               onRanking={() => setCurrentPage('ranking')}
               onTrade={() => setCurrentPage('trade')}
+              onProfile={() => setCurrentPage('profile')}
               onSettings={() => setCurrentPage('settings')}
+              onIndividualLeague={() => setCurrentPage('individualLeague')}
               onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
             />
           </motion.div>
@@ -155,6 +191,18 @@ function App() {
           </motion.div>
         )}
 
+        {currentPage === 'items' && (
+          <motion.div
+            key="items"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <Items onBack={handleReturnToSeasonHub} />
+          </motion.div>
+        )}
+
         {currentPage === 'ranking' && (
           <motion.div
             key="ranking"
@@ -206,6 +254,37 @@ function App() {
           </motion.div>
         )}
 
+        {currentPage === 'individualLeague' && (
+          <motion.div
+            key="individualLeague"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="flex-1 w-full"
+          >
+            <IndividualLeagueScreen
+              onBack={handleReturnToSeasonHub}
+              onStartMatch={handleStartIndividualLeagueMatch}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'individualBattle' && (
+          <motion.div
+            key="individualBattle"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 w-full"
+          >
+            <IndividualBattleScreen
+              onBattleEnd={() => {
+                setCurrentPage('individualLeague');
+              }}
+            />
+          </motion.div>
+        )}
+
         {currentPage === 'battle' && (
           <motion.div
             key="battle"
@@ -218,10 +297,10 @@ function App() {
               onReturnToMenu={handleReturnToSeasonHub}
               opponentName={currentOpponent ? getAICrewById(currentOpponent)?.name : undefined}
               onBattleEnd={(result) => {
-                // 결과 기록 (정규시즌 vs 플레이오프)
+                // 시즌 시스템 배틀 (개인 리그는 IndividualBattleScreen에서 처리)
                 if (currentOpponent) {
-                  const playerScore = result.won ? 3 : 0;
-                  const opponentScore = result.won ? 0 : 3;
+                  const playerScore = result.playerScore;
+                  const opponentScore = result.aiScore;
 
                   const isPlayoff = currentSeason?.status === 'PLAYOFF_SEMI' ||
                     currentSeason?.status === 'PLAYOFF_FINAL';

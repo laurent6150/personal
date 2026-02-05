@@ -1,21 +1,94 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { CharacterCard, PlayerCard } from '../../types';
+import type { CharacterCard, PlayerCard, Grade, BaseStats, Attribute } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { StatsDisplay } from '../UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
 
+// 속성별 색상 및 한글 이름
+function getAttributeInfo(attribute: Attribute): { label: string; color: string } {
+  const attributeMap: Record<Attribute, { label: string; color: string }> = {
+    'BARRIER': { label: '결계', color: '#3B82F6' },    // 파랑
+    'BODY': { label: '신체', color: '#F97316' },      // 주황
+    'CURSE': { label: '저주', color: '#9333EA' },     // 보라
+    'SOUL': { label: '혼백', color: '#06B6D4' },      // 청록
+    'CONVERT': { label: '변환', color: '#14B8A6' },   // 틸
+    'RANGE': { label: '원거리', color: '#EC4899' },   // 핑크
+  };
+  return attributeMap[attribute] || { label: attribute, color: '#6B7280' };
+}
+
+// 등급 + 총합 + 속성 표시 컴포넌트
+interface GradeTotalDisplayProps {
+  grade: Grade;
+  stats: BaseStats;
+  size: 'xs' | 'sm' | 'md' | 'lg';
+  gradeInfo: { bg: string; text: string };
+  attribute?: Attribute;
+  showAttribute?: boolean;
+}
+
+function GradeTotalDisplay({ grade, stats, size, gradeInfo, attribute, showAttribute = true }: GradeTotalDisplayProps) {
+  // 총합 계산 (8스탯)
+  const statValues = stats as unknown as Record<string, number>;
+  const total = ['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt']
+    .reduce((sum, key) => sum + (statValues[key] ?? 0), 0);
+
+  // 속성 정보
+  const attrInfo = attribute ? getAttributeInfo(attribute) : null;
+
+  // 크기별 스타일
+  const sizeStyles = {
+    xs: { container: 'gap-1', grade: 'text-base', total: 'text-[10px]', label: 'text-[7px]', attrBadge: 'text-[8px] px-1 py-0.5' },
+    sm: { container: 'gap-1.5', grade: 'text-lg', total: 'text-xs', label: 'text-[8px]', attrBadge: 'text-[9px] px-1.5 py-0.5' },
+    md: { container: 'gap-2', grade: 'text-xl', total: 'text-sm', label: 'text-[9px]', attrBadge: 'text-[10px] px-2 py-0.5' },
+    lg: { container: 'gap-2', grade: 'text-2xl', total: 'text-base', label: 'text-xs', attrBadge: 'text-xs px-2 py-1' }
+  };
+
+  const style = sizeStyles[size];
+
+  return (
+    <div className={`flex items-center justify-center ${style.container}`}>
+      {/* 등급 표시 */}
+      <div
+        className={`${style.grade} font-black`}
+        style={{ color: gradeInfo.bg, textShadow: `0 0 8px ${gradeInfo.bg}40` }}
+      >
+        {grade}
+      </div>
+      {/* 총합 점수 */}
+      <div className="flex flex-col items-center">
+        <span className={`${style.total} font-bold text-text-primary font-mono`}>
+          {total}
+        </span>
+        {showAttribute && attrInfo ? (
+          <span
+            className={`${style.attrBadge} rounded-full font-bold`}
+            style={{ backgroundColor: `${attrInfo.color}30`, color: attrInfo.color }}
+          >
+            {attrInfo.label}
+          </span>
+        ) : (
+          <span className={`${style.label} text-text-secondary`}>총합</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface CardDisplayProps {
   character: CharacterCard;
   playerCard?: PlayerCard;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   isSelected?: boolean;
   isUsed?: boolean;
   isFlipped?: boolean;
   onClick?: () => void;
   showStats?: boolean;
   showSkill?: boolean;
+  showAllStats?: boolean;  // 8스탯 전체 표시 여부
+  statsDisplayMode?: 'bars' | 'gradeTotal';  // 스탯 표시 방식: 바 또는 등급+총합
 }
 
 export function CardDisplay({
@@ -27,7 +100,9 @@ export function CardDisplay({
   isFlipped = false,
   onClick,
   showStats = true,
-  showSkill = true
+  showSkill = true,
+  showAllStats = false,
+  statsDisplayMode = 'bars'
 }: CardDisplayProps) {
   const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[character.attribute];
@@ -42,11 +117,12 @@ export function CardDisplay({
     setImageError(true);
   };
 
-  // 카드 크기 설정 (1.5배 ~ 2배 확대)
+  // 카드 크기 설정 (스탯+스킬 포함)
   const sizes = {
-    sm: { width: 'w-40', height: 'h-56', text: 'text-xs', imgHeight: 'h-28' },      // 160x224px
-    md: { width: 'w-52', height: 'h-72', text: 'text-sm', imgHeight: 'h-36' },      // 208x288px
-    lg: { width: 'w-64', height: 'h-[360px]', text: 'text-base', imgHeight: 'h-44' } // 256x360px
+    xs: { width: 'w-28', height: 'h-auto', text: 'text-[10px]', imgHeight: 'h-20' }, // 112px width, auto height (컴팩트)
+    sm: { width: 'w-36', height: 'h-auto', text: 'text-xs', imgHeight: 'h-24' },     // 144px width, auto height
+    md: { width: 'w-48', height: 'h-auto', text: 'text-sm', imgHeight: 'h-32' },     // 192px width, auto height
+    lg: { width: 'w-60', height: 'h-auto', text: 'text-base', imgHeight: 'h-40' }    // 240px width, auto height
   };
 
   const level = playerCard?.level ?? 1;
@@ -85,10 +161,10 @@ export function CardDisplay({
     >
       {/* 헤더: 등급 + 속성 */}
       <div className={`flex justify-between items-center bg-black/30 ${
-        size === 'sm' ? 'p-2' : 'p-2.5'
+        size === 'xs' ? 'p-1' : size === 'sm' ? 'p-1.5' : 'p-2'
       }`}>
-        <GradeBadge grade={character.grade} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
-        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'lg' : size === 'md' ? 'md' : 'sm'} />
+        <GradeBadge grade={character.grade} size={size === 'lg' ? 'md' : 'sm'} />
+        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'md' : 'sm'} />
       </div>
 
       {/* 이미지 영역 - 크기별 높이 적용 */}
@@ -98,21 +174,21 @@ export function CardDisplay({
       >
         {imageError ? (
           // 폴백: 속성 아이콘
-          <span className={size === 'sm' ? 'text-4xl' : size === 'md' ? 'text-5xl' : 'text-6xl'}>
+          <span className={size === 'xs' ? 'text-3xl' : size === 'sm' ? 'text-4xl' : size === 'md' ? 'text-5xl' : 'text-6xl'}>
             {attrInfo.icon}
           </span>
         ) : (
           <img
             src={imageUrl}
             alt={character.name.ko}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
             onError={handleImageError}
           />
         )}
-        {/* 속성 아이콘 오버레이 (이미지가 있을 때) */}
-        {!imageError && (
+        {/* 속성 아이콘 오버레이 (이미지가 있을 때, xs는 생략) */}
+        {!imageError && size !== 'xs' && (
           <div className={`absolute bottom-1 right-1 opacity-80 bg-black/30 rounded-full p-0.5 ${
-            size === 'sm' ? 'text-base' : size === 'md' ? 'text-lg' : 'text-xl'
+            size === 'sm' ? 'text-sm' : size === 'md' ? 'text-base' : 'text-lg'
           }`}>
             {attrInfo.icon}
           </div>
@@ -120,36 +196,49 @@ export function CardDisplay({
       </div>
 
       {/* 이름 + 레벨 */}
-      <div className={`bg-black/40 ${size === 'sm' ? 'px-2 py-1' : 'px-3 py-2'}`}>
-        <div className="flex justify-between items-center">
+      <div className={`bg-black/40 ${size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1.5 py-1' : 'px-2 py-1.5'}`}>
+        <div className="flex justify-between items-center gap-1">
           <span className={`font-bold text-text-primary truncate ${
-            size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
+            size === 'xs' ? 'text-[10px]' : size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
           }`}>
             {character.name.ko}
           </span>
-          <span className={`text-accent font-mono ${
-            size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'
+          <span className={`text-accent font-mono flex-shrink-0 ${
+            size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : size === 'md' ? 'text-xs' : 'text-sm'
           }`}>
             Lv.{level}
           </span>
         </div>
       </div>
 
-      {/* 스탯 */}
-      {showStats && size !== 'sm' && (
-        <div className={size === 'md' ? 'px-2 py-1' : 'px-3 py-2'}>
-          <StatsDisplay stats={character.baseStats} compact={size === 'md'} />
+      {/* 스탯 - 모든 사이즈에서 표시 */}
+      {showStats && (
+        <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
+          {statsDisplayMode === 'gradeTotal' ? (
+            // 등급 + 총합 + 속성 표시 모드
+            <GradeTotalDisplay
+              grade={character.grade}
+              stats={character.baseStats}
+              size={size}
+              gradeInfo={gradeInfo}
+              attribute={character.attribute}
+              showAttribute={true}
+            />
+          ) : (
+            <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
+          )}
         </div>
       )}
 
-      {/* 스킬 */}
-      {showSkill && size === 'lg' && (
-        <div className="px-3 py-2 border-t border-white/10">
-          <div className="text-sm text-accent font-bold">
+      {/* 스킬 - 모든 사이즈에서 표시 */}
+      {showSkill && (
+        <div className={`border-t border-white/10 ${
+          size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'
+        }`}>
+          <div className={`text-accent font-bold truncate ${
+            size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : 'text-xs'
+          }`}>
             【{character.skill.name}】
-          </div>
-          <div className="text-sm text-text-secondary line-clamp-2">
-            {character.skill.description}
           </div>
         </div>
       )}

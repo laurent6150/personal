@@ -5,6 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { PLAYER_CREW_ID } from '../data/aiCrews';
@@ -13,19 +14,22 @@ import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
-import { CREW_SIZE } from '../data/constants';
+import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
 import { GRADE_LIMITS } from '../data/aiCrews';
-import type { LeagueStanding, CharacterCard, Grade } from '../types';
+import { getCharacterImage } from '../utils/imageHelper';
+import type { LeagueStanding, CharacterCard, LegacyGrade } from '../types';
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
   onCrewManagement: () => void;
   onCollection: () => void;
   onCatalog: () => void;
+  onItems?: () => void;
   onRanking: () => void;
   onTrade: () => void;
   onProfile?: () => void;
   onSettings: () => void;
+  onIndividualLeague?: () => void;
   onCardSelect?: (cardId: string) => void;
 }
 
@@ -34,9 +38,12 @@ export function SeasonHub({
   onCrewManagement,
   onCollection,
   onCatalog,
+  onItems,
   onRanking,
   onTrade,
+  onProfile,
   onSettings,
+  onIndividualLeague,
   onCardSelect
 }: SeasonHubProps) {
   const {
@@ -55,9 +62,25 @@ export function SeasonHub({
     resetGame,
     getAICrewById,
     getHeadToHead
-  } = useSeasonStore();
+  } = useSeasonStore(useShallow(state => ({
+    isInitialized: state.isInitialized,
+    playerCrew: state.playerCrew,
+    currentSeason: state.currentSeason,
+    seasonHistory: state.seasonHistory,
+    initializeGame: state.initializeGame,
+    startNewSeason: state.startNewSeason,
+    getNextMatch: state.getNextMatch,
+    getCurrentStandings: state.getCurrentStandings,
+    getPlayerRank: state.getPlayerRank,
+    endRegularSeason: state.endRegularSeason,
+    startPlayoff: state.startPlayoff,
+    getPlayoffOpponent: state.getPlayoffOpponent,
+    resetGame: state.resetGame,
+    getAICrewById: state.getAICrewById,
+    getHeadToHead: state.getHeadToHead
+  })));
 
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
   const standings = getCurrentStandings();
   const nextMatch = getNextMatch();
   const playerRank = getPlayerRank();
@@ -72,11 +95,11 @@ export function SeasonHub({
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
-    const counts: Record<Grade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
+    const counts: Record<LegacyGrade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of selectedCards) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) {
-        counts[char.grade]++;
+        counts[char.grade as LegacyGrade]++;
       }
     }
     return counts;
@@ -153,12 +176,20 @@ export function SeasonHub({
     setShowResetConfirm(false);
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/home_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   // ================================
   // 1. 첫 게임 - 크루 선택 화면
   // ================================
   if (!isInitialized) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8">
+      <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -194,7 +225,7 @@ export function SeasonHub({
             </div>
 
             {/* 선택된 카드 미리보기 */}
-            <div className="flex gap-2 mb-6 min-h-[100px] p-4 bg-black/20 rounded-lg overflow-x-auto">
+            <div className="flex gap-2 mb-6 p-3 bg-black/20 rounded-lg overflow-x-auto">
               {selectedCards.map((cardId) => {
                 const char = CHARACTERS_BY_ID[cardId];
                 return char ? (
@@ -205,14 +236,14 @@ export function SeasonHub({
                     className="cursor-pointer flex-shrink-0"
                     onClick={() => toggleCardSelection(cardId)}
                   >
-                    <CardDisplay character={char} size="sm" isSelected />
+                    <CardDisplay character={char} size="xs" isSelected statsDisplayMode="gradeTotal" showSkill={false} />
                   </motion.div>
                 ) : null;
               })}
               {Array.from({ length: CREW_SIZE - selectedCards.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="w-20 h-28 rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
+                  className="w-28 h-auto min-h-[140px] rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
                 >
                   <span className="text-text-secondary text-xs">?</span>
                 </div>
@@ -220,7 +251,7 @@ export function SeasonHub({
             </div>
 
             {/* 전체 카드 목록 */}
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-[400px] overflow-y-auto p-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 max-h-[500px] overflow-y-auto p-2">
               {ALL_CHARACTERS.map(char => {
                 const isSelected = selectedCards.includes(char.id);
                 const { canSelect, reason } = canSelectCard(char.id);
@@ -229,24 +260,24 @@ export function SeasonHub({
                 return (
                   <motion.div
                     key={char.id}
-                    whileHover={!isDisabled ? { scale: 1.05 } : undefined}
-                    whileTap={!isDisabled ? { scale: 0.95 } : undefined}
+                    whileHover={!isDisabled ? { scale: 1.02 } : undefined}
+                    whileTap={!isDisabled ? { scale: 0.98 } : undefined}
                     className={`relative cursor-pointer transition-all ${
-                      isSelected ? 'ring-2 ring-accent' : ''
+                      isSelected ? 'ring-2 ring-accent ring-offset-1 ring-offset-bg-primary' : ''
                     } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                     onClick={() => !isDisabled && toggleCardSelection(char.id)}
                     title={reason}
                   >
                     <CardDisplay
                       character={char}
-                      size="sm"
+                      size="xs"
                       isSelected={isSelected}
-                      showStats={false}
+                      statsDisplayMode="gradeTotal"
                       showSkill={false}
                     />
                     {isDisabled && reason && (
-                      <div className="absolute inset-0 flex items-end justify-center pb-2">
-                        <span className="text-[10px] bg-black/80 px-1 rounded text-red-400">
+                      <div className="absolute inset-0 flex items-end justify-center pb-1 bg-black/30">
+                        <span className="text-[9px] bg-black/80 px-1 rounded text-red-400">
                           {char.grade}등급 제한
                         </span>
                       </div>
@@ -277,7 +308,7 @@ export function SeasonHub({
   // ================================
   if (!currentSeason) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -384,7 +415,7 @@ export function SeasonHub({
     const championName = isPlayerChampion ? player.name : championCrew?.name || '???';
 
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -481,7 +512,7 @@ export function SeasonHub({
     const opponentWins = isPlayerHome ? playoffMatch?.awayWins || 0 : playoffMatch?.homeWins || 0;
 
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -554,23 +585,23 @@ export function SeasonHub({
   // 5. 시즌 진행 중 화면 (정규시즌)
   // ================================
   return (
-    <div className="min-h-screen w-full p-4 md:p-8">
+    <div className="min-h-screen w-full p-4 md:p-8" style={bgStyle}>
       {/* 헤더 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto mb-6"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <div>
-            <h1 className="text-3xl font-bold text-accent">시즌 {currentSeason.number}</h1>
-            <p className="text-text-secondary">
-              {currentSeason.matches.filter(m => m.played && m.homeCrewId === PLAYER_CREW_ID).length} / 5 경기 완료
+            <h1 className="text-3xl font-bold text-accent text-shadow-strong">시즌 {currentSeason.number}</h1>
+            <p className="text-text-secondary text-shadow">
+              {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
             </p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-text-secondary">내 순위</div>
-            <div className="text-3xl font-bold text-accent">{playerRank}위</div>
+            <div className="text-sm text-text-secondary text-shadow">내 순위</div>
+            <div className="text-3xl font-bold text-accent text-shadow-strong">{playerRank}위</div>
           </div>
         </div>
       </motion.div>
@@ -583,15 +614,20 @@ export function SeasonHub({
           animate={{ opacity: 1, x: 0 }}
           className="bg-bg-card rounded-xl p-6 border border-white/10"
         >
-          <h2 className="text-lg font-bold text-text-primary mb-4">📅 다음 경기</h2>
+          <h2 className="text-lg font-bold text-text-primary mb-4 text-shadow">📅 다음 경기</h2>
 
           {nextMatch ? (() => {
-            const opponent = getAICrewById(nextMatch.awayCrewId);
+            // 홈/어웨이에 따라 상대 팀 ID 결정
+            const isPlayerHome = nextMatch.homeCrewId === PLAYER_CREW_ID;
+            const opponentId = isPlayerHome ? nextMatch.awayCrewId : nextMatch.homeCrewId;
+            const opponent = getAICrewById(opponentId);
             return (
               <div>
                 <div className="bg-black/30 rounded-lg p-4 mb-4">
                   <div className="text-center">
-                    <div className="text-sm text-text-secondary mb-2">VS</div>
+                    <div className="text-sm text-text-secondary mb-2">
+                      VS {isPlayerHome ? '(홈)' : '(어웨이)'}
+                    </div>
                     <div className="text-2xl font-bold text-text-primary">
                       {opponent?.name || '???'}
                     </div>
@@ -632,7 +668,7 @@ export function SeasonHub({
                 </div>
 
                 <Button
-                  onClick={() => onStartMatch(nextMatch.awayCrewId)}
+                  onClick={() => onStartMatch(opponentId)}
                   variant="primary"
                   size="lg"
                   className="w-full"
@@ -676,7 +712,7 @@ export function SeasonHub({
           animate={{ opacity: 1, x: 0 }}
           className="bg-bg-card rounded-xl p-6 border border-white/10"
         >
-          <h2 className="text-lg font-bold text-text-primary mb-4">🏆 순위표</h2>
+          <h2 className="text-lg font-bold text-text-primary mb-4 text-shadow">🏆 순위표</h2>
 
           <div className="space-y-2">
             {standings.map((standing, index) => (
@@ -712,14 +748,19 @@ export function SeasonHub({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="max-w-4xl mx-auto mt-6 flex justify-center gap-3 flex-wrap"
+        className="max-w-4xl mx-auto mt-6 bg-black/40 rounded-xl p-4 backdrop-blur-sm"
       >
-        <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
-        <Button onClick={onCollection} variant="ghost">내 크루</Button>
-        <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
-        <Button onClick={onRanking} variant="ghost">개인 순위</Button>
-        <Button onClick={onTrade} variant="ghost">트레이드</Button>
-        <Button onClick={onSettings} variant="ghost">설정</Button>
+        <div className="flex justify-center gap-3 flex-wrap">
+          <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
+          <Button onClick={onCollection} variant="ghost">내 크루</Button>
+          <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
+          {onItems && <Button onClick={onItems} variant="ghost">아이템</Button>}
+          <Button onClick={onRanking} variant="ghost">개인 순위</Button>
+          <Button onClick={onTrade} variant="ghost">트레이드</Button>
+          {onIndividualLeague && <Button onClick={onIndividualLeague} variant="ghost">🏆 개인 리그</Button>}
+          {onProfile && <Button onClick={onProfile} variant="ghost">프로필</Button>}
+          <Button onClick={onSettings} variant="ghost">설정</Button>
+        </div>
       </motion.div>
 
       {/* 크루 카드 상세 모달 */}
@@ -746,7 +787,7 @@ export function SeasonHub({
                   >
                     {/* 카드 이미지 */}
                     <div className={`
-                      aspect-[3/4] rounded-lg flex items-center justify-center text-2xl
+                      aspect-[3/4] rounded-lg overflow-hidden relative
                       bg-gradient-to-br
                       ${card.grade === '특급' ? 'from-yellow-500/30 to-yellow-600/10 border border-yellow-500/30' : ''}
                       ${card.grade === '1급' ? 'from-purple-500/30 to-purple-600/10 border border-purple-500/30' : ''}
@@ -755,7 +796,23 @@ export function SeasonHub({
                       ${card.grade === '준2급' ? 'from-gray-500/30 to-gray-600/10 border border-gray-500/30' : ''}
                       ${card.grade === '3급' ? 'from-gray-600/30 to-gray-700/10 border border-gray-600/30' : ''}
                     `}>
-                      {card.imageUrl && !card.imageUrl.startsWith('http') ? card.imageUrl : '👤'}
+                      <img
+                        src={getCharacterImage(card.id, card.name.ko, card.attribute)}
+                        alt={card.name.ko}
+                        className="w-full h-full object-cover object-top"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.classList.add('flex', 'items-center', 'justify-center');
+                            const fallback = document.createElement('span');
+                            fallback.className = 'text-2xl';
+                            fallback.textContent = ATTRIBUTES[card.attribute]?.icon || '👤';
+                            parent.appendChild(fallback);
+                          }
+                        }}
+                      />
                     </div>
                     {/* 카드 정보 */}
                     <div className="mt-2 text-center">

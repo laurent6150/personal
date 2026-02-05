@@ -12,13 +12,13 @@ import type {
   TradeEvaluation,
   TradeRejectReason,
   ChampionshipBonus,
-  Grade,
+  LegacyGrade,
   AICrew
 } from '../types';
 import { GRADE_POINTS } from '../types';
 
 // 기본 등급 제한
-const BASE_GRADE_LIMITS: Record<Grade, number> = {
+const BASE_GRADE_LIMITS: Record<LegacyGrade, number> = {
   '특급': 1,
   '1급': 2,
   '준1급': 5,
@@ -62,7 +62,7 @@ interface TradeStore {
   };
 
   // 등급 제한 계산 (우승 보너스 포함)
-  getGradeLimits: () => Record<Grade, number>;
+  getGradeLimits: () => Record<LegacyGrade, number>;
 
   // 우승 보너스 추가
   addChampionshipBonus: (seasonNumber: number) => void;
@@ -85,7 +85,7 @@ function evaluateTradeForAI(
   offeredCardId: string,
   requestedCardId: string,
   targetCrew: string[],
-  targetGradeLimits: Record<Grade, number>
+  targetGradeLimits: Record<LegacyGrade, number>
 ): TradeEvaluation {
   const offeredCard = CHARACTERS_BY_ID[offeredCardId];
   const requestedCard = CHARACTERS_BY_ID[requestedCardId];
@@ -112,17 +112,17 @@ function evaluateTradeForAI(
   const newCrewCards = [...targetCrewCards, offeredCardId];
 
   // 등급별 카운트
-  const gradeCounts: Record<Grade, number> = {
+  const gradeCounts: Record<LegacyGrade, number> = {
     '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0
   };
 
   for (const cardId of newCrewCards) {
     const card = CHARACTERS_BY_ID[cardId];
-    if (card) gradeCounts[card.grade]++;
+    if (card) gradeCounts[card.grade as LegacyGrade]++;
   }
 
   // 등급 제한 확인
-  for (const grade of Object.keys(gradeCounts) as Grade[]) {
+  for (const grade of Object.keys(gradeCounts) as LegacyGrade[]) {
     if (gradeCounts[grade] > targetGradeLimits[grade]) {
       return {
         shouldAccept: false,

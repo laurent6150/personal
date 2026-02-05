@@ -1,5 +1,5 @@
 // ========================================
-// 3급 캐릭터 (6명)
+// 3급 캐릭터 (5명)
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -89,23 +89,6 @@ export const THIRD_GRADE: CharacterCard[] = [
       { id: "yaga_3", name: "다중 소환", type: "ATTACK", description: "여러 인형 소환", effect: { type: "MULTI_HIT", hits: 3, value: 30 } }
     ],
     ultimateSkill: { id: "yaga_ult", name: "자율 인형술", description: "자아를 가진 인형 군단", effect: { type: "MULTI_SUMMON", damage: 180 }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
-    id: "eso_kechizu_duo",
-    name: { ko: "에소와 케치즈", ja: "壊相と血塗", en: "Eso & Kechizu" },
-    grade: "3급",
-    attribute: "CURSE",
-    imageUrl: getCharacterImage("eso_kechizu_duo", "에소와 케치즈", "CURSE"),
-    baseStats: { atk: 16, def: 14, spd: 13, ce: 18, hp: 85 },
-    growthStats: { primary: "atk", secondary: "ce" },
-    skill: { name: "형제 합체기", description: "저주태반 형제의 합동 공격", effect: { type: "DAMAGE", value: 220 } },
-    basicSkills: [
-      { id: "duo_1", name: "콤비 공격", type: "ATTACK", description: "형제 콤비 공격", effect: { type: "DAMAGE", value: 95 } },
-      { id: "duo_2", name: "이중 독혈", type: "ATTACK", description: "두 명의 독혈", effect: { type: "AOE_DAMAGE", value: 85 } },
-      { id: "duo_3", name: "형제 방어", type: "DEFENSE", description: "서로를 지킴", effect: { type: "DAMAGE_REDUCE", value: 50 } }
-    ],
-    ultimateSkill: { id: "duo_ult", name: "형제 합체기", description: "저주태반 형제의 합동 공격", effect: { type: "DAMAGE", value: 220 }, gaugeRequired: 100 },
     achievements: []
   }
 ];

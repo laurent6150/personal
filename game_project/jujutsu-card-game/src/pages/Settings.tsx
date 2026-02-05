@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
@@ -9,7 +10,11 @@ interface SettingsProps {
 }
 
 export function Settings({ onBack }: SettingsProps) {
-  const { player, updateSettings, resetProgress } = usePlayerStore();
+  const { player, updateSettings, resetProgress } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    updateSettings: state.updateSettings,
+    resetProgress: state.resetProgress
+  })));
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
 
@@ -25,15 +30,23 @@ export function Settings({ onBack }: SettingsProps) {
     window.location.reload();
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-lg mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-text-primary">설정</h1>
+          <h1 className="text-2xl font-bold text-text-primary text-shadow-strong">설정</h1>
           <div className="w-20" />
         </div>
       </div>

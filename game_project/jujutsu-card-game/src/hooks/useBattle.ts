@@ -2,13 +2,19 @@
 // 대전 진행 커스텀 훅
 // ========================================
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/shallow';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import type { Difficulty, CharacterCard, RoundResult } from '../types';
+import { CREW_SIZE } from '../data/constants';
+import type { Difficulty, CharacterCard, RoundResult, CardAssignment, Arena } from '../types';
+
+// 안정적인 참조를 위한 상수 (React 19 호환)
+const EMPTY_ARENA_ARRAY: Arena[] = [];
+const EMPTY_ASSIGNMENT_ARRAY: CardAssignment[] = [];
 
 export interface GameEndResult {
   won: boolean;
@@ -18,34 +24,92 @@ export interface GameEndResult {
 }
 
 export function useBattle() {
-  // Game store
+  // Game store (useShallow로 안정적인 참조 유지 - React 19 호환)
   const {
     session,
     selectedCardId,
     isAnimating,
     showResult,
     lastRoundResult,
+    banPickPhase,
+    pendingBanPickInfo,
     startGame,
     selectCard,
     executeRound,
+    updateRoundWinner,
     endGame,
     resetGame,
     setAnimating,
     setShowResult,
-    clearLastResult
-  } = useGameStore();
+    clearLastResult,
+    // 밴픽 액션 (Phase 2)
+    initBanPick,
+    submitPlayerBan,
+    confirmBanResult,
+    submitCardPlacements,
+    startGameWithPlacements,
+    setBanPickPhase
+  } = useGameStore(useShallow(state => ({
+    session: state.session,
+    selectedCardId: state.selectedCardId,
+    isAnimating: state.isAnimating,
+    showResult: state.showResult,
+    lastRoundResult: state.lastRoundResult,
+    banPickPhase: state.banPickPhase,
+    pendingBanPickInfo: state.pendingBanPickInfo,
+    startGame: state.startGame,
+    selectCard: state.selectCard,
+    executeRound: state.executeRound,
+    updateRoundWinner: state.updateRoundWinner,
+    endGame: state.endGame,
+    resetGame: state.resetGame,
+    setAnimating: state.setAnimating,
+    setShowResult: state.setShowResult,
+    clearLastResult: state.clearLastResult,
+    initBanPick: state.initBanPick,
+    submitPlayerBan: state.submitPlayerBan,
+    confirmBanResult: state.confirmBanResult,
+    submitCardPlacements: state.submitCardPlacements,
+    startGameWithPlacements: state.startGameWithPlacements,
+    setBanPickPhase: state.setBanPickPhase
+  })));
 
-  // Player store
-  const {
-    player,
-    processGameResult
-  } = usePlayerStore();
+  // 밴픽 관련 셀렉터 (안정적인 참조를 위해 상수 사용 - React 19 호환)
+  const seriesScoreboard = useGameStore(useShallow(state => {
+    if (!state.session) return null;
+    return {
+      playerScore: state.session.player.score,
+      aiScore: state.session.ai.score,
+      currentRound: state.session.currentRound,
+      totalRounds: state.session.banPickInfo?.selectedArenas.length ?? 5,
+      rounds: state.session.rounds,
+      selectedArenas: state.session.banPickInfo?.selectedArenas ?? EMPTY_ARENA_ARRAY,
+      cardAssignments: state.session.cardAssignments ?? EMPTY_ASSIGNMENT_ARRAY
+    };
+  }));
+  const selectedArenas = useGameStore(state =>
+    state.session?.banPickInfo?.selectedArenas ?? state.pendingBanPickInfo?.selectedArenas ?? EMPTY_ARENA_ARRAY
+  );
+  const assignedCardForCurrentRound = useGameStore(state => {
+    if (!state.session?.cardAssignments) return null;
+    const currentRoundIndex = (state.session.currentRound ?? 1) - 1;
+    return state.session.cardAssignments[currentRoundIndex]?.cardId ?? null;
+  });
+
+  // Player store (useShallow로 안정적인 참조 유지)
+  const { player, processGameResult } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    processGameResult: state.processGameResult
+  })));
 
   // Season store (플레이어 크루 가져오기)
-  const { playerCrew, currentSeason } = useSeasonStore();
+  const { playerCrew, currentSeason } = useSeasonStore(useShallow(state => ({
+    playerCrew: state.playerCrew,
+    currentSeason: state.currentSeason
+  })));
 
   // Card record store (개인 기록)
-  const { recordBattle } = useCardRecordStore();
+  const recordBattle = useCardRecordStore(state => state.recordBattle);
 
   // Game end result
   const [gameEndResult, setGameEndResult] = useState<GameEndResult | null>(null);
@@ -54,6 +118,25 @@ export function useBattle() {
   const isGameActive = session?.status === 'IN_PROGRESS';
   const isGameOver = session?.status === 'PLAYER_WIN' || session?.status === 'AI_WIN';
   const isPlayerWin = session?.status === 'PLAYER_WIN';
+
+  // 게임 종료 시 자동으로 gameEndResult 설정 (안전망)
+  useEffect(() => {
+    if (isGameOver && session && !gameEndResult) {
+      const won = session.status === 'PLAYER_WIN';
+      const expResult = processGameResult(
+        won,
+        session.rounds,
+        session.ai.difficulty
+      );
+
+      setGameEndResult({
+        won,
+        expGained: expResult.expGained,
+        levelUps: expResult.levelUps,
+        newAchievements: expResult.newAchievements
+      });
+    }
+  }, [isGameOver, session, gameEndResult, processGameResult]);
 
   // 현재 점수
   const currentScore = useMemo(() => ({
@@ -82,16 +165,62 @@ export function useBattle() {
     return session.ai.crew.length - session.ai.usedCards.length;
   }, [session]);
 
-  // 게임 시작 (시즌에서 배정된 AI 크루 사용)
-  const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
-    // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
-    const crew = playerCrew.length === 5 ? playerCrew : player.currentCrew;
-    if (crew.length !== 5) {
-      console.error('크루가 5장이 아닙니다');
+  // ========================================
+  // 밴픽 플로우 핸들러 (Phase 2)
+  // ========================================
+
+  // 밴픽 모드로 게임 시작 (customPlayerCrew: 개인 리그 1v1용)
+  const handleStartGameWithBanPick = useCallback((aiCrew: string[], difficulty: Difficulty, customPlayerCrew?: string[]) => {
+    console.log('🔥🔥🔥 NEW CODE v2 - startGameWithBanPick 🔥🔥🔥');
+    console.log('받은 파라미터:', { aiCrewLen: aiCrew?.length, difficulty, customPlayerCrewLen: customPlayerCrew?.length });
+
+    // 커스텀 플레이어 크루가 있으면 사용 (개인 리그 1v1)
+    const crew = customPlayerCrew || (playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew);
+    console.log('사용할 crew:', crew?.length, 'CREW_SIZE:', CREW_SIZE);
+
+    if (crew.length !== CREW_SIZE || aiCrew.length !== CREW_SIZE) {
+      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', CREW_SIZE);
       return false;
     }
-    if (aiCrew.length !== 5) {
-      console.error('AI 크루가 5장이 아닙니다');
+    console.log('✅ initBanPick 호출');
+    initBanPick(crew, aiCrew, difficulty);
+    return true;
+  }, [playerCrew, player.currentCrew, initBanPick]);
+
+  // 플레이어 밴 제출
+  const handleSubmitBan = useCallback((arenaId: string) => {
+    submitPlayerBan(arenaId);
+  }, [submitPlayerBan]);
+
+  // 밴 결과 확인
+  const handleConfirmBanResult = useCallback(() => {
+    confirmBanResult();
+  }, [confirmBanResult]);
+
+  // 카드 배치 제출
+  const handleSubmitPlacements = useCallback((assignments: CardAssignment[]) => {
+    submitCardPlacements(assignments);
+  }, [submitCardPlacements]);
+
+  // 배치 완료 후 게임 시작
+  const handleStartAfterPlacements = useCallback(() => {
+    startGameWithPlacements();
+  }, [startGameWithPlacements]);
+
+  // ========================================
+  // 기존 레거시 핸들러
+  // ========================================
+
+  // 게임 시작 (시즌에서 배정된 AI 크루 사용) - 레거시 모드 (밴픽 없이)
+  const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
+    // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
+    const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
+    if (crew.length !== CREW_SIZE) {
+      console.error(`크루가 ${CREW_SIZE}장이 아닙니다: ${crew.length}장`);
+      return false;
+    }
+    if (aiCrew.length !== CREW_SIZE) {
+      console.error(`AI 크루가 ${CREW_SIZE}장이 아닙니다: ${aiCrew.length}장`);
       return false;
     }
     startGame(crew, aiCrew, difficulty);
@@ -117,14 +246,26 @@ export function useBattle() {
 
     // 카드 개인 기록 저장 (승패가 있을 때만)
     if (result && result.winner !== 'DRAW' && currentSeason) {
-      const winnerCardId = result.winner === 'PLAYER' ? result.playerCardId : result.aiCardId;
-      const loserCardId = result.winner === 'PLAYER' ? result.aiCardId : result.playerCardId;
+      const isPlayerWinner = result.winner === 'PLAYER';
+      const winnerCardId = isPlayerWinner ? result.playerCardId : result.aiCardId;
+      const loserCardId = isPlayerWinner ? result.aiCardId : result.playerCardId;
+
+      // 확장 통계 데이터 추출
+      const { playerDamage, aiDamage, skillActivated } = result.calculation;
+      const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
+      const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
+      const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
+      const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
 
       recordBattle({
         seasonNumber: currentSeason.number,
         winnerCardId,
         loserCardId,
-        arenaId: result.arena.id
+        arenaId: result.arena.id,
+        winnerDamage,
+        loserDamage,
+        winnerSkillActivated,
+        loserSkillActivated
       });
     }
 
@@ -166,11 +307,19 @@ export function useBattle() {
 
     if (result) {
       // 게임 결과를 플레이어 데이터에 반영
-      processGameResult(
+      const expResult = processGameResult(
         result.winner === 'PLAYER',
         session.rounds,
         session.ai.difficulty
       );
+
+      // gameEndResult 설정 (카드별 경험치 표시용)
+      setGameEndResult({
+        won: result.winner === 'PLAYER',
+        expGained: expResult.expGained,
+        levelUps: expResult.levelUps,
+        newAchievements: expResult.newAchievements
+      });
     }
 
     return result;
@@ -235,15 +384,31 @@ export function useBattle() {
     roundResultInfo,
     gameEndResult,
 
-    // 액션
+    // 밴픽 상태 (Phase 2)
+    banPickPhase,
+    pendingBanPickInfo,
+    seriesScoreboard,
+    selectedArenas,
+    assignedCardForCurrentRound,
+
+    // 기존 액션 (레거시 모드)
     startGame: handleStartGame,
     selectCard: handleSelectCard,
     executeRound: handleExecuteRound,
+    updateRoundWinner,
     continueGame: handleContinue,
     endGame: handleEndGame,
     rematch: handleRematch,
     returnToMenu: handleReturnToMenu,
-    setShowResult
+    setShowResult,
+
+    // 밴픽 액션 (Phase 2)
+    startGameWithBanPick: handleStartGameWithBanPick,
+    submitBan: handleSubmitBan,
+    confirmBanResult: handleConfirmBanResult,
+    submitPlacements: handleSubmitPlacements,
+    startAfterPlacements: handleStartAfterPlacements,
+    setBanPickPhase
   };
 }
 
@@ -257,7 +422,15 @@ export function useCrewManagement() {
     swapCrewCard,
     canAddToCrew,
     isCardInCrew
-  } = usePlayerStore();
+  } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    setCurrentCrew: state.setCurrentCrew,
+    addCardToCrew: state.addCardToCrew,
+    removeCardFromCrew: state.removeCardFromCrew,
+    swapCrewCard: state.swapCrewCard,
+    canAddToCrew: state.canAddToCrew,
+    isCardInCrew: state.isCardInCrew
+  })));
 
   // 현재 크루 카드 정보
   const crewCards = useMemo(() => {
@@ -283,7 +456,7 @@ export function useCrewManagement() {
 
   // 등급별 카드 수
   const gradeCount = useMemo(() => {
-    const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+    const counts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of player.currentCrew) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) counts[char.grade]++;
@@ -296,7 +469,7 @@ export function useCrewManagement() {
     availableCards,
     gradeCount,
     crewSize: player.currentCrew.length,
-    maxCrewSize: 5,
+    maxCrewSize: CREW_SIZE,
     setCurrentCrew,
     addCardToCrew,
     removeCardFromCrew,
@@ -308,7 +481,7 @@ export function useCrewManagement() {
 
 // 플레이어 통계 훅
 export function usePlayerStats() {
-  const { player } = usePlayerStore();
+  const player = usePlayerStore(state => state.player);
 
   const totalStats = player.totalStats;
 

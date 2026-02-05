@@ -2,7 +2,7 @@
 // 게임 상수 정의
 // ========================================
 
-import type { Attribute, AttributeInfo, Grade, GradeInfo } from '../types';
+import type { Attribute, AttributeInfo, LegacyGrade, GradeInfo } from '../types';
 
 // 속성 정보
 export const ATTRIBUTES: Record<Attribute, AttributeInfo> = {
@@ -28,8 +28,8 @@ export const ATTRIBUTE_ADVANTAGE: Record<Attribute, Attribute[]> = {
 export const ADVANTAGE_MULTIPLIER = 1.5;   // 유리할 때
 export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 
-// 등급 정보 (주술회전 등급 체계)
-export const GRADES: Record<Grade, GradeInfo> = {
+// 등급 정보 (주술회전 등급 체계) - 기존 6등급 호환
+export const GRADES: Record<LegacyGrade, GradeInfo> = {
   '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
   '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 3 },
   '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 6 },
@@ -64,22 +64,40 @@ export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
 // 최대 라운드
 export const MAX_ROUNDS = 5;         // 6장 크루 중 5장 사용 (1장 미사용)
 
-// 스탯 아이콘
+// 스탯 아이콘 (8스탯 시스템)
 export const STAT_ICONS = {
   atk: '⚔️',
   def: '🛡️',
   spd: '⚡',
-  ce: '💜',
-  hp: '❤️'
+  ce: '🔮',
+  hp: '❤️',
+  crt: '💥',  // 치명 (신규)
+  tec: '🎯',  // 기술 (신규)
+  mnt: '🧠'   // 정신 (신규)
 };
 
-// 스탯 한글명
+// 스탯 한글명 (8스탯 시스템)
 export const STAT_NAMES: Record<string, string> = {
   atk: '공격력',
   def: '방어력',
   spd: '속도',
-  ce: '저주력',
-  hp: '체력'
+  ce: '주력',
+  hp: '체력',
+  crt: '치명',  // 신규
+  tec: '기술',  // 신규
+  mnt: '정신'   // 신규
+};
+
+// 스탯 색상 (8각형 레이더 차트용)
+export const STAT_COLORS: Record<string, string> = {
+  atk: '#EF4444',  // 빨강
+  def: '#3B82F6',  // 파랑
+  spd: '#F59E0B',  // 노랑
+  ce: '#8B5CF6',   // 보라
+  hp: '#10B981',   // 초록
+  crt: '#EC4899',  // 분홍
+  tec: '#14B8A6',  // 청록
+  mnt: '#6366F1'   // 인디고
 };
 
 // 아이템 등급 색상

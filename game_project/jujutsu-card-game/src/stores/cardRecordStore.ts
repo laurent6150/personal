@@ -25,6 +25,11 @@ interface CardRecordStore {
     winnerCardId: string;
     loserCardId: string;
     arenaId: string;
+    // 확장 통계 (선택적)
+    winnerDamage?: number;       // 승자가 입힌 데미지
+    loserDamage?: number;        // 패자가 입힌 데미지
+    winnerSkillActivated?: boolean;  // 승자 스킬 발동 여부
+    loserSkillActivated?: boolean;   // 패자 스킬 발동 여부
   }) => void;
 
   // 시즌 종료 시 수상자 선정
@@ -51,8 +56,52 @@ function createEmptySeasonRecord(): CardSeasonRecord {
     wins: 0,
     losses: 0,
     arenaRecords: {},
-    vsRecords: {}
+    vsRecords: {},
+    // 확장 통계
+    maxWinStreak: 0,
+    currentWinStreak: 0,
+    totalDamageDealt: 0,
+    totalDamageReceived: 0,
+    mvpCount: 0,
+    ultimateHits: 0
   };
+}
+
+// 기존 시즌 기록에 누락된 확장 필드 채우기 (마이그레이션)
+function migrateSeasonRecord(record: Partial<CardSeasonRecord>): CardSeasonRecord {
+  return {
+    wins: record.wins ?? 0,
+    losses: record.losses ?? 0,
+    arenaRecords: record.arenaRecords ?? {},
+    vsRecords: record.vsRecords ?? {},
+    // 확장 통계 - 기존 데이터에 없으면 0으로 초기화
+    maxWinStreak: record.maxWinStreak ?? 0,
+    currentWinStreak: record.currentWinStreak ?? 0,
+    totalDamageDealt: record.totalDamageDealt ?? 0,
+    totalDamageReceived: record.totalDamageReceived ?? 0,
+    mvpCount: record.mvpCount ?? 0,
+    ultimateHits: record.ultimateHits ?? 0
+  };
+}
+
+// 전체 records 마이그레이션
+function migrateRecords(records: Record<string, CardRecord>): Record<string, CardRecord> {
+  const migrated: Record<string, CardRecord> = {};
+
+  for (const [cardId, cardRecord] of Object.entries(records)) {
+    const migratedSeasonRecords: Record<number, CardSeasonRecord> = {};
+
+    for (const [seasonNum, seasonRecord] of Object.entries(cardRecord.seasonRecords)) {
+      migratedSeasonRecords[Number(seasonNum)] = migrateSeasonRecord(seasonRecord);
+    }
+
+    migrated[cardId] = {
+      ...cardRecord,
+      seasonRecords: migratedSeasonRecords
+    };
+  }
+
+  return migrated;
 }
 
 // 빈 카드 기록 생성
@@ -79,7 +128,16 @@ export const useCardRecordStore = create<CardRecordStore>()(
       seasonAwards: {},
 
       // 전투 결과 기록
-      recordBattle: ({ seasonNumber, winnerCardId, loserCardId, arenaId }) => {
+      recordBattle: ({
+        seasonNumber,
+        winnerCardId,
+        loserCardId,
+        arenaId,
+        winnerDamage = 0,
+        loserDamage = 0,
+        winnerSkillActivated = false,
+        loserSkillActivated = false
+      }) => {
         const { records } = get();
 
         // 승자 기록 업데이트
@@ -87,6 +145,26 @@ export const useCardRecordStore = create<CardRecordStore>()(
         const winnerSeasonRecord = winnerRecord.seasonRecords[seasonNumber] || createEmptySeasonRecord();
 
         winnerSeasonRecord.wins++;
+
+        // 연승 추적
+        winnerSeasonRecord.currentWinStreak++;
+        if (winnerSeasonRecord.currentWinStreak > winnerSeasonRecord.maxWinStreak) {
+          winnerSeasonRecord.maxWinStreak = winnerSeasonRecord.currentWinStreak;
+        }
+
+        // 데미지 통계
+        winnerSeasonRecord.totalDamageDealt += winnerDamage;
+        winnerSeasonRecord.totalDamageReceived += loserDamage;
+
+        // 라운드 MVP (더 많은 데미지를 입힌 쪽)
+        if (winnerDamage >= loserDamage) {
+          winnerSeasonRecord.mvpCount++;
+        }
+
+        // 스킬 적중
+        if (winnerSkillActivated) {
+          winnerSeasonRecord.ultimateHits++;
+        }
 
         // 경기장별 기록
         if (!winnerSeasonRecord.arenaRecords[arenaId]) {
@@ -105,6 +183,23 @@ export const useCardRecordStore = create<CardRecordStore>()(
         const loserSeasonRecord = loserRecord.seasonRecords[seasonNumber] || createEmptySeasonRecord();
 
         loserSeasonRecord.losses++;
+
+        // 연승 리셋
+        loserSeasonRecord.currentWinStreak = 0;
+
+        // 데미지 통계
+        loserSeasonRecord.totalDamageDealt += loserDamage;
+        loserSeasonRecord.totalDamageReceived += winnerDamage;
+
+        // 라운드 MVP (패자가 더 많은 데미지를 입힌 경우)
+        if (loserDamage > winnerDamage) {
+          loserSeasonRecord.mvpCount++;
+        }
+
+        // 스킬 적중
+        if (loserSkillActivated) {
+          loserSeasonRecord.ultimateHits++;
+        }
 
         // 경기장별 기록
         if (!loserSeasonRecord.arenaRecords[arenaId]) {
@@ -341,7 +436,14 @@ export const useCardRecordStore = create<CardRecordStore>()(
     }),
     {
       name: 'jujutsu-card-records',
-      version: 1
+      version: 2,
+      // localStorage에서 데이터 로드 후 마이그레이션 실행
+      onRehydrateStorage: () => (state) => {
+        if (state && state.records) {
+          // 기존 데이터에 확장 필드가 없을 수 있으므로 마이그레이션
+          state.records = migrateRecords(state.records);
+        }
+      }
     }
   )
 );

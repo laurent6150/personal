@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCrewManagement } from '../hooks/useBattle';
-import { CardDisplay, CardMini } from '../components/Card/CardDisplay';
+import { CardDisplayLarge } from '../components/Card/CardDisplayLarge';
+import { CardMini } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { GradeBadge } from '../components/UI/Badge';
 import { GRADES } from '../data/constants';
@@ -33,15 +34,23 @@ export function CrewManager({ onBack }: CrewManagerProps) {
     removeCardFromCrew(cardId);
   };
 
+  // 배경 이미지 스타일
+  const bgStyle = {
+    backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed'
+  };
+
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
       <div className="max-w-4xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
-          <h1 className="text-2xl font-bold text-text-primary">크루 관리</h1>
+          <h1 className="text-2xl font-bold text-text-primary text-shadow-strong">크루 관리</h1>
           <div className="w-20" /> {/* 균형을 위한 빈 공간 */}
         </div>
       </div>
@@ -67,12 +76,12 @@ export function CrewManager({ onBack }: CrewManagerProps) {
       </div>
 
       {/* 현재 크루 */}
-      <div className="max-w-4xl mx-auto mb-8">
-        <h2 className="text-lg font-bold text-text-primary mb-3">
+      <div className="max-w-6xl mx-auto mb-8">
+        <h2 className="text-lg font-bold text-text-primary mb-3 text-shadow bg-black/30 inline-block px-3 py-1 rounded-lg">
           현재 크루 ({crewSize}/{maxCrewSize})
         </h2>
 
-        <div className="flex gap-3 justify-center flex-wrap">
+        <div className="flex gap-4 justify-center flex-wrap">
           {crewCards.map(({ character, playerCard }, index) => (
             <motion.div
               key={character.id}
@@ -81,14 +90,14 @@ export function CrewManager({ onBack }: CrewManagerProps) {
               transition={{ delay: index * 0.1 }}
               className="relative"
             >
-              <CardDisplay
+              <CardDisplayLarge
                 character={character}
                 playerCard={playerCard}
-                size="sm"
+                showRadarChart={true}
               />
               <button
                 onClick={() => handleRemoveCard(character.id)}
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-lose text-white text-sm font-bold hover:bg-red-600 transition-colors"
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-lose text-white text-lg font-bold hover:bg-red-600 transition-colors shadow-lg"
               >
                 ×
               </button>
@@ -101,14 +110,17 @@ export function CrewManager({ onBack }: CrewManagerProps) {
               key={`empty-${i}`}
               onClick={() => setSelectedSlot(crewSize + i)}
               className={`
-                w-32 h-44 rounded-xl border-2 border-dashed transition-all
-                flex items-center justify-center
+                w-[250px] h-[350px] rounded-xl border-2 border-dashed transition-all
+                flex items-center justify-center bg-black/20
                 ${selectedSlot === crewSize + i
                   ? 'border-accent bg-accent/10'
                   : 'border-white/20 hover:border-accent/50'}
               `}
             >
-              <span className="text-3xl text-text-secondary">+</span>
+              <div className="text-center">
+                <span className="text-5xl text-text-secondary block mb-2">+</span>
+                <span className="text-sm text-text-secondary">카드 추가</span>
+              </div>
             </button>
           ))}
         </div>
@@ -116,7 +128,7 @@ export function CrewManager({ onBack }: CrewManagerProps) {
 
       {/* 사용 가능한 카드 */}
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-lg font-bold text-text-primary mb-3">
+        <h2 className="text-lg font-bold text-text-primary mb-3 text-shadow bg-black/30 inline-block px-3 py-1 rounded-lg">
           사용 가능한 카드
         </h2>
 

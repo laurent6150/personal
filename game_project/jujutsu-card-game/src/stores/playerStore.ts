@@ -8,6 +8,7 @@ import type { PlayerData, PlayerCard, RoundResult } from '../types';
 import { STARTER_CREW, ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
 import { CREW_SIZE } from '../data/constants';
 import { calculateExpReward, checkLevelUp } from '../utils/battleCalculator';
+import { initializeGrowthData } from '../data/growthSystem';
 
 // 초기 플레이어 데이터 생성
 function createInitialPlayerData(): PlayerData {
@@ -15,10 +16,12 @@ function createInitialPlayerData(): PlayerData {
   const ownedCards: Record<string, PlayerCard> = {};
 
   for (const char of ALL_CHARACTERS) {
+    const growthData = initializeGrowthData();
     ownedCards[char.id] = {
       cardId: char.id,
       level: 1,
       exp: 0,
+      totalExp: growthData.totalExp,
       equipment: [null, null],
       stats: {
         totalWins: 0,
@@ -26,7 +29,13 @@ function createInitialPlayerData(): PlayerData {
         vsRecord: {},
         arenaRecord: {}
       },
-      unlockedAchievements: []
+      unlockedAchievements: [],
+      bonusStats: growthData.bonusStats,
+      condition: growthData.condition,
+      currentForm: growthData.currentForm,
+      recentResults: growthData.recentResults,
+      currentWinStreak: growthData.currentWinStreak,
+      maxWinStreak: growthData.maxWinStreak
     };
   }
 
