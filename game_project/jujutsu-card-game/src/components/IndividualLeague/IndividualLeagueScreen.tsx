@@ -263,6 +263,9 @@ export function IndividualLeagueScreen({
                 currentStage={card.currentStage}
                 nextMatchInfo={card.nextMatchInfo}
                 wins={card.wins}
+                matchPlayed={card.matchPlayed}
+                matchWon={card.matchWon}
+                lastOpponentName={card.lastOpponentName}
               />
             ))}
           </div>

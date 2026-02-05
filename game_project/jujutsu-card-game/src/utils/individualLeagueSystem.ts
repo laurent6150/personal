@@ -669,6 +669,9 @@ export function getPlayerCardStatuses(league: IndividualLeague): {
   currentStage: IndividualLeagueStatus;
   nextMatchInfo: string | null;
   wins: number;
+  matchPlayed: boolean;         // 현재 라운드에서 경기 진행 여부
+  matchWon: boolean | null;     // 현재 라운드 경기 승패 (null = 미진행)
+  lastOpponentName: string | null;  // 마지막 경기 상대 이름
 }[] {
   const results: ReturnType<typeof getPlayerCardStatuses> = [];
 
@@ -677,20 +680,54 @@ export function getPlayerCardStatuses(league: IndividualLeague): {
 
     let wins = 0;
     let nextMatchInfo: string | null = null;
+    let matchPlayed = false;
+    let matchWon: boolean | null = null;
+    let lastOpponentName: string | null = null;
 
-    // 승리 수 계산
-    // 32강
+    // 32강 경기 정보
     const r32Match = league.brackets.round32.find(
       m => m.participant1 === participant.odId || m.participant2 === participant.odId
     );
-    if (r32Match?.winner === participant.odId) wins++;
 
-    // 16강
+    if (r32Match?.played) {
+      matchPlayed = true;
+      const opponentId = r32Match.participant1 === participant.odId
+        ? r32Match.participant2
+        : r32Match.participant1;
+      const opponent = CHARACTERS_BY_ID[opponentId];
+      lastOpponentName = opponent?.name.ko || '???';
+
+      if (r32Match.winner === participant.odId) {
+        wins++;
+        matchWon = true;
+      } else {
+        matchWon = false;
+      }
+    }
+
+    // 16강 그룹 정보
     const r16Group = league.brackets.round16.find(
       g => g.participants.includes(participant.odId)
     );
     if (r16Group) {
       wins += r16Group.winsCount[participant.odId] || 0;
+
+      // 16강 라운드에서 경기 진행 여부 확인
+      if (league.status === 'ROUND_16') {
+        const myR16Matches = r16Group.matches.filter(
+          m => m.participant1 === participant.odId || m.participant2 === participant.odId
+        );
+        const completedMatch = myR16Matches.find(m => m.played);
+        if (completedMatch) {
+          matchPlayed = true;
+          const opponentId = completedMatch.participant1 === participant.odId
+            ? completedMatch.participant2
+            : completedMatch.participant1;
+          const opponent = CHARACTERS_BY_ID[opponentId];
+          lastOpponentName = opponent?.name.ko || '???';
+          matchWon = completedMatch.winner === participant.odId;
+        }
+      }
     }
 
     // 8강
@@ -698,18 +735,48 @@ export function getPlayerCardStatuses(league: IndividualLeague): {
       m => m.participant1 === participant.odId || m.participant2 === participant.odId
     );
     if (quarterMatch?.winner === participant.odId) wins++;
+    if (league.status === 'QUARTER' && quarterMatch?.played) {
+      matchPlayed = true;
+      const opponentId = quarterMatch.participant1 === participant.odId
+        ? quarterMatch.participant2
+        : quarterMatch.participant1;
+      const opponent = CHARACTERS_BY_ID[opponentId];
+      lastOpponentName = opponent?.name.ko || '???';
+      matchWon = quarterMatch.winner === participant.odId;
+    }
 
     // 4강
     const semiMatch = league.brackets.semi.find(
       m => m.participant1 === participant.odId || m.participant2 === participant.odId
     );
     if (semiMatch?.winner === participant.odId) wins++;
+    if (league.status === 'SEMI' && semiMatch?.played) {
+      matchPlayed = true;
+      const opponentId = semiMatch.participant1 === participant.odId
+        ? semiMatch.participant2
+        : semiMatch.participant1;
+      const opponent = CHARACTERS_BY_ID[opponentId];
+      lastOpponentName = opponent?.name.ko || '???';
+      matchWon = semiMatch.winner === participant.odId;
+    }
 
     // 결승
     if (league.brackets.final?.winner === participant.odId) wins++;
+    if (league.status === 'FINAL' && league.brackets.final?.played) {
+      const finalMatch = league.brackets.final;
+      if (finalMatch.participant1 === participant.odId || finalMatch.participant2 === participant.odId) {
+        matchPlayed = true;
+        const opponentId = finalMatch.participant1 === participant.odId
+          ? finalMatch.participant2
+          : finalMatch.participant1;
+        const opponent = CHARACTERS_BY_ID[opponentId];
+        lastOpponentName = opponent?.name.ko || '???';
+        matchWon = finalMatch.winner === participant.odId;
+      }
+    }
 
     // 다음 경기 정보
-    if (participant.status === 'ACTIVE') {
+    if (participant.status === 'ACTIVE' && !matchPlayed) {
       const nextMatch = findNextPlayerMatch(league);
       if (nextMatch && nextMatch.playerCardId === participant.odId) {
         const opponent = CHARACTERS_BY_ID[nextMatch.opponentId!];
@@ -723,7 +790,10 @@ export function getPlayerCardStatuses(league: IndividualLeague): {
       status: participant.status,
       currentStage: participant.eliminatedAt || league.status,
       nextMatchInfo,
-      wins
+      wins,
+      matchPlayed,
+      matchWon,
+      lastOpponentName,
     });
   }
 
