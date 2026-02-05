@@ -129,7 +129,10 @@ export function IndividualLeagueScreen({
       return currentLeague.brackets.semi.every(m => m.played);
     }
     if (status === 'FINAL') {
-      return currentLeague.brackets.final?.played ?? false;
+      // 결승과 3/4위전 모두 완료되어야 함
+      const finalDone = currentLeague.brackets.final?.played ?? false;
+      const thirdPlaceDone = currentLeague.brackets.thirdPlace?.played ?? true; // 3/4위전 없으면 true
+      return finalDone && thirdPlaceDone;
     }
     return false;
   };
@@ -183,10 +186,9 @@ export function IndividualLeagueScreen({
             <div className="bg-bg-primary/50 rounded-lg p-4 mb-6 text-left">
               <div className="text-sm font-bold text-accent mb-2">📋 토너먼트 형식</div>
               <ul className="text-sm text-text-secondary space-y-1">
-                <li>• 32강: 8조 × 4명 조별 풀 리그전 (각 조 상위 2명 진출)</li>
-                <li>• 16강: 1:1 토너먼트 (단판)</li>
-                <li>• 8강: 3판 2선승</li>
-                <li>• 4강/결승: 5판 3선승</li>
+                <li>• 32강: 8조 × 4명 조별 풀 리그전 (각 조 상위 2명 진출, 단판)</li>
+                <li>• 16강: 3판 2선승</li>
+                <li>• 8강/4강/결승/3,4위전: 5판 3선승</li>
               </ul>
             </div>
 
@@ -458,14 +460,19 @@ export function IndividualLeagueScreen({
               <div className="bg-bg-primary/50 rounded-lg p-3 mb-4">
                 <div className="text-sm font-bold text-text-primary mb-2">세트별 결과</div>
                 <div className="space-y-1">
-                  {lastSimMatchResult.sets.map((set, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-text-secondary">세트 {set.setNumber} ({set.arenaName})</span>
-                      <span className={set.winnerId === lastSimMatchResult.participant1.odId ? 'text-green-400' : 'text-red-400'}>
-                        {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
-                      </span>
-                    </div>
-                  ))}
+                  {lastSimMatchResult.sets.map((set, idx) => {
+                    // 플레이어 카드가 이긴 세트인지 확인
+                    const isPlayerSetWin = (lastSimMatchResult.participant1.isPlayerCrew && set.winnerId === lastSimMatchResult.participant1.odId) ||
+                                           (lastSimMatchResult.participant2.isPlayerCrew && set.winnerId === lastSimMatchResult.participant2.odId);
+                    return (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-text-secondary">세트 {set.setNumber} ({set.arenaName})</span>
+                        <span className={isPlayerSetWin ? 'text-green-400' : 'text-red-400'}>
+                          {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

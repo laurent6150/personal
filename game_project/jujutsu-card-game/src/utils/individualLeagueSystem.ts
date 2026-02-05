@@ -1086,6 +1086,21 @@ export function getPlayerCardStatuses(league: IndividualLeague): {
       }
     }
 
+    // 3/4위전
+    if (league.brackets.thirdPlace?.winner === participant.odId) wins++;
+    if (league.status === 'FINAL' && league.brackets.thirdPlace?.played) {
+      const thirdPlaceMatch = league.brackets.thirdPlace;
+      if (thirdPlaceMatch.participant1 === participant.odId || thirdPlaceMatch.participant2 === participant.odId) {
+        matchPlayed = true;
+        const opponentId = thirdPlaceMatch.participant1 === participant.odId
+          ? thirdPlaceMatch.participant2
+          : thirdPlaceMatch.participant1;
+        const opponent = CHARACTERS_BY_ID[opponentId];
+        lastOpponentName = opponent?.name.ko || '???';
+        matchWon = thirdPlaceMatch.winner === participant.odId;
+      }
+    }
+
     // 다음 경기 정보
     if (participant.status === 'ACTIVE' && !matchPlayed) {
       const nextMatch = findNextPlayerMatch(league);
