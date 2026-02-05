@@ -1,112 +1,151 @@
+---
+name: daily-insight
+description: 매일 관심 분야의 양질의 콘텐츠를 WebSearch로 수집하여 마크다운 파일로 저장하는 스킬. 실행 트리거: "/daily-insight", "오늘 인사이트", "daily insight 수집". AI 활용, Self-Development, Growth Insights, Leadership, Teams 5개 카테고리에서 요일별로 2개 콘텐츠를 수집하여 GitHub 레포에 저장.
+---
+
 # Daily Insight 수집 스킬
 
-## 개요
-매일 관심 분야의 양질의 콘텐츠를 수집하여 마크다운 파일로 저장하는 스킬입니다.
+매일 관심 분야의 양질의 콘텐츠를 WebSearch로 수집하여 마크다운 파일로 저장합니다.
 
-## 실행 방법
+## 실행 흐름
+
 ```
-/daily-insight
+1. 오늘 요일/주차 확인
+2. 요일별 키워드 2개 결정
+3. 각 키워드별 WebSearch 실행 (최적화된 쿼리 사용)
+4. 검색 결과에서 고품질 콘텐츠 1개 선택
+5. 콘텐츠 상세 분석 및 템플릿에 맞춰 작성 (한국어)
+6. 파일 저장 → Git commit & push
+7. 완료 보고
 ```
 
 ## 요일별 키워드 배정
 
 | 요일 | 콘텐츠 1 | 콘텐츠 2 |
 |------|----------|----------|
-| 월요일 | AI 활용 | Growth Insights |
-| 화요일 | Self-Development | AI 활용 |
-| 수요일 | Leadership (홀수주) / Teams (짝수주) | Self-Development |
-| 목요일 | Growth Insights | AI 활용 |
-| 금요일 | AI 활용 | Leadership (홀수주) / Teams (짝수주) |
+| 월 | AI 활용 | Growth Insights |
+| 화 | Self-Development | AI 활용 |
+| 수 | Leadership (홀수주) / Teams (짝수주) | Self-Development |
+| 목 | Growth Insights | AI 활용 |
+| 금 | AI 활용 | Leadership (홀수주) / Teams (짝수주) |
 
-### 홀수주/짝수주 판단
-- ISO 주차 기준 (1월 첫째 주 = 1주차)
-- 홀수주: 1, 3, 5, 7... → Leadership
-- 짝수주: 2, 4, 6, 8... → Teams
+**홀수주/짝수주**: ISO 주차 기준 (1, 3, 5... = 홀수주 → Leadership)
 
-## 키워드별 검색 쿼리 및 소스
+---
+
+## WebSearch 최적화 쿼리
 
 ### AI 활용
-**검색 키워드**:
-- Claude Code, Claude agent, Claude skill, MCP, Model Context Protocol
-- AI automation, AI workflow, prompt engineering
-- no-code AI, AI for non-developers, AI productivity
-- Cursor, Windsurf, agentic coding, vibe coding
+```
+# 기본 쿼리 (택1)
+"Claude Code" tutorial OR workflow OR tips 2025..2026
+"MCP server" Claude setup guide
+"AI automation" "non-developer" workflow
+"prompt engineering" best practices 2025
+"agentic coding" OR "vibe coding" examples
 
-**소스**:
-| 소스 | URL 패턴 | 우선순위 |
-|------|----------|----------|
-| Reddit r/ClaudeAI | `https://www.reddit.com/r/ClaudeAI/top.json?t=week` | 1 |
-| Reddit r/LocalLLaMA | `https://www.reddit.com/r/LocalLLaMA/top.json?t=week` | 2 |
-| Hacker News | `https://hn.algolia.com/api/v1/search?query=Claude&tags=story` | 1 |
-| Simon Willison | `https://simonwillison.net/atom/everything/` | 1 |
+# 심화 쿼리
+site:reddit.com/r/ClaudeAI best practices
+site:simonwillison.net Claude OR AI
+"Claude" skill OR agent workflow
+```
 
 ### Self-Development
-**검색 키워드**:
-- meta-learning, PKM, personal knowledge management, second brain
-- deep work, energy management, continuous learning
-- productivity system, habit building, self-awareness
-- learning how to learn, personal OS
+```
+# 기본 쿼리
+"personal knowledge management" system 2025
+"second brain" method guide
+"deep work" strategies leaders
+"meta-learning" techniques
+productivity system for managers
 
-**소스**:
-| 소스 | URL 패턴 | 우선순위 |
-|------|----------|----------|
-| Medium | `https://medium.com/feed/tag/self-improvement` | 1 |
-| Substack Tiago Forte | `https://fortelabs.substack.com/feed` | 1 |
-| Substack Sahil Bloom | `https://sahilbloom.substack.com/feed` | 2 |
-| Ness Labs | `https://nesslabs.com/feed` | 2 |
+# 심화 쿼리
+site:nesslabs.com learning OR productivity
+site:fortelabs.com knowledge management
+"continuous learning" leadership
+```
 
 ### Growth Insights
-**검색 키워드**:
-- scenario planning, systems thinking, first principles
-- prediction, adoption timing, technology trends
-- business strategy, innovation, venture capital insights
+```
+# 기본 쿼리
+"business strategy" 2026 trends
+"scenario planning" framework
+"systems thinking" leadership
+"technology adoption" timing strategy
+startup growth insights 2025
 
-**소스**:
-| 소스 | URL 패턴 | 우선순위 |
-|------|----------|----------|
-| a16z | `https://a16z.com/feed/` | 1 |
-| First Round Review | `https://review.firstround.com/feed.xml` | 1 |
-| HBR | `https://hbr.org/feed` | 2 |
-| MIT Sloan | `https://mitsloan.mit.edu/ideas-made-to-matter/feed` | 2 |
+# 심화 쿼리
+site:a16z.com insights OR trends
+site:firstround.com strategy OR growth
+"first principles" thinking business
+```
 
 ### Leadership
-**검색 키워드**:
-- psychological safety, radical candor, change management
-- manager transition, trust building, feedback loop
-- decision framework, vulnerability-based leadership
-- succession planning, executive coaching
+```
+# 기본 쿼리
+"psychological safety" team building
+"radical candor" feedback guide
+"change management" framework 2025
+manager transition best practices
+"decision making" framework leaders
 
-**소스**:
-| 소스 | URL 패턴 | 우선순위 |
-|------|----------|----------|
-| HBR Leadership | `https://hbr.org/topic/leadership/feed` | 1 |
-| First Round Review | `https://review.firstround.com/feed.xml` | 1 |
-| MIT Sloan | `https://mitsloan.mit.edu/ideas-made-to-matter/feed` | 2 |
-| CCL | `https://www.ccl.org/feed/` | 2 |
+# 심화 쿼리
+site:hbr.org leadership 2025
+"vulnerability-based leadership"
+"trust building" remote teams
+```
 
 ### Teams
-**검색 키워드**:
-- async communication, meeting hygiene, remote culture
-- team topologies, cross-functional collaboration
-- hybrid work, distributed teams, team rituals
-- psychological safety, invisible agreements
-
-**소스**:
-| 소스 | URL 패턴 | 우선순위 |
-|------|----------|----------|
-| Atlassian Work Life | `https://www.atlassian.com/blog/feed` | 1 |
-| GitLab Blog | `https://about.gitlab.com/atom.xml` | 1 |
-| First Round Review | `https://review.firstround.com/feed.xml` | 2 |
-| Doist Blog | `https://blog.doist.com/feed/` | 2 |
-
-## 파일 저장 규칙
-
-### 저장 경로
 ```
-/personal/digests/{카테고리}/{YYYY-MM-DD}_{영문-제목}.md
+# 기본 쿼리
+"async communication" best practices
+"remote team" collaboration guide
+"meeting hygiene" productivity
+"team rituals" distributed teams
+"cross-functional" collaboration framework
+
+# 심화 쿼리
+site:about.gitlab.com remote OR async
+site:atlassian.com/blog teamwork
+"hybrid work" team management
 ```
 
-### 카테고리 폴더명
+---
+
+## 검색 전략
+
+### 1단계: 기본 검색
+- 해당 카테고리의 기본 쿼리 중 하나 선택
+- 최신 콘텐츠 우선 (2025-2026)
+
+### 2단계: 결과 평가
+검색 결과에서 다음 기준으로 평가:
+- **깊이**: 구체적인 방법론/사례가 있는가?
+- **실용성**: 바로 적용 가능한 인사이트가 있는가?
+- **신뢰성**: 출처가 믿을 만한가?
+- **신선함**: 새로운 관점이 있는가?
+
+### 3단계: 콘텐츠 부족 시
+- 다른 쿼리로 재검색
+- 심화 쿼리 사용
+- 검색어 조합 변경
+
+### 제외 기준
+- 광고성/홍보성 콘텐츠
+- 내용이 피상적인 글
+- 3년 이상 된 오래된 글
+- 특정 제품만 홍보하는 글
+
+---
+
+## 파일 저장
+
+### 경로
+```
+digests/{category}/{YYYY-MM-DD}_{english-title}.md
+```
+
+### 카테고리 폴더
 - AI 활용 → `ai-usage`
 - Self-Development → `self-development`
 - Growth Insights → `growth-insights`
@@ -114,9 +153,11 @@
 - Teams → `teams`
 
 ### 파일명 규칙
-- 날짜: `YYYY-MM-DD` 형식
-- 제목: 영문 소문자, 하이픈(-) 연결, 핵심 키워드 3~5개
-- 예시: `2026-02-05_claude-code-mcp-workflow-automation.md`
+- 날짜: YYYY-MM-DD
+- 제목: 영문 소문자, 하이픈 연결, 핵심 3-5단어
+- 예: `2026-02-05_claude-code-mcp-workflow-automation.md`
+
+---
 
 ## 콘텐츠 템플릿
 
@@ -126,7 +167,7 @@
 ## 메타 정보
 - **출처**: [사이트명](URL)
 - **저자**: 저자명
-- **작성일**: YYYY-MM-DD
+- **작성일**: YYYY-MM-DD (원문)
 - **수집일**: YYYY-MM-DD
 - **카테고리**: [카테고리명]
 
@@ -140,31 +181,33 @@
 ## 핵심 내용 요약
 
 ### 문제 인식
-- 저자가 제기하는 문제 또는 배경
+저자가 제기하는 문제 또는 배경 설명
 
 ### 핵심 메시지
-- 메시지 1
-- 메시지 2
-- 메시지 3
+1. 첫 번째 핵심 메시지
+2. 두 번째 핵심 메시지  
+3. 세 번째 핵심 메시지
 
 ### 주요 개념/프레임워크
-- 개념 설명 (있는 경우)
+개념이나 프레임워크가 있는 경우 설명
 
 ---
 
 ## 상세 내용
 
-(원문의 주요 논지를 재구성하여 서술 - 한국어)
+원문의 주요 논지를 재구성하여 서술 (한국어)
 
 ---
 
 ## 활용 사례
 
 ### 원문 사례
-- 원문에서 언급된 실제 사례
+원문에서 언급된 실제 사례
 
 ### 적용 아이디어
-- 로랑의 맥락(운영 팀 리더, 나인투원, 공유 모빌리티)에 적용할 수 있는 아이디어
+로랑의 맥락(운영 팀 리더, 나인투원, 공유 모빌리티)에 적용할 수 있는 아이디어:
+- 적용 아이디어 1
+- 적용 아이디어 2
 
 ---
 
@@ -190,38 +233,41 @@
 [전체 원문 읽기](URL)
 ```
 
-## 콘텐츠 선정 기준
+---
 
-### 우선순위 (높음 → 낮음)
-1. **실용성**: 바로 적용 가능한 인사이트가 있는가?
-2. **깊이**: 피상적이지 않고 구체적인 내용인가?
-3. **신선함**: 새로운 관점이나 접근법이 있는가?
-4. **신뢰성**: 출처가 믿을 만한가? 사례가 있는가?
+## 완료 후 작업
 
-### 제외 기준
-- 광고성 콘텐츠
-- 내용이 너무 짧거나 피상적인 글
-- 이미 수집한 콘텐츠와 중복되는 내용
-- 특정 제품/서비스 홍보 목적의 글
-
-## 실행 흐름
-
+### Git 커밋
+```bash
+git add digests/
+git commit -m "feat: daily insight - {카테고리} - {제목 요약}"
+git push origin main
 ```
-1. 오늘 요일 확인
-2. 요일별 키워드 2개 확인 (홀수주/짝수주 판단 포함)
-3. 각 키워드별 소스에서 최신 콘텐츠 검색
-4. 선정 기준에 따라 각 키워드당 1개 콘텐츠 선택
-5. 콘텐츠 상세 분석 및 템플릿에 맞춰 작성
-6. 파일 저장 (/personal/digests/{카테고리}/)
-7. 수집 완료 보고
+
+### 완료 보고 형식
 ```
+✅ Daily Insight 수집 완료 (YYYY-MM-DD)
+
+📁 저장된 파일:
+1. digests/{category1}/{filename1}.md
+2. digests/{category2}/{filename2}.md
+
+📌 오늘의 인사이트:
+- [카테고리1] 제목 - 한 줄 요약
+- [카테고리2] 제목 - 한 줄 요약
+```
+
+---
 
 ## 주의사항
 
 - 주말(토, 일)에는 실행하지 않음
-- 네트워크 제한으로 접근 불가한 소스는 건너뛰고 대체 소스 사용
-- 콘텐츠 품질이 기준에 미달하면 해당 키워드는 다음 날로 연기하고 사용자에게 알림
-- 동일 콘텐츠 중복 수집 방지 (기존 파일 확인)
+- 검색 결과가 부족하면 다른 쿼리로 재시도
+- 동일 URL 중복 수집 방지 (기존 파일 확인)
+- 콘텐츠 내용은 반드시 한국어로 작성
+- 파일명만 영어로 작성
+
+---
 
 ## 버전
-- v1.0 (2026-02-05): 초기 생성
+- v2.0 (2026-02-05): WebSearch 기반으로 전환, 쿼리 최적화 추가
