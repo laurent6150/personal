@@ -841,65 +841,117 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         if (!currentLeague) return null;
 
         const status = currentLeague.status;
+        console.log('[findNextMatch] 현재 phase:', status);
 
         let matches: IndividualMatch[] = [];
         switch (status) {
           case 'ROUND_32':
             matches = currentLeague.brackets.round32;
+            console.log('[findNextMatch] 32강 경기 수:', matches.length);
             break;
           case 'ROUND_16':
             // 16강 토너먼트 (1:1 녹아웃)
             matches = currentLeague.brackets.round16Matches || [];
+            console.log('[findNextMatch] 16강 경기 수:', matches.length);
             break;
           case 'QUARTER':
             matches = currentLeague.brackets.quarter;
+            console.log('[findNextMatch] 8강 경기 수:', matches.length);
             break;
           case 'SEMI':
             matches = currentLeague.brackets.semi;
+            console.log('[findNextMatch] 4강 경기 수:', matches.length);
             break;
           case 'FINAL':
             matches = currentLeague.brackets.final ? [currentLeague.brackets.final] : [];
+            console.log('[findNextMatch] 결승 존재:', !!currentLeague.brackets.final);
             break;
           default:
+            console.log('[findNextMatch] 알 수 없는 phase:', status);
             return null;
         }
 
-        return matches.find(m =>
-          !m.played &&
-          m.participant1 &&
-          m.participant2
-        ) || null;
+        // 미완료 경기 찾기
+        const incompleteMatches = matches.filter(m => !m.played);
+        console.log('[findNextMatch] 미완료 경기 수:', incompleteMatches.length);
+
+        // 참가자 설정된 경기만
+        const validMatches = incompleteMatches.filter(m => m.participant1 && m.participant2);
+        console.log('[findNextMatch] 유효한 경기 수:', validMatches.length);
+
+        if (validMatches.length > 0) {
+          console.log('[findNextMatch] 다음 경기:', validMatches[0].id);
+          return validMatches[0];
+        }
+
+        console.log('[findNextMatch] 다음 경기 없음');
+        return null;
       },
 
       // 내 카드 경기까지 자동 스킵
       skipToNextPlayerMatch: (): IndividualMatch | null => {
-        const { currentLeague, simulateIndividualMatch, findNextMatch } = get();
+        const { simulateIndividualMatch, findNextMatch, advanceRound } = get();
+
+        // 현재 상태를 다시 가져오기 (advanceRound 후 변경될 수 있음)
+        const getCurrentLeague = () => get().currentLeague;
+        const getPlayerCardIds = () => {
+          const league = getCurrentLeague();
+          if (!league) return [];
+          return league.participants
+            .filter(p => p.isPlayerCrew)
+            .map(p => p.odId);
+        };
+
+        const currentLeague = getCurrentLeague();
         if (!currentLeague) return null;
 
-        const playerCardIds = currentLeague.participants
-          .filter(p => p.isPlayerCrew)
-          .map(p => p.odId);
-
-        console.log('[skipToNextPlayerMatch] 시작');
+        console.log('[skipToNextPlayerMatch] 시작, phase:', currentLeague.status);
+        console.log('[skipToNextPlayerMatch] 내 카드 IDs:', getPlayerCardIds());
 
         let safetyCounter = 0;
-        const maxIterations = 50; // 무한루프 방지
+        const maxIterations = 100; // 무한루프 방지
 
         while (safetyCounter < maxIterations) {
           safetyCounter++;
 
-          const nextMatch = findNextMatch();
+          let nextMatch = findNextMatch();
 
+          // 다음 경기가 없으면 라운드 완료 체크
           if (!nextMatch) {
-            console.log('[skipToNextPlayerMatch] 다음 경기 없음');
-            break;
+            const league = getCurrentLeague();
+            if (!league) break;
+
+            console.log('[skipToNextPlayerMatch] 다음 경기 없음 - 라운드 완료 체크, phase:', league.status);
+
+            // 현재 라운드가 완료되었는지 확인
+            const roundComplete = isRoundComplete(league);
+            console.log('[skipToNextPlayerMatch] 라운드 완료 여부:', roundComplete);
+
+            if (roundComplete && league.status !== 'FINISHED') {
+              // 다음 라운드로 자동 진행
+              console.log('[skipToNextPlayerMatch] 다음 라운드로 자동 진행');
+              advanceRound();
+
+              // 다시 경기 찾기 시도
+              nextMatch = get().findNextMatch();
+              if (!nextMatch) {
+                console.log('[skipToNextPlayerMatch] 다음 라운드에서도 경기 없음');
+                break;
+              }
+            } else {
+              console.log('[skipToNextPlayerMatch] 라운드 미완료 또는 리그 종료');
+              break;
+            }
           }
 
+          const playerCardIds = getPlayerCardIds();
           const isPlayerMatch = playerCardIds.includes(nextMatch.participant1) ||
                                 playerCardIds.includes(nextMatch.participant2);
 
+          console.log(`[skipToNextPlayerMatch] 경기: ${nextMatch.id}, 내 카드 경기: ${isPlayerMatch}`);
+
           if (isPlayerMatch) {
-            console.log('[skipToNextPlayerMatch] 내 카드 경기 발견:', nextMatch.id);
+            console.log('[skipToNextPlayerMatch] 내 카드 경기 발견!');
             return nextMatch;
           }
 
@@ -908,7 +960,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           simulateIndividualMatch(nextMatch.id);
         }
 
-        console.log('[skipToNextPlayerMatch] 완료');
+        console.log('[skipToNextPlayerMatch] 루프 종료');
         return null;
       },
     }),
