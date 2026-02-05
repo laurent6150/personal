@@ -1202,8 +1202,8 @@ export function getExpByRank(rank: number): number {
   return 50; // 17-32위
 }
 
-// 참가자별 성적 집계
-function calculateParticipantStats(
+// 참가자별 성적 집계 (버그 수정 - 모든 라운드 명확히 분리)
+export function calculateParticipantStats(
   league: IndividualLeague,
   odId: string
 ): { wins: number; losses: number; setDiff: number } {
@@ -1212,16 +1212,110 @@ function calculateParticipantStats(
   let setsWon = 0;
   let setsLost = 0;
 
-  // 32강 조별리그
+  // 1. 32강 조별리그 경기
   league.brackets.round32.forEach(match => {
-    if (match.played && (match.participant1 === odId || match.participant2 === odId)) {
+    if (!match.played) return;
+    if (match.participant1 !== odId && match.participant2 !== odId) return;
+
+    const isParticipant1 = match.participant1 === odId;
+
+    // 승패 집계
+    if (match.winner === odId) {
+      wins++;
+    } else if (match.winner) {
+      losses++;
+    }
+
+    // 세트 스코어 집계
+    if (isParticipant1) {
+      setsWon += match.score.p1;
+      setsLost += match.score.p2;
+    } else {
+      setsWon += match.score.p2;
+      setsLost += match.score.p1;
+    }
+  });
+
+  // 2. 16강 토너먼트
+  const round16Matches = league.brackets.round16Matches || [];
+  round16Matches.forEach(match => {
+    if (!match.played) return;
+    if (match.participant1 !== odId && match.participant2 !== odId) return;
+
+    const isParticipant1 = match.participant1 === odId;
+
+    if (match.winner === odId) {
+      wins++;
+    } else if (match.winner) {
+      losses++;
+    }
+
+    if (isParticipant1) {
+      setsWon += match.score.p1;
+      setsLost += match.score.p2;
+    } else {
+      setsWon += match.score.p2;
+      setsLost += match.score.p1;
+    }
+  });
+
+  // 3. 8강
+  league.brackets.quarter.forEach(match => {
+    if (!match.played) return;
+    if (match.participant1 !== odId && match.participant2 !== odId) return;
+
+    const isParticipant1 = match.participant1 === odId;
+
+    if (match.winner === odId) {
+      wins++;
+    } else if (match.winner) {
+      losses++;
+    }
+
+    if (isParticipant1) {
+      setsWon += match.score.p1;
+      setsLost += match.score.p2;
+    } else {
+      setsWon += match.score.p2;
+      setsLost += match.score.p1;
+    }
+  });
+
+  // 4. 4강
+  league.brackets.semi.forEach(match => {
+    if (!match.played) return;
+    if (match.participant1 !== odId && match.participant2 !== odId) return;
+
+    const isParticipant1 = match.participant1 === odId;
+
+    if (match.winner === odId) {
+      wins++;
+    } else if (match.winner) {
+      losses++;
+    }
+
+    if (isParticipant1) {
+      setsWon += match.score.p1;
+      setsLost += match.score.p2;
+    } else {
+      setsWon += match.score.p2;
+      setsLost += match.score.p1;
+    }
+  });
+
+  // 5. 결승
+  if (league.brackets.final?.played) {
+    const match = league.brackets.final;
+    if (match.participant1 === odId || match.participant2 === odId) {
+      const isParticipant1 = match.participant1 === odId;
+
       if (match.winner === odId) {
         wins++;
-      } else {
+      } else if (match.winner) {
         losses++;
       }
-      // 세트 스코어 집계
-      if (match.participant1 === odId) {
+
+      if (isParticipant1) {
         setsWon += match.score.p1;
         setsLost += match.score.p2;
       } else {
@@ -1229,26 +1323,21 @@ function calculateParticipantStats(
         setsLost += match.score.p1;
       }
     }
-  });
+  }
 
-  // 16강 이후 토너먼트
-  const knockoutMatches = [
-    ...(league.brackets.round16Matches || []),
-    ...league.brackets.quarter,
-    ...league.brackets.semi,
-    ...(league.brackets.final ? [league.brackets.final] : []),
-    ...(league.brackets.thirdPlace ? [league.brackets.thirdPlace] : []),
-  ];
+  // 6. 3,4위전
+  if (league.brackets.thirdPlace?.played) {
+    const match = league.brackets.thirdPlace;
+    if (match.participant1 === odId || match.participant2 === odId) {
+      const isParticipant1 = match.participant1 === odId;
 
-  knockoutMatches.forEach(match => {
-    if (match && match.played && (match.participant1 === odId || match.participant2 === odId)) {
       if (match.winner === odId) {
         wins++;
-      } else {
+      } else if (match.winner) {
         losses++;
       }
-      // 세트 스코어 집계
-      if (match.participant1 === odId) {
+
+      if (isParticipant1) {
         setsWon += match.score.p1;
         setsLost += match.score.p2;
       } else {
@@ -1256,7 +1345,7 @@ function calculateParticipantStats(
         setsLost += match.score.p1;
       }
     }
-  });
+  }
 
   return { wins, losses, setDiff: setsWon - setsLost };
 }

@@ -1,56 +1,61 @@
 // ========================================
-// 32강 조별 현황 컴포넌트
+// 32강 조별 현황 컴포넌트 (카드형 레이아웃)
 // ========================================
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
+import { getCharacterImage } from '../../utils/imageHelper';
 import type { Round32Group, LeagueParticipant, IndividualMatch } from '../../types';
 import { Button } from '../UI/Button';
 
 interface GroupStageViewProps {
   groups: Round32Group[];
   participants: LeagueParticipant[];
-  matches: IndividualMatch[];  // 32강 경기 목록
+  matches: IndividualMatch[];  // round32 매치 배열
   onClose: () => void;
 }
 
 export function GroupStageView({ groups, participants, matches, onClose }: GroupStageViewProps) {
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-
-  // 플레이어 카드 ID 목록
   const playerCardIds = participants
     .filter(p => p.isPlayerCrew)
     .map(p => p.odId);
 
-  // 참가자 이름 가져오기
   const getParticipantName = (odId: string) => {
     const card = CHARACTERS_BY_ID[odId];
     return card?.name.ko || '???';
   };
 
-  // 짧은 이름 (4글자 이하)
-  const getShortName = (odId: string) => {
-    const name = getParticipantName(odId);
-    return name.length > 4 ? name.slice(0, 4) + '..' : name;
+  const getParticipantImage = (odId: string) => {
+    const card = CHARACTERS_BY_ID[odId];
+    return card ? getCharacterImage(card.id, card.name.ko, card.attribute) : null;
   };
 
-  // 플레이어 카드 여부
   const isPlayerCard = (odId: string) => playerCardIds.includes(odId);
 
-  // 순위 정렬 (승수 > 승패차)
+  // 조별 매치 가져오기
+  const getGroupMatches = (groupId: string) => {
+    return matches.filter(m => m.groupId === groupId);
+  };
+
+  // 순위 정렬
   const getSortedStandings = (group: Round32Group) => {
     return [...group.standings].sort((a, b) => {
       if (b.wins !== a.wins) return b.wins - a.wins;
-      const diffA = a.wins - a.losses;
-      const diffB = b.wins - b.losses;
-      return diffB - diffA;
+      return (b.wins - b.losses) - (a.wins - a.losses);
     });
   };
 
-  // 조별 경기 가져오기
-  const getGroupMatches = (groupId: string) => {
-    return matches.filter(m => m.groupId === groupId);
+  // 경기 상태 아이콘
+  const getMatchStatus = (match: IndividualMatch, groupMatches: IndividualMatch[]) => {
+    if (match.played) return { icon: '✓', color: 'text-green-400', label: '완료' };
+
+    // 다음 경기인지 확인 (첫 번째 미완료 경기)
+    const firstUnplayed = groupMatches.find(m => !m.played);
+    if (firstUnplayed?.id === match.id) {
+      return { icon: '⏳', color: 'text-yellow-400', label: '다음' };
+    }
+
+    return { icon: '○', color: 'text-text-secondary', label: '대기' };
   };
 
   return (
@@ -58,154 +63,166 @@ export function GroupStageView({ groups, participants, matches, onClose }: Group
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-auto"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-bg-primary rounded-xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-bg-primary rounded-xl border border-white/10 max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="text-xl font-bold text-text-primary">
-            📋 32강 조별 현황
+            📊 32강 조별 현황
           </div>
           <Button variant="ghost" onClick={onClose}>✕</Button>
         </div>
 
-        {/* 조별 현황 */}
+        {/* 조별 현황 그리드 */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {groups.map(group => {
-              const sortedStandings = getSortedStandings(group);
               const groupMatches = getGroupMatches(group.id);
-              const isSelected = selectedGroup === group.id;
+              const sortedStandings = getSortedStandings(group);
+              const completedMatches = groupMatches.filter(m => m.played).length;
 
               return (
                 <div
                   key={group.id}
-                  className="bg-bg-secondary rounded-lg border border-white/10 overflow-hidden"
+                  className="bg-bg-secondary rounded-xl border border-white/10 overflow-hidden"
                 >
-                  {/* 조 헤더 - 클릭으로 대진표 토글 */}
-                  <button
-                    onClick={() => setSelectedGroup(isSelected ? null : group.id)}
-                    className={`w-full px-3 py-1 text-center ${group.isCompleted ? 'bg-green-500/20' : 'bg-accent/20'} hover:opacity-80 transition-opacity`}
-                  >
-                    <span className={`text-sm font-bold ${group.isCompleted ? 'text-green-400' : 'text-accent'}`}>
+                  {/* 조 헤더 */}
+                  <div className={`px-4 py-2 flex items-center justify-between ${
+                    group.isCompleted ? 'bg-green-500/20' : 'bg-accent/20'
+                  }`}>
+                    <span className={`font-bold ${
+                      group.isCompleted ? 'text-green-400' : 'text-accent'
+                    }`}>
                       {group.id}조 {group.isCompleted && '✓'}
-                      <span className="text-xs ml-1 text-text-secondary">
-                        {isSelected ? '▲' : '▼'}
-                      </span>
                     </span>
-                  </button>
+                    <span className="text-xs text-text-secondary">
+                      {completedMatches}/6 경기
+                    </span>
+                  </div>
 
-                  {/* 참가자 순위 */}
-                  <div className="p-3 space-y-1">
-                    {sortedStandings.map((standing, rank) => {
-                      const isPlayer = isPlayerCard(standing.odId);
-                      const isQualified = group.isCompleted && rank < 2; // 상위 2명 진출
-                      const isEliminated = group.isCompleted && rank >= 2; // 하위 2명 탈락
+                  {/* 참가자 카드 (4명 가로 배열) */}
+                  <div className="p-4 grid grid-cols-4 gap-2">
+                    {group.participants.map(odId => {
+                      const standing = group.standings.find(s => s.odId === odId);
+                      const isPlayer = isPlayerCard(odId);
+                      const rank = sortedStandings.findIndex(s => s.odId === odId) + 1;
+                      const isQualified = group.isCompleted && rank <= 2;
 
                       return (
                         <div
-                          key={standing.odId}
+                          key={odId}
                           className={`
-                            flex items-center justify-between px-2 py-1 rounded text-sm
-                            ${isQualified ? 'bg-green-500/20' : ''}
-                            ${isEliminated ? 'bg-red-500/10 opacity-70' : ''}
-                            ${isPlayer ? 'border border-accent/50' : ''}
+                            flex flex-col items-center p-2 rounded-lg
+                            ${isPlayer ? 'bg-accent/20 border border-accent/50' : 'bg-bg-primary/50'}
+                            ${isQualified ? 'ring-2 ring-green-400' : ''}
                           `}
                         >
-                          <div className="flex items-center gap-1">
-                            <span className="text-text-secondary w-4">{rank + 1}.</span>
-                            {isPlayer && <span className="text-xs">🌟</span>}
-                            <span className={`
-                              ${isQualified ? 'text-green-400 font-bold' : ''}
-                              ${isEliminated ? 'text-text-secondary' : 'text-text-primary'}
-                            `}>
-                              {getParticipantName(standing.odId)}
+                          {/* 캐릭터 이미지 */}
+                          <div className="w-12 h-12 rounded-full overflow-hidden bg-bg-primary mb-1">
+                            {getParticipantImage(odId) ? (
+                              <img
+                                src={getParticipantImage(odId)!}
+                                alt={getParticipantName(odId)}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-2xl">
+                                👤
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 이름 */}
+                          <div className="text-xs text-center truncate w-full">
+                            {isPlayer && <span className="text-yellow-400">🌟</span>}
+                            <span className={isQualified ? 'text-green-400 font-bold' : 'text-text-primary'}>
+                              {getParticipantName(odId)}
                             </span>
                           </div>
-                          <span className="text-text-secondary">
-                            {standing.wins}승 {standing.losses}패
-                          </span>
+
+                          {/* 전적 */}
+                          <div className="text-xs text-text-secondary">
+                            {standing?.wins || 0}승 {standing?.losses || 0}패
+                          </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  {/* 조별 대진표 (토글) */}
-                  {isSelected && (
-                    <div className="border-t border-white/10 p-2 bg-bg-primary/30">
-                      <div className="text-xs text-text-secondary mb-2 text-center font-semibold">
-                        📋 {group.id}조 대진표
-                      </div>
-                      <div className="space-y-1">
-                        {groupMatches.map((match, idx) => {
-                          const isP1Player = isPlayerCard(match.participant1);
-                          const isP2Player = isPlayerCard(match.participant2);
-                          const isP1Winner = match.winner === match.participant1;
-                          const isP2Winner = match.winner === match.participant2;
+                  {/* 대진표 */}
+                  <div className="px-4 pb-2">
+                    <div className="text-xs font-bold text-text-secondary mb-2">
+                      ═══ 대진표 ═══
+                    </div>
+                    <div className="space-y-1">
+                      {groupMatches.map((match, idx) => {
+                        const status = getMatchStatus(match, groupMatches);
+                        const p1Name = getParticipantName(match.participant1);
+                        const p2Name = getParticipantName(match.participant2);
+                        const isP1Player = isPlayerCard(match.participant1);
+                        const isP2Player = isPlayerCard(match.participant2);
 
-                          return (
-                            <div
-                              key={match.id}
-                              className={`
-                                flex items-center justify-between text-xs px-2 py-1 rounded
-                                ${match.played ? 'bg-bg-secondary' : 'bg-bg-primary/50'}
-                              `}
-                            >
-                              <div className="flex items-center gap-1 flex-1 min-w-0">
-                                <span className="text-text-secondary">{idx + 1}.</span>
-                                <span className={`
-                                  truncate
-                                  ${isP1Player ? 'text-accent font-bold' : 'text-text-primary'}
-                                  ${isP1Winner ? 'text-green-400' : ''}
-                                  ${match.played && !isP1Winner ? 'text-text-secondary' : ''}
-                                `}>
-                                  {getShortName(match.participant1)}
-                                </span>
-                              </div>
-                              <div className="px-2 text-text-secondary shrink-0">
-                                {match.played ? (
-                                  <span className={isP1Winner ? 'text-green-400' : 'text-red-400'}>
-                                    {match.score.p1} - {match.score.p2}
-                                  </span>
-                                ) : (
-                                  <span>vs</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
-                                <span className={`
-                                  truncate
-                                  ${isP2Player ? 'text-accent font-bold' : 'text-text-primary'}
-                                  ${isP2Winner ? 'text-green-400' : ''}
-                                  ${match.played && !isP2Winner ? 'text-text-secondary' : ''}
-                                `}>
-                                  {getShortName(match.participant2)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        return (
+                          <div
+                            key={match.id}
+                            className={`
+                              flex items-center justify-between text-xs py-1 px-2 rounded
+                              ${(isP1Player || isP2Player) ? 'bg-accent/10' : ''}
+                            `}
+                          >
+                            <span className="text-text-secondary w-12">
+                              {idx + 1}경기
+                            </span>
+                            <span className={`flex-1 text-center ${isP1Player ? 'text-yellow-400' : 'text-text-primary'}`}>
+                              {p1Name}
+                            </span>
+                            <span className="text-text-secondary mx-2">vs</span>
+                            <span className={`flex-1 text-center ${isP2Player ? 'text-yellow-400' : 'text-text-primary'}`}>
+                              {p2Name}
+                            </span>
+                            <span className={`w-24 text-right ${status.color}`}>
+                              {match.played ? (
+                                <>
+                                  {status.icon} {getParticipantName(match.winner!)} 승
+                                </>
+                              ) : (
+                                <>
+                                  {status.icon} {status.label}
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 현재 순위 */}
+                  <div className="px-4 py-2 bg-bg-primary/50 border-t border-white/5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-secondary">현재 순위:</span>
+                      <div className="flex gap-2">
+                        {sortedStandings.slice(0, 4).map((s, idx) => (
+                          <span
+                            key={s.odId}
+                            className={`
+                              ${idx < 2 ? 'text-green-400' : 'text-text-secondary'}
+                              ${isPlayerCard(s.odId) ? 'font-bold' : ''}
+                            `}
+                          >
+                            {idx + 1}.{getParticipantName(s.odId).slice(0, 3)}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  )}
-
-                  {/* 조 상태 */}
-                  <div className="px-3 py-1 bg-bg-primary/50 text-center">
-                    {group.isCompleted ? (
-                      <span className="text-xs text-green-400">
-                        {getShortName(sortedStandings[0]?.odId)}, {getShortName(sortedStandings[1]?.odId)} 16강 진출
-                      </span>
-                    ) : (
-                      <span className="text-xs text-text-secondary">
-                        6경기 중 {groupMatches.filter(m => m.played).length}경기 완료
-                      </span>
-                    )}
                   </div>
                 </div>
               );
@@ -214,11 +231,9 @@ export function GroupStageView({ groups, participants, matches, onClose }: Group
 
           {/* 범례 */}
           <div className="mt-4 text-center text-xs text-text-secondary">
-            <span className="text-accent">🌟</span> = 내 카드 |
-            <span className="text-green-400 ml-2">초록색</span> = 16강 진출/승리 |
-            <span className="text-red-400 ml-2">연한 빨강</span> = 탈락/패배
-            <br />
-            <span className="mt-1 inline-block">조 이름 클릭 시 대진표 표시</span>
+            🌟 = 내 카드 |
+            <span className="text-green-400 ml-2">초록 테두리</span> = 16강 진출 |
+            <span className="text-yellow-400 ml-2">⏳</span> = 다음 경기
           </div>
         </div>
       </motion.div>

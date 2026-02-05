@@ -179,28 +179,30 @@ export function IndividualLeagueScreen({
               시즌 {currentSeason} 개인 리그
             </h2>
             <p className="text-text-secondary mb-6">
-              32명의 술사가 참가하는 개인 토너먼트입니다.<br />
-              내 크루 카드 {playerCrew.length}장이 자동으로 참가합니다.
+              등급순 상위 32명의 술사가 참가하는 개인 토너먼트입니다.<br />
+              내 크루 카드도 등급에 따라 참가할 수 있습니다.
             </p>
 
             <div className="bg-bg-primary/50 rounded-lg p-4 mb-6 text-left">
               <div className="text-sm font-bold text-accent mb-2">📋 토너먼트 형식</div>
               <ul className="text-sm text-text-secondary space-y-1">
                 <li>• 32강: 8조 × 4명 조별 풀 리그전 (각 조 상위 2명 진출, 단판)</li>
-                <li>• 16강: 3판 2선승</li>
-                <li>• 8강/4강/결승/3,4위전: 5판 3선승</li>
+                <li>• 16강: 3판 2선승 (교차 대진)</li>
+                <li>• 8강: 3판 2선승</li>
+                <li>• 4강/결승/3,4위전: 5판 3선승</li>
               </ul>
             </div>
 
             <div className="bg-bg-primary/50 rounded-lg p-4 mb-6 text-left">
-              <div className="text-sm font-bold text-accent mb-2">🎁 보상</div>
+              <div className="text-sm font-bold text-accent mb-2">🎁 보상 (최종 순위 기준)</div>
               <ul className="text-sm text-text-secondary space-y-1">
-                <li>• 32강 탈락: 경험치 +50</li>
-                <li>• 16강 진출: 경험치 +100</li>
-                <li>• 8강 진출: 경험치 +200</li>
-                <li>• 4강 진출: 경험치 +300</li>
-                <li>• 준우승: 경험치 +500</li>
-                <li>• <span className="text-yellow-400">우승: 경험치 +1000, 챔피언 타이틀</span></li>
+                <li>• 32강 탈락 (17~32위): 경험치 +50</li>
+                <li>• 16강 탈락 (9~16위): 경험치 +100</li>
+                <li>• 8강 탈락 (5~8위): 경험치 +150</li>
+                <li>• 4위: 경험치 +200, 다음 시즌 시드</li>
+                <li>• 3위: 경험치 +250, 🥉 + 다음 시즌 시드</li>
+                <li>• 2위: 경험치 +300, 🥈 + 다음 시즌 시드</li>
+                <li>• <span className="text-yellow-400">1위: 경험치 +350, 🏆 챔피언 + 다음 시즌 시드</span></li>
               </ul>
             </div>
 
