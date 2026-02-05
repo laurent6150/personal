@@ -1150,3 +1150,261 @@ export function updateGroupWins(
     winner: groupWinner
   };
 }
+
+// ========================================
+// Step 2.5b-1: 순위 및 개인상 시스템
+// ========================================
+
+// 최종 순위 인터페이스
+export interface FinalRanking {
+  rank: number;
+  odId: string;
+  odName: string;
+  crewName: string;
+  isPlayerCrew: boolean;
+  eliminatedAt: IndividualLeagueStatus | 'CHAMPION';
+  wins: number;
+  losses: number;
+  setDiff: number;      // 세트 득실차
+  totalStats: number;   // 총 스탯
+  exp: number;          // 획득 경험치
+}
+
+// 개인상 인터페이스
+export interface LeagueAward {
+  type: 'MVP' | 'MOST_WINS' | 'DARK_HORSE';
+  title: string;
+  icon: string;
+  odId: string;
+  odName: string;
+  description: string;
+}
+
+// 개인리그 최종 순위별 경험치
+export const INDIVIDUAL_LEAGUE_EXP: Record<string, number> = {
+  '1': 350,    // 우승
+  '2': 300,    // 준우승
+  '3': 250,    // 3위
+  '4': 200,    // 4위
+  '5-8': 150,  // 8강 탈락 (5~8위)
+  '9-16': 100, // 16강 탈락 (9~16위)
+  '17-32': 50, // 32강 탈락 (17~32위)
+};
+
+// 순위로 경험치 가져오기
+export function getExpByRank(rank: number): number {
+  if (rank === 1) return 350;
+  if (rank === 2) return 300;
+  if (rank === 3) return 250;
+  if (rank === 4) return 200;
+  if (rank >= 5 && rank <= 8) return 150;
+  if (rank >= 9 && rank <= 16) return 100;
+  return 50; // 17-32위
+}
+
+// 참가자별 성적 집계
+function calculateParticipantStats(
+  league: IndividualLeague,
+  odId: string
+): { wins: number; losses: number; setDiff: number } {
+  let wins = 0;
+  let losses = 0;
+  let setsWon = 0;
+  let setsLost = 0;
+
+  // 32강 조별리그
+  league.brackets.round32.forEach(match => {
+    if (match.played && (match.participant1 === odId || match.participant2 === odId)) {
+      if (match.winner === odId) {
+        wins++;
+      } else {
+        losses++;
+      }
+      // 세트 스코어 집계
+      if (match.participant1 === odId) {
+        setsWon += match.score.p1;
+        setsLost += match.score.p2;
+      } else {
+        setsWon += match.score.p2;
+        setsLost += match.score.p1;
+      }
+    }
+  });
+
+  // 16강 이후 토너먼트
+  const knockoutMatches = [
+    ...(league.brackets.round16Matches || []),
+    ...league.brackets.quarter,
+    ...league.brackets.semi,
+    ...(league.brackets.final ? [league.brackets.final] : []),
+    ...(league.brackets.thirdPlace ? [league.brackets.thirdPlace] : []),
+  ];
+
+  knockoutMatches.forEach(match => {
+    if (match && match.played && (match.participant1 === odId || match.participant2 === odId)) {
+      if (match.winner === odId) {
+        wins++;
+      } else {
+        losses++;
+      }
+      // 세트 스코어 집계
+      if (match.participant1 === odId) {
+        setsWon += match.score.p1;
+        setsLost += match.score.p2;
+      } else {
+        setsWon += match.score.p2;
+        setsLost += match.score.p1;
+      }
+    }
+  });
+
+  return { wins, losses, setDiff: setsWon - setsLost };
+}
+
+// 최종 순위 계산 (공동 순위 없음)
+export function calculateFinalRankings(league: IndividualLeague): FinalRanking[] {
+  const rankings: FinalRanking[] = [];
+
+  // 참가자별 성적 집계
+  league.participants.forEach(participant => {
+    const stats = calculateParticipantStats(league, participant.odId);
+    const card = CHARACTERS_BY_ID[participant.odId];
+
+    rankings.push({
+      rank: 0, // 나중에 계산
+      odId: participant.odId,
+      odName: participant.odName,
+      crewName: participant.crewName,
+      isPlayerCrew: participant.isPlayerCrew,
+      eliminatedAt: participant.odId === league.champion
+        ? 'CHAMPION'
+        : participant.eliminatedAt || 'ROUND_32',
+      wins: stats.wins,
+      losses: stats.losses,
+      setDiff: stats.setDiff,
+      totalStats: card ? calculateTotalStat(card) : 0,
+      exp: 0, // 나중에 계산
+    });
+  });
+
+  // 정렬: 탈락 라운드 > 승수 > 세트득실차 > 총스탯
+  const roundOrder: Record<string, number> = {
+    'CHAMPION': 0,
+    'FINAL': 1,
+    'SEMI': 2,
+    'QUARTER': 3,
+    'ROUND_16': 4,
+    'ROUND_32': 5,
+  };
+
+  rankings.sort((a, b) => {
+    // 1순위: 탈락 라운드
+    const roundDiff = roundOrder[a.eliminatedAt] - roundOrder[b.eliminatedAt];
+    if (roundDiff !== 0) return roundDiff;
+
+    // 2순위: 승수
+    if (b.wins !== a.wins) return b.wins - a.wins;
+
+    // 3순위: 세트 득실차
+    if (b.setDiff !== a.setDiff) return b.setDiff - a.setDiff;
+
+    // 4순위: 총 스탯
+    return b.totalStats - a.totalStats;
+  });
+
+  // 순위 및 경험치 할당
+  rankings.forEach((r, index) => {
+    r.rank = index + 1;
+    r.exp = getExpByRank(r.rank);
+  });
+
+  return rankings;
+}
+
+// 압승 횟수 계산 (HP 70% 이상 남기고 승리)
+function calculateDominantWins(league: IndividualLeague): Record<string, number> {
+  const dominantWins: Record<string, number> = {};
+
+  // 모든 경기 결과에서 압승 집계
+  // 참가자별 dominantWins가 있으면 사용
+  league.participants.forEach(p => {
+    if (p.dominantWins) {
+      dominantWins[p.odId] = p.dominantWins;
+    } else {
+      dominantWins[p.odId] = 0;
+    }
+  });
+
+  return dominantWins;
+}
+
+// 개인상 계산
+export function calculateAwards(
+  league: IndividualLeague,
+  rankings: FinalRanking[]
+): LeagueAward[] {
+  const awards: LeagueAward[] = [];
+
+  // MVP: 가장 많은 승리 + 압승 (HP 70%+ 남기고 승리)
+  const dominantWins = calculateDominantWins(league);
+  const mvpCandidates = rankings.map(r => ({
+    ...r,
+    dominantWins: dominantWins[r.odId] || 0,
+    mvpScore: r.wins * 2 + (dominantWins[r.odId] || 0),
+  }));
+  mvpCandidates.sort((a, b) => b.mvpScore - a.mvpScore);
+
+  if (mvpCandidates[0]) {
+    awards.push({
+      type: 'MVP',
+      title: 'MVP',
+      icon: '🏅',
+      odId: mvpCandidates[0].odId,
+      odName: mvpCandidates[0].odName,
+      description: `${mvpCandidates[0].wins}승, 압승 ${mvpCandidates[0].dominantWins}회`,
+    });
+  }
+
+  // 최다승: 단순 승수 1위 (MVP와 다르면 추가)
+  const mostWins = [...rankings].sort((a, b) => b.wins - a.wins)[0];
+  if (mostWins && mostWins.odId !== mvpCandidates[0]?.odId) {
+    awards.push({
+      type: 'MOST_WINS',
+      title: '최다승',
+      icon: '⚔️',
+      odId: mostWins.odId,
+      odName: mostWins.odName,
+      description: `${mostWins.wins}승`,
+    });
+  }
+
+  // 다크호스: 낮은 등급인데 높은 순위 (8강 이상 진출한 2급 이하)
+  const gradeOrder = ['특급', '준특급', '1급', '준1급', '2급', '준2급', '3급', '준3급', '비술사'];
+  const darkHorseCandidates = rankings
+    .filter(r => r.rank <= 8) // 8강 이상
+    .map(r => {
+      const card = CHARACTERS_BY_ID[r.odId];
+      const gradeIndex = gradeOrder.indexOf(card?.grade || '비술사');
+      return { ...r, gradeIndex, grade: card?.grade };
+    })
+    .filter(r => r.gradeIndex >= 4) // 2급 이하
+    .sort((a, b) => {
+      // 등급이 낮을수록(인덱스 높을수록) + 순위가 높을수록 다크호스
+      const gradeScore = b.gradeIndex - a.gradeIndex;
+      if (gradeScore !== 0) return gradeScore;
+      return a.rank - b.rank;
+    });
+
+  if (darkHorseCandidates[0]) {
+    awards.push({
+      type: 'DARK_HORSE',
+      title: '다크호스',
+      icon: '🌟',
+      odId: darkHorseCandidates[0].odId,
+      odName: darkHorseCandidates[0].odName,
+      description: `${darkHorseCandidates[0].grade}, ${darkHorseCandidates[0].rank}위`,
+    });
+  }
+
+  return awards;
+}

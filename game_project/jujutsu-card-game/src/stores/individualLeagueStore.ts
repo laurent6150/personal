@@ -8,7 +8,8 @@ import type {
   IndividualLeague,
   IndividualLeagueStatus,
   IndividualLeagueHistory,
-  IndividualMatch
+  IndividualMatch,
+  IndividualLeagueAward
 } from '../types';
 import type {
   BattleState,
@@ -36,8 +37,11 @@ import {
   isRoundComplete,
   getNextRoundStatus,
   getPlayerCardStatuses,
-  calculateTotalStat
+  calculateTotalStat,
+  calculateFinalRankings,
+  calculateAwards
 } from '../utils/individualLeagueSystem';
+import { usePlayerStore } from './playerStore';
 import {
   simulateMatch as simulateBattle,
   getBestOfForRound
@@ -437,7 +441,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         return getPlayerCardStatuses(currentLeague);
       },
 
-      // 리그 종료 및 히스토리 저장
+      // 리그 종료 및 히스토리 저장 (Step 2.5b-1: 경험치 지급 추가)
       finishLeague: () => {
         const { currentLeague, history, hallOfFame, currentSeason } = get();
         if (!currentLeague || currentLeague.status !== 'FINISHED') return;
@@ -451,19 +455,40 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const runnerUpCard = CHARACTERS_BY_ID[runnerUp];
         const championParticipant = currentLeague.participants.find(p => p.odId === champion);
 
-        // 히스토리 추가
+        // Step 2.5b-1: 최종 순위 계산
+        const rankings = calculateFinalRankings(currentLeague);
+
+        // Step 2.5b-1: 경험치 지급 (playerStore 연동)
+        const { addExpToCard } = usePlayerStore.getState();
+        rankings.forEach(ranking => {
+          if (ranking.isPlayerCrew) {
+            // 내 크루 카드에만 경험치 지급
+            addExpToCard(ranking.odId, ranking.exp);
+            console.log(`[finishLeague] ${ranking.odName}에게 ${ranking.exp} EXP 지급 (${ranking.rank}위)`);
+          }
+        });
+
+        // Step 2.5b-1: 개인상 계산
+        const awards = calculateAwards(currentLeague, rankings);
+
+        // 히스토리 추가 (Step 2.5b-1 확장)
         const historyEntry: IndividualLeagueHistory = {
           season: currentLeague.season,
           champion,
           championName: championCard?.name.ko || '???',
           runnerUp,
           runnerUpName: runnerUpCard?.name.ko || '???',
+          rankings: rankings.slice(0, 16), // 상위 16명
+          awards: awards as IndividualLeagueAward[],
           myCardResults: currentLeague.myCardResults.map(card => {
             const cardInfo = CHARACTERS_BY_ID[card.odId];
+            const ranking = rankings.find(r => r.odId === card.odId);
             return {
               odId: card.odId,
               odName: cardInfo?.name.ko || '???',
               result: card.finalResult,
+              rank: ranking?.rank || 32,
+              exp: ranking?.exp || 0,
               isChampion: card.odId === champion,
               isRunnerUp: card.odId === runnerUp
             };
@@ -1023,23 +1048,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
     }),
     {
       name: 'individual-league-storage',
-      version: 6,
+      version: 7, // Step 2.5b-1: 경험치/순위 시스템 추가
       migrate: (persistedState: unknown, version: number) => {
         console.log('[IndividualLeague] 스토리지 마이그레이션:', { version, persistedState });
-        // 버전 5 이하에서 마이그레이션: 시뮬레이션 결과 필드 추가
-        if (version < 6) {
-          console.log('[IndividualLeague] 이전 버전 데이터에 시뮬레이션 결과 필드 추가');
-          const state = persistedState as Partial<IndividualLeagueState>;
+
+        // Step 2.5b-1: 버전 7 마이그레이션 - 기존 데이터 초기화
+        if (version < 7) {
+          console.log('[IndividualLeague] 데이터 초기화 (v7 마이그레이션)');
           return {
-            currentSeason: state.currentSeason ?? 1,
-            currentLeague: state.currentLeague ?? null,
-            history: state.history ?? [],
-            hallOfFame: state.hallOfFame ?? [],
-            currentBattleState: state.currentBattleState ?? initialBattleState,
-            lastMatchResult: state.lastMatchResult ?? null,
+            currentSeason: 1,
+            currentLeague: null,
+            history: [],
+            hallOfFame: [],
+            currentBattleState: initialBattleState,
+            lastMatchResult: null,
             lastSimMatchResult: null
           };
         }
+
         return persistedState as IndividualLeagueState;
       }
     }

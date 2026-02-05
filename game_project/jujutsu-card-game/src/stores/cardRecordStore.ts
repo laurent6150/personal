@@ -9,7 +9,8 @@ import type {
   CardSeasonRecord,
   Award,
   AwardType,
-  CardStats
+  CardStats,
+  IndividualSeasonRecord
 } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 
@@ -45,6 +46,12 @@ interface CardRecordStore {
 
   // 전체 카드 순위 조회
   getAllCardStats: (seasonNumber?: number) => CardStats[];
+
+  // Step 2.5b-1: 개인리그 성적 저장
+  saveIndividualLeagueRecord: (
+    odId: string,
+    seasonRecord: IndividualSeasonRecord
+  ) => void;
 
   // 리셋
   resetAllRecords: () => void;
@@ -424,6 +431,57 @@ export const useCardRecordStore = create<CardRecordStore>()(
         }
 
         return allStats;
+      },
+
+      // Step 2.5b-1: 개인리그 성적 저장
+      saveIndividualLeagueRecord: (
+        odId: string,
+        seasonRecord: IndividualSeasonRecord
+      ) => {
+        set(state => {
+          const records = { ...state.records };
+
+          if (!records[odId]) {
+            records[odId] = {
+              cardId: odId,
+              seasonRecords: {},
+              awards: [],
+              individualLeague: {
+                seasons: [],
+                totalWins: 0,
+                totalLosses: 0,
+                bestRank: 32,
+                championships: 0,
+              },
+            };
+          }
+
+          const card = records[odId];
+
+          // individualLeague가 없으면 초기화
+          if (!card.individualLeague) {
+            card.individualLeague = {
+              seasons: [],
+              totalWins: 0,
+              totalLosses: 0,
+              bestRank: 32,
+              championships: 0,
+            };
+          }
+
+          card.individualLeague.seasons.push(seasonRecord);
+          card.individualLeague.totalWins += seasonRecord.wins;
+          card.individualLeague.totalLosses += seasonRecord.losses;
+          card.individualLeague.bestRank = Math.min(
+            card.individualLeague.bestRank,
+            seasonRecord.finalRank
+          );
+          if (seasonRecord.finalRank === 1) {
+            card.individualLeague.championships++;
+          }
+
+          return { records };
+        });
       },
 
       // 전체 리셋

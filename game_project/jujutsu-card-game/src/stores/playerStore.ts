@@ -4,11 +4,11 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PlayerData, PlayerCard, RoundResult } from '../types';
+import type { PlayerData, PlayerCard, RoundResult, Grade, CharacterProgress, FormState } from '../types';
 import { STARTER_CREW, ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
 import { CREW_SIZE } from '../data/constants';
 import { calculateExpReward, checkLevelUp } from '../utils/battleCalculator';
-import { initializeGrowthData } from '../data/growthSystem';
+import { initializeGrowthData, addExpAndLevelUp } from '../data/growthSystem';
 
 // 초기 플레이어 데이터 생성
 function createInitialPlayerData(): PlayerData {
@@ -90,6 +90,14 @@ interface PlayerState {
   setPlayerName: (name: string) => void;
   updateSettings: (settings: Partial<PlayerData['settings']>) => void;
   resetProgress: () => void;
+
+  // 액션 - 경험치 (Step 2.5b-1)
+  addExpToCard: (cardId: string, exp: number) => {
+    newProgress: import('../types').CharacterProgress;
+    leveledUp: boolean;
+    levelsGained: number;
+    statIncreases: Partial<import('../types').Stats>;
+  } | null;
 
   // 헬퍼
   getPlayerCard: (cardId: string) => PlayerCard | undefined;
@@ -435,6 +443,57 @@ export const usePlayerStore = create<PlayerState>()(
         if (char.grade === '1급' && gradeCounts['1급'] >= 2) return false;
 
         return true;
+      },
+
+      // Step 2.5b-1: 카드에 경험치 추가 함수
+      addExpToCard: (cardId: string, exp: number) => {
+        const { player } = get();
+        const card = CHARACTERS_BY_ID[cardId];
+        const playerCard = player.ownedCards[cardId];
+
+        if (!card || !playerCard) {
+          console.error('[addExpToCard] 카드를 찾을 수 없음:', cardId);
+          return null;
+        }
+
+        // 기존 진행 상태 가져오기 (없으면 초기화)
+        const currentProgress: CharacterProgress = {
+          cardId,
+          level: playerCard.level || 1,
+          exp: playerCard.exp || 0,
+          totalExp: playerCard.totalExp || 0,
+          recentResults: playerCard.recentResults || [],
+          condition: playerCard.condition || { value: 100, consecutiveBattles: 0, lastRestRound: 0 },
+          currentForm: (playerCard.currentForm || 'STABLE') as FormState,
+          bonusStats: playerCard.bonusStats || { atk: 0, def: 0, spd: 0, ce: 0, hp: 0, crt: 0, tec: 0, mnt: 0 },
+        };
+
+        // 경험치 추가 및 레벨업 처리
+        const result = addExpAndLevelUp(currentProgress, exp, card.grade as Grade);
+
+        // 상태 업데이트
+        set({
+          player: {
+            ...player,
+            ownedCards: {
+              ...player.ownedCards,
+              [cardId]: {
+                ...playerCard,
+                level: result.newProgress.level,
+                exp: result.newProgress.exp,
+                totalExp: result.newProgress.totalExp,
+                bonusStats: result.newProgress.bonusStats,
+              },
+            },
+          },
+        });
+
+        // 레벨업 알림 (필요시)
+        if (result.leveledUp) {
+          console.log(`[addExpToCard] ${card.name.ko} 레벨업! Lv${result.newProgress.level} (+${result.levelsGained})`);
+        }
+
+        return result;
       }
     }),
     {

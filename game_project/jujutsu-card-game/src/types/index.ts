@@ -852,13 +852,47 @@ export interface CardSeasonRecord {
   ultimateHits: number;           // 필살기(스킬) 적중 횟수
 }
 
-// 카드 전체 기록
+// ========================================
+// Step 2.5b-1: 개인리그 성적 기록 타입
+// ========================================
+
+// 개인리그 경기 기록
+export interface IndividualMatchRecord {
+  season: number;
+  round: string;           // 'ROUND_32', 'ROUND_16', 'QUARTER', 'SEMI', 'FINAL'
+  opponentId: string;
+  opponentName: string;
+  result: 'WIN' | 'LOSE';
+  score: { my: number; opponent: number };
+  arenaName?: string;
+}
+
+// 개인리그 시즌 성적
+export interface IndividualSeasonRecord {
+  season: number;
+  finalRank: number;
+  wins: number;
+  losses: number;
+  expEarned: number;
+  awards: string[];        // 'MVP', 'MOST_WINS', 'DARK_HORSE'
+  matchHistory: IndividualMatchRecord[];
+}
+
+// 카드 전체 기록 (Step 2.5b-1 확장)
 export interface CardRecord {
   cardId: string;
-  // 시즌별 기록
+  // 팀 리그 기록 (기존)
   seasonRecords: Record<number, CardSeasonRecord>;
   // 수상 이력
   awards: Award[];
+  // 개인 리그 기록 (Step 2.5b-1 신규)
+  individualLeague?: {
+    seasons: IndividualSeasonRecord[];
+    totalWins: number;
+    totalLosses: number;
+    bestRank: number;       // 최고 순위
+    championships: number;  // 우승 횟수
+  };
 }
 
 // 전체 기록 스토어 상태
@@ -1075,17 +1109,50 @@ export interface IndividualLeague {
   }[];
 }
 
-// 개인 리그 히스토리
+// ========================================
+// Step 2.5b-1: 개인리그 순위/개인상 타입
+// ========================================
+
+// 최종 순위 (공동 순위 없음)
+export interface FinalRanking {
+  rank: number;
+  odId: string;
+  odName: string;
+  crewName: string;
+  isPlayerCrew: boolean;
+  eliminatedAt: IndividualLeagueStatus | 'CHAMPION';
+  wins: number;
+  losses: number;
+  setDiff: number;      // 세트 득실차
+  totalStats: number;   // 총 스탯
+  exp: number;          // 획득 경험치
+}
+
+// 개인상
+export interface IndividualLeagueAward {
+  type: 'MVP' | 'MOST_WINS' | 'DARK_HORSE';
+  title: string;
+  icon: string;
+  odId: string;
+  odName: string;
+  description: string;
+}
+
+// 개인 리그 히스토리 (Step 2.5b-1 확장)
 export interface IndividualLeagueHistory {
   season: number;
   champion: string;           // 우승자 odId
   championName: string;       // 우승자 이름
   runnerUp: string;           // 준우승자 odId
   runnerUpName: string;       // 준우승자 이름
+  rankings?: FinalRanking[];  // 상위 16명 순위 (Step 2.5b-1)
+  awards?: IndividualLeagueAward[];     // 개인상 (Step 2.5b-1)
   myCardResults: {
     odId: string;
     odName: string;
     result: IndividualLeagueStatus;
+    rank?: number;            // 최종 순위 (Step 2.5b-1)
+    exp?: number;             // 획득 경험치 (Step 2.5b-1)
     isChampion: boolean;
     isRunnerUp: boolean;
   }[];
