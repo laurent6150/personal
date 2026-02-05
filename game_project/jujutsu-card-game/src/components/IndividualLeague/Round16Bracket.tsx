@@ -1,5 +1,5 @@
 // ========================================
-// 16강 조별 대진표 컴포넌트
+// 16강 토너먼트 대진표 컴포넌트
 // ========================================
 
 import { motion } from 'framer-motion';
@@ -23,7 +23,7 @@ export function Round16Bracket({ onClose }: Round16BracketProps) {
 
   if (!currentLeague) return null;
 
-  const groups = currentLeague.brackets.round16;
+  const matches = currentLeague.brackets.round16Matches || [];
 
   // 캐릭터 이름 가져오기
   const getCharName = (odId: string | null | undefined): string => {
@@ -36,6 +36,21 @@ export function Round16Bracket({ onClose }: Round16BracketProps) {
   const isMyCard = (odId: string | null | undefined): boolean => {
     if (!odId) return false;
     return playerCardIds.includes(odId);
+  };
+
+  // 매치 라벨 (시드 정보)
+  const getMatchLabel = (index: number): string => {
+    const labels = [
+      'A1 vs H2',
+      'B1 vs G2',
+      'C1 vs F2',
+      'D1 vs E2',
+      'E1 vs D2',
+      'F1 vs C2',
+      'G1 vs B2',
+      'H1 vs A2',
+    ];
+    return labels[index] || `경기 ${index + 1}`;
   };
 
   return (
@@ -56,10 +71,10 @@ export function Round16Bracket({ onClose }: Round16BracketProps) {
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-text-primary">
-            📋 16강 대진표
+            📋 16강 토너먼트 대진표
           </h3>
           <div className="text-sm text-text-secondary">
-            2선승제
+            단판 승부
           </div>
           {onClose && (
             <button
@@ -71,191 +86,112 @@ export function Round16Bracket({ onClose }: Round16BracketProps) {
           )}
         </div>
 
-        {/* 조별 대진표 그리드 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {groups.map(group => {
-            const [p1, p2, p3, p4] = group.participants;
-            const match1 = group.matches[0]; // 시드 vs 4번
-            const match2 = group.matches[1]; // 2번 vs 3번
-            const match3 = group.matches[2]; // 결승
+        {/* 대진표 설명 */}
+        <div className="bg-bg-primary/50 rounded-lg p-3 mb-4 text-sm text-text-secondary">
+          <div className="text-accent font-bold mb-1">시드 매칭</div>
+          <div>각 조 1위 vs 반대편 조 2위 (예: A조 1위 vs H조 2위)</div>
+        </div>
+
+        {/* 대진표 그리드 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {matches.map((match, index) => {
+            const p1 = match.participant1;
+            const p2 = match.participant2;
+            const isP1Winner = match.winner === p1;
+            const isP2Winner = match.winner === p2;
 
             return (
               <div
-                key={group.id}
-                className="bg-bg-primary/50 rounded-xl p-3 border border-white/5"
+                key={match.id}
+                className={`
+                  bg-bg-primary/50 rounded-xl p-3 border
+                  ${match.played ? 'border-green-500/30' : 'border-white/5'}
+                `}
               >
-                {/* 조 헤더 */}
-                <div className="text-center mb-3">
-                  <span className="inline-block bg-accent/20 text-accent font-bold px-3 py-1 rounded-lg">
-                    {group.id}조
+                {/* 매치 라벨 */}
+                <div className="text-center mb-2">
+                  <span className="inline-block bg-accent/20 text-accent font-bold px-2 py-0.5 rounded text-xs">
+                    {getMatchLabel(index)}
                   </span>
                 </div>
 
-                {/* 준결승 */}
-                <div className="space-y-2 mb-3">
-                  {/* 1경기: 시드 vs 4번 */}
+                {/* 대진 */}
+                <div className="space-y-2">
+                  {/* 참가자 1 (1위) */}
                   <div
                     className={`
-                      bg-bg-secondary/50 rounded-lg p-2 text-sm
-                      ${match1?.played ? 'opacity-80' : ''}
+                      flex items-center justify-between px-2 py-1.5 rounded text-sm
+                      ${isP1Winner ? 'bg-green-500/20 border border-green-500/30' : 'bg-bg-secondary/50'}
+                      ${isMyCard(p1) ? 'border border-accent/50' : ''}
                     `}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={`
-                          ${isMyCard(p1) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match1?.winner === p1 ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(p1) && '⭐'}
+                    <div className="flex items-center gap-1">
+                      {isMyCard(p1) && <span className="text-yellow-400">⭐</span>}
+                      <span className={isP1Winner ? 'text-green-400 font-bold' : 'text-text-primary'}>
                         {getCharName(p1)}
-                        <span className="text-xs text-yellow-500/60 ml-1">(S)</span>
                       </span>
-                      {match1?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match1.score.p1}
-                        </span>
-                      )}
                     </div>
-                    <div className="text-center text-xs text-text-secondary my-0.5">
-                      {match1?.played ? 'vs' : '⚔️'}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`
-                          ${isMyCard(p4) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match1?.winner === p4 ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(p4) && '⭐'}
-                        {getCharName(p4)}
+                    {match.played && (
+                      <span className="text-xs text-text-secondary">
+                        {match.score.p1}
                       </span>
-                      {match1?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match1.score.p2}
-                        </span>
-                      )}
-                    </div>
-                    {match1?.winner && (
-                      <div className="text-xs text-green-400 text-center mt-1">
-                        ✓ {getCharName(match1.winner)}
-                      </div>
                     )}
                   </div>
 
-                  {/* 2경기: 2번 vs 3번 */}
+                  {/* VS */}
+                  <div className="text-center text-xs text-text-secondary">
+                    {match.played ? 'vs' : '⚔️'}
+                  </div>
+
+                  {/* 참가자 2 (2위) */}
                   <div
                     className={`
-                      bg-bg-secondary/50 rounded-lg p-2 text-sm
-                      ${match2?.played ? 'opacity-80' : ''}
+                      flex items-center justify-between px-2 py-1.5 rounded text-sm
+                      ${isP2Winner ? 'bg-green-500/20 border border-green-500/30' : 'bg-bg-secondary/50'}
+                      ${isMyCard(p2) ? 'border border-accent/50' : ''}
                     `}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={`
-                          ${isMyCard(p2) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match2?.winner === p2 ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(p2) && '⭐'}
+                    <div className="flex items-center gap-1">
+                      {isMyCard(p2) && <span className="text-yellow-400">⭐</span>}
+                      <span className={isP2Winner ? 'text-green-400 font-bold' : 'text-text-primary'}>
                         {getCharName(p2)}
                       </span>
-                      {match2?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match2.score.p1}
-                        </span>
-                      )}
                     </div>
-                    <div className="text-center text-xs text-text-secondary my-0.5">
-                      {match2?.played ? 'vs' : '⚔️'}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`
-                          ${isMyCard(p3) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match2?.winner === p3 ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(p3) && '⭐'}
-                        {getCharName(p3)}
+                    {match.played && (
+                      <span className="text-xs text-text-secondary">
+                        {match.score.p2}
                       </span>
-                      {match2?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match2.score.p2}
-                        </span>
-                      )}
-                    </div>
-                    {match2?.winner && (
-                      <div className="text-xs text-green-400 text-center mt-1">
-                        ✓ {getCharName(match2.winner)}
-                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* 결승선 */}
-                <div className="border-t border-white/10 pt-2">
-                  <div className="text-center text-xs text-text-secondary mb-2">
-                    조 결승
+                {/* 승자 표시 */}
+                {match.winner && (
+                  <div className="text-center mt-2">
+                    <span className="inline-block bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded text-xs">
+                      ✓ {getCharName(match.winner)} 8강 진출
+                    </span>
                   </div>
-                  <div
-                    className={`
-                      bg-accent/10 border border-accent/30 rounded-lg p-2 text-sm
-                      ${match3?.played ? 'opacity-80' : ''}
-                    `}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={`
-                          ${isMyCard(match1?.winner) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match3?.winner === match1?.winner ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(match1?.winner) && '⭐'}
-                        {match1?.winner ? getCharName(match1.winner) : '1경기 승자'}
-                      </span>
-                      {match3?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match3.score.p1}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-center text-xs text-text-secondary my-0.5">
-                      {match3?.played ? 'vs' : '⚔️'}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`
-                          ${isMyCard(match2?.winner) ? 'text-yellow-400' : 'text-text-primary'}
-                          ${match3?.winner === match2?.winner ? 'font-bold' : ''}
-                        `}
-                      >
-                        {isMyCard(match2?.winner) && '⭐'}
-                        {match2?.winner ? getCharName(match2.winner) : '2경기 승자'}
-                      </span>
-                      {match3?.played && (
-                        <span className="text-xs text-text-secondary">
-                          {match3.score.p2}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                )}
 
-                  {/* 조 우승자 */}
-                  {group.winner && (
-                    <div className="text-center mt-2">
-                      <span className="inline-block bg-yellow-500/20 text-yellow-400 font-bold px-2 py-1 rounded-lg text-sm">
-                        🏆 {getCharName(group.winner)}
-                      </span>
-                      <div className="text-xs text-green-400 mt-1">
-                        8강 진출
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* 미진행 경기 */}
+                {!match.played && (
+                  <div className="text-center mt-2">
+                    <span className="text-xs text-text-secondary">
+                      경기 대기중
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
+        </div>
+
+        {/* 진행 상황 */}
+        <div className="mt-4 text-center text-sm text-text-secondary">
+          <span className="text-accent">🌟</span> = 내 카드 |
+          <span className="text-green-400 ml-2">초록색</span> = 8강 진출 |
+          진행: {matches.filter(m => m.played).length}/{matches.length}
         </div>
       </motion.div>
     </motion.div>

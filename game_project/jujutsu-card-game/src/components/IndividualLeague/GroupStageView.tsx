@@ -1,14 +1,14 @@
 // ========================================
-// 16강 조별 현황 컴포넌트
+// 32강 조별 현황 컴포넌트
 // ========================================
 
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
-import type { LeagueGroup, LeagueParticipant } from '../../types';
+import type { Round32Group, LeagueParticipant } from '../../types';
 import { Button } from '../UI/Button';
 
 interface GroupStageViewProps {
-  groups: LeagueGroup[];
+  groups: Round32Group[];
   participants: LeagueParticipant[];
   onClose: () => void;
 }
@@ -28,6 +28,16 @@ export function GroupStageView({ groups, participants, onClose }: GroupStageView
   // 플레이어 카드 여부
   const isPlayerCard = (odId: string) => playerCardIds.includes(odId);
 
+  // 순위 정렬 (승수 > 승패차)
+  const getSortedStandings = (group: Round32Group) => {
+    return [...group.standings].sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      const diffA = a.wins - a.losses;
+      const diffB = b.wins - b.losses;
+      return diffB - diffA;
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -46,7 +56,7 @@ export function GroupStageView({ groups, participants, onClose }: GroupStageView
         {/* 헤더 */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="text-xl font-bold text-text-primary">
-            📋 16강 조별 현황
+            📋 32강 조별 현황
           </div>
           <Button variant="ghost" onClick={onClose}>✕</Button>
         </div>
@@ -55,14 +65,7 @@ export function GroupStageView({ groups, participants, onClose }: GroupStageView
         <div className="flex-1 overflow-auto p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {groups.map(group => {
-              const p1 = group.participants[0];
-              const p2 = group.participants[1];
-              const p1Name = p1 ? getParticipantName(p1) : '?';
-              const p2Name = p2 ? getParticipantName(p2) : '?';
-              const isP1Player = p1 && isPlayerCard(p1);
-              const isP2Player = p2 && isPlayerCard(p2);
-              const p1Wins = p1 ? (group.winsCount[p1] || 0) : 0;
-              const p2Wins = p2 ? (group.winsCount[p2] || 0) : 0;
+              const sortedStandings = getSortedStandings(group);
 
               return (
                 <div
@@ -70,56 +73,56 @@ export function GroupStageView({ groups, participants, onClose }: GroupStageView
                   className="bg-bg-secondary rounded-lg border border-white/10 overflow-hidden"
                 >
                   {/* 조 헤더 */}
-                  <div className="bg-accent/20 px-3 py-1 text-center">
-                    <span className="text-sm font-bold text-accent">{group.id}조</span>
+                  <div className={`px-3 py-1 text-center ${group.isCompleted ? 'bg-green-500/20' : 'bg-accent/20'}`}>
+                    <span className={`text-sm font-bold ${group.isCompleted ? 'text-green-400' : 'text-accent'}`}>
+                      {group.id}조 {group.isCompleted && '✓'}
+                    </span>
                   </div>
 
-                  {/* 참가자 */}
-                  <div className="p-3 space-y-2">
-                    {/* P1 */}
-                    <div
-                      className={`
-                        flex items-center justify-between px-2 py-1 rounded
-                        ${group.winner === p1 ? 'bg-green-500/20' : ''}
-                        ${isP1Player ? 'border border-accent/50' : ''}
-                      `}
-                    >
-                      <div className="flex items-center gap-1">
-                        {isP1Player && <span className="text-xs">🌟</span>}
-                        <span className={`text-sm ${group.winner === p1 ? 'text-green-400 font-bold' : 'text-text-primary'}`}>
-                          {p1Name}
-                        </span>
-                      </div>
-                      <span className="text-sm font-bold text-text-primary">{p1Wins}</span>
-                    </div>
+                  {/* 참가자 순위 */}
+                  <div className="p-3 space-y-1">
+                    {sortedStandings.map((standing, rank) => {
+                      const isPlayer = isPlayerCard(standing.odId);
+                      const isQualified = group.isCompleted && rank < 2; // 상위 2명 진출
+                      const isEliminated = group.isCompleted && rank >= 2; // 하위 2명 탈락
 
-                    {/* P2 */}
-                    <div
-                      className={`
-                        flex items-center justify-between px-2 py-1 rounded
-                        ${group.winner === p2 ? 'bg-green-500/20' : ''}
-                        ${isP2Player ? 'border border-accent/50' : ''}
-                      `}
-                    >
-                      <div className="flex items-center gap-1">
-                        {isP2Player && <span className="text-xs">🌟</span>}
-                        <span className={`text-sm ${group.winner === p2 ? 'text-green-400 font-bold' : 'text-text-primary'}`}>
-                          {p2Name}
-                        </span>
-                      </div>
-                      <span className="text-sm font-bold text-text-primary">{p2Wins}</span>
-                    </div>
+                      return (
+                        <div
+                          key={standing.odId}
+                          className={`
+                            flex items-center justify-between px-2 py-1 rounded text-sm
+                            ${isQualified ? 'bg-green-500/20' : ''}
+                            ${isEliminated ? 'bg-red-500/10 opacity-70' : ''}
+                            ${isPlayer ? 'border border-accent/50' : ''}
+                          `}
+                        >
+                          <div className="flex items-center gap-1">
+                            <span className="text-text-secondary w-4">{rank + 1}.</span>
+                            {isPlayer && <span className="text-xs">🌟</span>}
+                            <span className={`
+                              ${isQualified ? 'text-green-400 font-bold' : ''}
+                              ${isEliminated ? 'text-text-secondary' : 'text-text-primary'}
+                            `}>
+                              {getParticipantName(standing.odId)}
+                            </span>
+                          </div>
+                          <span className="text-text-secondary">
+                            {standing.wins}승 {standing.losses}패
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* 조 상태 */}
                   <div className="px-3 py-1 bg-bg-primary/50 text-center">
-                    {group.winner ? (
+                    {group.isCompleted ? (
                       <span className="text-xs text-green-400">
-                        {getParticipantName(group.winner)} 8강 진출
+                        {getParticipantName(sortedStandings[0]?.odId)}, {getParticipantName(sortedStandings[1]?.odId)} 16강 진출
                       </span>
                     ) : (
                       <span className="text-xs text-text-secondary">
-                        2선승 시 진출
+                        6경기 중 {group.standings.reduce((sum, s) => sum + s.wins, 0) * 2 / 2}경기 완료
                       </span>
                     )}
                   </div>
@@ -131,7 +134,8 @@ export function GroupStageView({ groups, participants, onClose }: GroupStageView
           {/* 범례 */}
           <div className="mt-4 text-center text-xs text-text-secondary">
             <span className="text-accent">🌟</span> = 내 카드 |
-            <span className="text-green-400 ml-2">초록색</span> = 8강 진출 확정
+            <span className="text-green-400 ml-2">초록색</span> = 16강 진출 |
+            <span className="text-red-400 ml-2">연한 빨강</span> = 탈락
           </div>
         </div>
       </motion.div>

@@ -113,65 +113,199 @@ export function generateParticipants(
 }
 
 // ========================================
-// 대진표 생성
+// 대진표 생성 (리팩토링 - 조별 풀 리그전)
 // ========================================
 
 /**
- * 32강 대진표 생성 (16경기)
+ * 32강 조별 리그 경기 생성
+ * 8조 × 4명 = 32명, 각 조 풀 리그전 6경기 = 총 48경기
  */
-function generateRound32Matches(participants: LeagueParticipant[]): IndividualMatch[] {
+function generateRound32GroupMatches(
+  participants: LeagueParticipant[]
+): { matches: IndividualMatch[]; groups: import('../types').Round32Group[] } {
   const matches: IndividualMatch[] = [];
+  const groups: import('../types').Round32Group[] = [];
+  const groupIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-  for (let i = 0; i < 16; i++) {
-    const p1 = participants[i * 2];
-    const p2 = participants[i * 2 + 1];
+  // 32명을 8개 조에 배분 (4명씩)
+  for (let i = 0; i < 8; i++) {
+    const groupId = groupIds[i];
+    const groupParticipants = participants.slice(i * 4, (i + 1) * 4);
+    const participantIds = groupParticipants.map(p => p.odId);
 
-    matches.push({
-      id: `r32_${i + 1}`,
-      participant1: p1.odId,
-      participant2: p2.odId,
-      winner: null,
-      score: { p1: 0, p2: 0 },
-      format: '1WIN',  // 32강은 단판
-      played: false
+    // 조 정보 생성
+    groups.push({
+      id: groupId,
+      participants: participantIds,
+      matches: [],
+      standings: participantIds.map(id => ({ odId: id, wins: 0, losses: 0 })),
+      isCompleted: false
+    });
+
+    // 풀 리그전 경기 생성 (6경기)
+    // 1vs2, 3vs4, 1vs3, 2vs4, 1vs4, 2vs3
+    const matchups = [
+      [0, 1], [2, 3], // 1라운드
+      [0, 2], [1, 3], // 2라운드
+      [0, 3], [1, 2], // 3라운드
+    ];
+
+    matchups.forEach((pair, matchIndex) => {
+      const p1 = participantIds[pair[0]];
+      const p2 = participantIds[pair[1]];
+
+      matches.push({
+        id: `r32_${groupId}_${matchIndex + 1}`,
+        participant1: p1,
+        participant2: p2,
+        winner: null,
+        score: { p1: 0, p2: 0 },
+        format: '1WIN',  // 단판
+        played: false,
+        groupId: groupId
+      });
     });
   }
 
+  console.log('[generateRound32GroupMatches] 총 경기 수:', matches.length, '(8조 × 6경기)');
+  return { matches, groups };
+}
+
+/**
+ * 초기 대진표 생성 (리팩토링)
+ */
+export function generateInitialBrackets(participants: LeagueParticipant[]): IndividualBrackets {
+  const { matches, groups } = generateRound32GroupMatches(participants);
+
+  return {
+    round32: matches,
+    round32Groups: groups,
+    round16: [],           // 호환성 유지 (사용 안 함)
+    round16Matches: [],    // 16강 토너먼트 (32강 완료 후 생성)
+    quarter: [],
+    semi: [],
+    final: null
+  };
+}
+
+/**
+ * 16강 토너먼트 대진 생성 (시드 매칭)
+ * 각 조 1위 vs 다른 조 2위
+ */
+export function generateRound16Matches(
+  round32Groups: import('../types').Round32Group[],
+  _playerCrewIds: string[]
+): IndividualMatch[] {
+  // 각 조별 1위, 2위 추출
+  const firstPlaces: string[] = [];
+  const secondPlaces: string[] = [];
+
+  round32Groups.forEach(group => {
+    // 순위 정렬 (승수 > 득실차)
+    const sorted = [...group.standings].sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      const diffA = a.wins - a.losses;
+      const diffB = b.wins - b.losses;
+      return diffB - diffA;
+    });
+
+    firstPlaces.push(sorted[0].odId);
+    secondPlaces.push(sorted[1].odId);
+
+    console.log(`[generateRound16Matches] ${group.id}조: 1위=${sorted[0].odId}, 2위=${sorted[1].odId}`);
+  });
+
+  // 시드 매칭: 1위 vs 반대편 2위
+  // A1 vs H2, B1 vs G2, C1 vs F2, D1 vs E2, E1 vs D2, F1 vs C2, G1 vs B2, H1 vs A2
+  const matchups = [
+    [firstPlaces[0], secondPlaces[7]], // A1 vs H2
+    [firstPlaces[1], secondPlaces[6]], // B1 vs G2
+    [firstPlaces[2], secondPlaces[5]], // C1 vs F2
+    [firstPlaces[3], secondPlaces[4]], // D1 vs E2
+    [firstPlaces[4], secondPlaces[3]], // E1 vs D2
+    [firstPlaces[5], secondPlaces[2]], // F1 vs C2
+    [firstPlaces[6], secondPlaces[1]], // G1 vs B2
+    [firstPlaces[7], secondPlaces[0]], // H1 vs A2
+  ];
+
+  const matches: IndividualMatch[] = matchups.map((pair, index) => ({
+    id: `r16_${index + 1}`,
+    participant1: pair[0],
+    participant2: pair[1],
+    winner: null,
+    score: { p1: 0, p2: 0 },
+    format: '1WIN',  // 16강 단판
+    played: false
+  }));
+
+  console.log('[generateRound16Matches] 16강 경기 생성:', matches.length);
   return matches;
 }
 
 /**
- * 16강 조별 리그 생성 (A~H 8개 조)
- * 32강 승자 16명을 8개 조에 배정 (Phase 3에서는 지명 시스템으로 배정)
+ * 8강 대진 생성
  */
-function generateRound16Groups(): LeagueGroup[] {
-  const groups: LeagueGroup[] = [];
-  const groupIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+export function generateQuarterMatches(
+  round16Winners: string[],
+  _playerCrewIds: string[]
+): IndividualMatch[] {
+  // 16강 승자 순서대로 매칭: 1-2, 3-4, 5-6, 7-8
+  const matchups = [
+    [round16Winners[0], round16Winners[1]],
+    [round16Winners[2], round16Winners[3]],
+    [round16Winners[4], round16Winners[5]],
+    [round16Winners[6], round16Winners[7]],
+  ];
 
-  for (const groupId of groupIds) {
-    groups.push({
-      id: groupId,
-      participants: [],  // 지명 단계에서 배정
-      seedId: null,      // 지명 단계에서 설정
-      matches: [],
-      winner: null,
-      winsCount: {}
-    });
-  }
-
-  return groups;
+  return matchups.map((pair, index) => ({
+    id: `qf_${index + 1}`,
+    participant1: pair[0],
+    participant2: pair[1],
+    winner: null,
+    score: { p1: 0, p2: 0 },
+    format: '2WIN',  // 8강: 3판 2선승
+    played: false
+  }));
 }
 
 /**
- * 초기 대진표 생성
+ * 4강 대진 생성
  */
-export function generateInitialBrackets(participants: LeagueParticipant[]): IndividualBrackets {
+export function generateSemiMatches(
+  quarterWinners: string[],
+  _playerCrewIds: string[]
+): IndividualMatch[] {
+  const matchups = [
+    [quarterWinners[0], quarterWinners[1]],
+    [quarterWinners[2], quarterWinners[3]],
+  ];
+
+  return matchups.map((pair, index) => ({
+    id: `sf_${index + 1}`,
+    participant1: pair[0],
+    participant2: pair[1],
+    winner: null,
+    score: { p1: 0, p2: 0 },
+    format: '3WIN',  // 4강: 5판 3선승
+    played: false
+  }));
+}
+
+/**
+ * 결승 대진 생성
+ */
+export function generateFinalMatch(
+  semiWinners: string[],
+  _playerCrewIds: string[]
+): IndividualMatch {
   return {
-    round32: generateRound32Matches(participants),
-    round16: generateRound16Groups(),
-    quarter: [],  // 16강 이후 생성
-    semi: [],     // 8강 이후 생성
-    final: null   // 4강 이후 생성
+    id: 'final',
+    participant1: semiWinners[0],
+    participant2: semiWinners[1],
+    winner: null,
+    score: { p1: 0, p2: 0 },
+    format: '3WIN',  // 결승: 5판 3선승
+    played: false
   };
 }
 
@@ -244,103 +378,108 @@ export function simulateMatch(
 }
 
 // ========================================
-// 라운드 진행
+// 라운드 진행 (리팩토링)
 // ========================================
 
 /**
- * 32강 결과 처리 및 16강 조 배정
+ * 32강 조별 리그 결과 처리 및 16강 대진 생성
+ * 각 조 상위 2명 진출, 하위 2명 탈락
  */
 export function processRound32Results(
   brackets: IndividualBrackets,
   participants: LeagueParticipant[]
-): { brackets: IndividualBrackets; participants: LeagueParticipant[] } {
-  const round32Winners: string[] = [];
+): { brackets: IndividualBrackets; participants: LeagueParticipant[]; round16Qualifiers: string[] } {
+  const round16Qualifiers: string[] = [];
+  const eliminatedIds: string[] = [];
 
-  // 32강 승자 수집 및 탈락자 처리
-  for (const match of brackets.round32) {
-    if (match.winner) {
-      round32Winners.push(match.winner);
-
-      // 패배자 탈락 처리
-      const loserId = match.winner === match.participant1
-        ? match.participant2
-        : match.participant1;
-      const loser = participants.find(p => p.odId === loserId);
-      if (loser) {
-        loser.status = 'ELIMINATED';
-        loser.eliminatedAt = 'ROUND_32';
-      }
-    }
+  if (!brackets.round32Groups) {
+    console.error('[processRound32Results] round32Groups가 없습니다');
+    return { brackets, participants, round16Qualifiers };
   }
 
-  // 16강 조 배정 (셔플 후 2명씩)
-  const shuffledWinners = shuffleArray(round32Winners);
-  const newRound16 = brackets.round16.map((group, idx) => {
-    const p1 = shuffledWinners[idx * 2];
-    const p2 = shuffledWinners[idx * 2 + 1];
+  // 각 조별 순위 계산 및 진출/탈락자 결정
+  brackets.round32Groups.forEach(group => {
+    // 순위 정렬 (승수 > 득실차 > 총합)
+    const sorted = [...group.standings].sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      const diffA = a.wins - a.losses;
+      const diffB = b.wins - b.losses;
+      if (diffB !== diffA) return diffB - diffA;
+      // 총합 비교
+      const pA = participants.find(p => p.odId === a.odId);
+      const pB = participants.find(p => p.odId === b.odId);
+      return (pB?.totalStats || 0) - (pA?.totalStats || 0);
+    });
 
-    return {
-      ...group,
-      participants: [p1, p2],
-      winsCount: { [p1]: 0, [p2]: 0 },
-      matches: [
-        // 2선승제 - 최대 3경기
-        {
-          id: `r16_${group.id}_1`,
-          participant1: p1,
-          participant2: p2,
-          winner: null,
-          score: { p1: 0, p2: 0 },
-          format: '2WIN' as LeagueMatchFormat,
-          played: false
-        }
-      ]
-    };
+    // 상위 2명 16강 진출
+    round16Qualifiers.push(sorted[0].odId);
+    round16Qualifiers.push(sorted[1].odId);
+
+    console.log(`[processRound32Results] ${group.id}조: 1위=${sorted[0].odId}(${sorted[0].wins}승), 2위=${sorted[1].odId}(${sorted[1].wins}승)`);
+
+    // 하위 2명 탈락
+    eliminatedIds.push(sorted[2].odId);
+    eliminatedIds.push(sorted[3].odId);
   });
 
+  // 탈락자 처리
+  const updatedParticipants = participants.map(p => {
+    if (eliminatedIds.includes(p.odId) && p.status !== 'ELIMINATED') {
+      return { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'ROUND_32' as const };
+    }
+    return p;
+  });
+
+  // 16강 대진 생성
+  const round16Matches = generateRound16Matches(brackets.round32Groups,
+    participants.filter(p => p.isPlayerCrew).map(p => p.odId));
+
+  console.log('[processRound32Results] 16강 진출자:', round16Qualifiers.length, '명');
+
   return {
-    brackets: { ...brackets, round16: newRound16 },
-    participants
+    brackets: { ...brackets, round16Matches },
+    participants: updatedParticipants,
+    round16Qualifiers
   };
 }
 
 /**
- * 16강 조별 결과 처리 및 8강 대진 생성
- * 4인 토너먼트 구조: 각 조 승자 8명이 8강 진출
- * (탈락자 처리는 playMatch에서 이미 처리됨)
+ * 16강 토너먼트 결과 처리 및 8강 대진 생성
  */
 export function processRound16Results(
   brackets: IndividualBrackets,
   participants: LeagueParticipant[]
 ): { brackets: IndividualBrackets; participants: LeagueParticipant[] } {
   const quarterParticipants: string[] = [];
+  const eliminatedIds: string[] = [];
 
-  // 각 조 승자 수집 (탈락자 처리는 playMatch에서 이미 완료)
-  for (const group of brackets.round16) {
-    if (group.winner) {
-      quarterParticipants.push(group.winner);
+  // 16강 매치 결과에서 승자/패자 수집
+  const round16Matches = brackets.round16Matches || [];
+  for (const match of round16Matches) {
+    if (match.winner) {
+      quarterParticipants.push(match.winner);
+      const loserId = match.winner === match.participant1 ? match.participant2 : match.participant1;
+      eliminatedIds.push(loserId);
     }
   }
 
-  // 8강 대진 생성 (4경기)
-  const shuffledQuarter = shuffleArray(quarterParticipants);
-  const quarterMatches: IndividualMatch[] = [];
+  // 탈락자 처리
+  const updatedParticipants = participants.map(p => {
+    if (eliminatedIds.includes(p.odId) && p.status !== 'ELIMINATED') {
+      return { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'ROUND_16' as const };
+    }
+    return p;
+  });
 
-  for (let i = 0; i < 4; i++) {
-    quarterMatches.push({
-      id: `quarter_${i + 1}`,
-      participant1: shuffledQuarter[i * 2],
-      participant2: shuffledQuarter[i * 2 + 1],
-      winner: null,
-      score: { p1: 0, p2: 0 },
-      format: '3WIN',  // 8강부터 3선승
-      played: false
-    });
-  }
+  // 8강 대진 생성
+  const playerCrewIds = participants.filter(p => p.isPlayerCrew).map(p => p.odId);
+  const quarterMatches = generateQuarterMatches(quarterParticipants, playerCrewIds);
+
+  console.log('[processRound16Results] 8강 진출자:', quarterParticipants.length, '명');
 
   return {
     brackets: { ...brackets, quarter: quarterMatches },
-    participants
+    participants: updatedParticipants
   };
 }
 
@@ -616,11 +755,14 @@ export function isRoundComplete(league: IndividualLeague): boolean {
   const status = league.status;
 
   if (status === 'ROUND_32') {
+    // 조별 리그 48경기 모두 완료
     return league.brackets.round32.every(m => m.played);
   }
 
   if (status === 'ROUND_16') {
-    return league.brackets.round16.every(g => g.winner !== null);
+    // 16강 토너먼트 8경기 모두 완료
+    const round16Matches = league.brackets.round16Matches || [];
+    return round16Matches.length > 0 && round16Matches.every(m => m.played);
   }
 
   if (status === 'QUARTER') {
@@ -644,8 +786,7 @@ export function isRoundComplete(league: IndividualLeague): boolean {
 export function getNextRoundStatus(current: IndividualLeagueStatus): IndividualLeagueStatus {
   const progression: Record<IndividualLeagueStatus, IndividualLeagueStatus> = {
     'NOT_STARTED': 'ROUND_32',
-    'ROUND_32': 'ROUND_16_NOMINATION',  // Phase 3: 32강 후 지명 단계
-    'ROUND_16_NOMINATION': 'ROUND_16',
+    'ROUND_32': 'ROUND_16',      // 32강 조별리그 → 16강 토너먼트 (지명 단계 제거)
     'ROUND_16': 'QUARTER',
     'QUARTER': 'SEMI',
     'SEMI': 'FINAL',
