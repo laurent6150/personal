@@ -699,12 +699,21 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         // 시드 ID 목록
         const seedIds = new Set(currentLeague.round16Seeds || []);
 
+        // 내 카드 ID 목록 (지명 대상에서 제외)
+        const playerCardIds = currentLeague.participants
+          .filter(p => p.isPlayerCrew)
+          .map(p => p.odId);
+
         // 지명 가능한 카드:
         // 1. 32강 탈락자 (16명)
         // 2. 32강 통과자 중 시드가 아닌 자 (8명) - ACTIVE 상태
-        return currentLeague.participants.filter(p => {
+        // 3. 내 카드가 아닌 자 (추가!)
+        const available = currentLeague.participants.filter(p => {
           // 이미 배정됨
           if (assignedIds.has(p.odId)) return false;
+
+          // 내 카드는 지명 대상 아님
+          if (playerCardIds.includes(p.odId)) return false;
 
           // 32강 탈락자
           if (p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32') return true;
@@ -714,6 +723,9 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
           return false;
         });
+
+        console.log('[getAvailableForNomination] 지명 가능:', available.length, '명 (내 카드 제외)');
+        return available;
       },
 
       // 카드 지명 (내 카드가 지명할 때)
