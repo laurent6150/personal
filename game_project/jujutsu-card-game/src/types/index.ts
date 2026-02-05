@@ -1053,6 +1053,7 @@ export interface IndividualBrackets {
   quarter: IndividualMatch[];     // 4경기 (8명 → 4명)
   semi: IndividualMatch[];        // 2경기 (4명 → 2명)
   final: IndividualMatch | null;  // 1경기 (2명 → 1명)
+  thirdPlace?: IndividualMatch | null;  // 3/4위전 (4강 패자끼리)
 }
 
 // 개인 리그 데이터
@@ -1063,6 +1064,9 @@ export interface IndividualLeague {
   brackets: IndividualBrackets;
   champion: string | null;            // 우승자 odId
   runnerUp: string | null;            // 준우승자 odId
+  thirdPlace?: string | null;         // 3위 odId
+  fourthPlace?: string | null;        // 4위 odId
+  seeds?: string[];                   // 시드 참가자 odId (전 시즌 1~4위, 시즌2부터)
   // 내 카드 현황 추적용
   myCardResults: {
     odId: string;
@@ -1106,14 +1110,22 @@ export const INDIVIDUAL_LEAGUE_REWARDS: Record<IndividualLeagueStatus, {
   exp: number;
   title?: string;
   badge?: string;
+  seed?: boolean;  // 다음 시즌 시드 여부
 }> = {
   'NOT_STARTED': { exp: 0 },
   'ROUND_32': { exp: 50 },              // 32강 탈락
   'ROUND_16': { exp: 100 },             // 16강 탈락
   'QUARTER': { exp: 200 },              // 8강 탈락
-  'SEMI': { exp: 300 },                 // 4강 탈락
-  'FINAL': { exp: 500 },                // 결승 진출 (준우승)
-  'FINISHED': { exp: 1000, title: '챔피언', badge: '🏆' }  // 우승
+  'SEMI': { exp: 300, seed: true },     // 4위 (3/4위전 패배) - 시드 획득
+  'FINAL': { exp: 600, badge: '🥈', seed: true },  // 2위 (준우승) - 시드 획득
+  'FINISHED': { exp: 1000, title: '챔피언', badge: '🏆🥇', seed: true }  // 1위 (우승) - 시드 획득
+};
+
+// 3위 보상 (3/4위전 승리)
+export const THIRD_PLACE_REWARD = {
+  exp: 400,
+  badge: '🥉',
+  seed: true,
 };
 
 // ========================================

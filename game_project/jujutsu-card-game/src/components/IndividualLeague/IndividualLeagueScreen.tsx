@@ -406,6 +406,7 @@ export function IndividualLeagueScreen({
           <GroupStageView
             groups={currentLeague.brackets.round32Groups}
             participants={currentLeague.participants}
+            matches={currentLeague.brackets.round32}
             onClose={() => setShowGroups(false)}
           />
         )}

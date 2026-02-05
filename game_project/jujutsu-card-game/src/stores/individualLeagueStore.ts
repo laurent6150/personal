@@ -107,10 +107,22 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 새 리그 시작
       startNewLeague: (playerCrewIds: string[], playerCrewName = '내 크루') => {
-        const { currentSeason } = get();
+        const { currentSeason, hallOfFame } = get();
 
-        // 참가자 생성 (32명)
-        const participants = generateParticipants(playerCrewIds, playerCrewName);
+        // 전 시즌 1~4위 시드 계산 (시즌 2부터)
+        let seeds: string[] = [];
+        if (currentSeason > 1) {
+          // 이전 시즌 결과에서 시드 추출
+          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === currentSeason - 1);
+          if (prevSeasonHallOfFame.length > 0) {
+            seeds.push(prevSeasonHallOfFame[0].championId);  // 1위
+          }
+          // 참고: runnerUp, thirdPlace, fourthPlace는 히스토리에서 가져와야 함
+          // 간단히 현재 hallOfFame만 사용 (추후 확장 가능)
+        }
+
+        // 참가자 생성 (32명, 등급순 선발 + 시드)
+        const participants = generateParticipants(playerCrewIds, playerCrewName, seeds);
 
         // 대진표 생성
         const brackets = generateInitialBrackets(participants);
@@ -131,6 +143,9 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           brackets,
           champion: null,
           runnerUp: null,
+          thirdPlace: null,
+          fourthPlace: null,
+          seeds,
           myCardResults
         };
 
@@ -241,6 +256,16 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           };
         }
 
+        // 3/4위전 경기
+        if (status === 'FINAL' && updatedBrackets.thirdPlace?.id === matchId) {
+          updatedBrackets.thirdPlace = {
+            ...updatedBrackets.thirdPlace,
+            winner,
+            score,
+            played: true
+          };
+        }
+
         set({
           currentLeague: {
             ...currentLeague,
@@ -295,10 +320,20 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           }
         }
 
-        if (status === 'FINAL' && currentLeague.brackets.final && !currentLeague.brackets.final.played) {
-          const match = currentLeague.brackets.final;
-          const result = simulateMatch(match.participant1, match.participant2, match.format);
-          playMatch(match.id, result.winner, result.score);
+        if (status === 'FINAL') {
+          // 결승전
+          if (currentLeague.brackets.final && !currentLeague.brackets.final.played) {
+            const match = currentLeague.brackets.final;
+            const result = simulateMatch(match.participant1, match.participant2, match.format);
+            playMatch(match.id, result.winner, result.score);
+          }
+
+          // 3/4위전
+          if (currentLeague.brackets.thirdPlace && !currentLeague.brackets.thirdPlace.played) {
+            const match = currentLeague.brackets.thirdPlace;
+            const result = simulateMatch(match.participant1, match.participant2, match.format);
+            playMatch(match.id, result.winner, result.score);
+          }
         }
       },
 
@@ -319,6 +354,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         let newStatus = getNextRoundStatus(status);
         let champion: string | null = null;
         let runnerUp: string | null = null;
+        let thirdPlace: string | null = null;
+        let fourthPlace: string | null = null;
 
         // 32강 조별 리그 완료 → 16강 토너먼트 생성
         if (status === 'ROUND_32') {
@@ -354,6 +391,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           updatedParticipants = result.participants;
           champion = result.champion;
           runnerUp = result.runnerUp;
+          thirdPlace = result.thirdPlace;
+          fourthPlace = result.fourthPlace;
         }
 
         // 내 카드 결과 업데이트
@@ -377,6 +416,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             participants: updatedParticipants,
             champion,
             runnerUp,
+            thirdPlace,
+            fourthPlace,
             myCardResults
           }
         });
@@ -749,7 +790,14 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             matchType = 'SEMI';
             break;
           case 'FINAL':
-            matches = currentLeague.brackets.final ? [currentLeague.brackets.final] : [];
+            // 결승과 3/4위전 모두 포함
+            matches = [];
+            if (currentLeague.brackets.final) {
+              matches.push(currentLeague.brackets.final);
+            }
+            if (currentLeague.brackets.thirdPlace) {
+              matches.push(currentLeague.brackets.thirdPlace);
+            }
             matchType = 'FINAL';
             break;
           default:
@@ -757,6 +805,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         }
 
         const match = matches.find(m => m.id === matchId);
+        // 3/4위전인 경우 bestOf 계산을 위해 matchType 변경
+        const effectiveMatchType = match?.id === 'third_place' ? 'THIRD_PLACE' : matchType;
         if (!match || match.played) {
           console.log('[simulateIndividualMatch] 매치 없거나 완료됨');
           return null;
@@ -795,8 +845,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           attribute: p2Card?.attribute,
         };
 
-        // bestOf 값 결정
-        const bestOf = getBestOfForRound(status);
+        // bestOf 값 결정 (3/4위전은 별도 처리)
+        const bestOf = getBestOfForRound(effectiveMatchType);
 
         // 경기장 랜덤 선택
         const arenaIds = getRandomArenas(bestOf);
@@ -863,8 +913,15 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             console.log('[findNextMatch] 4강 경기 수:', matches.length);
             break;
           case 'FINAL':
-            matches = currentLeague.brackets.final ? [currentLeague.brackets.final] : [];
-            console.log('[findNextMatch] 결승 존재:', !!currentLeague.brackets.final);
+            // 결승과 3/4위전 모두 포함
+            matches = [];
+            if (currentLeague.brackets.final) {
+              matches.push(currentLeague.brackets.final);
+            }
+            if (currentLeague.brackets.thirdPlace) {
+              matches.push(currentLeague.brackets.thirdPlace);
+            }
+            console.log('[findNextMatch] 결승/3,4위전 경기 수:', matches.length);
             break;
           default:
             console.log('[findNextMatch] 알 수 없는 phase:', status);
