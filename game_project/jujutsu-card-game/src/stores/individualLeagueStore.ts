@@ -13,7 +13,16 @@ import type {
   IndividualMatch,
   LeagueParticipant
 } from '../types';
+import type {
+  BattleState,
+  IndividualMatchResult,
+  BattleTurn,
+  SetResult,
+  ArenaEffect
+} from '../types/individualLeague';
+import { initialBattleState } from '../types/individualLeague';
 import { CHARACTERS_BY_ID } from '../data/characters';
+import { getRandomArena, applyArenaEffect } from '../data/arenaEffects';
 import {
   generateParticipants,
   generateInitialBrackets,
@@ -40,6 +49,10 @@ interface IndividualLeagueState {
     crewName: string;
   }[];
 
+  // 1:1 배틀 상태
+  currentBattleState: BattleState;
+  lastMatchResult: IndividualMatchResult | null;
+
   // 액션
   startNewLeague: (playerCrewIds: string[], playerCrewName?: string) => void;
   playMatch: (matchId: string, winner: string, score: { p1: number; p2: number }) => void;
@@ -59,6 +72,18 @@ interface IndividualLeagueState {
   getAvailableForNomination: () => LeagueParticipant[];
   getPlayerCrewIds: () => string[];
   createRound16Matches: () => void;
+
+  // 1:1 배틀 액션
+  startBattle: (matchId: string, playerCardId: string, opponentId: string) => void;
+  executeTurn: () => BattleTurn | null;
+  executeSet: () => SetResult | null;
+  finishBattle: () => IndividualMatchResult | null;
+  resetBattle: () => void;
+  getBattleStats: () => {
+    playerCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
+    opponentCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
+    arena: ArenaEffect | null;
+  };
 }
 
 export const useIndividualLeagueStore = create<IndividualLeagueState>()(
@@ -68,6 +93,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       currentLeague: null,
       history: [],
       hallOfFame: [],
+
+      // 1:1 배틀 상태 초기값
+      currentBattleState: initialBattleState,
+      lastMatchResult: null,
 
       // 새 리그 시작
       startNewLeague: (playerCrewIds: string[], playerCrewName = '내 크루') => {
@@ -957,21 +986,267 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             },
           },
         });
-      }
+      },
+
+      // ========================================
+      // 1:1 배틀 시스템
+      // ========================================
+
+      // 배틀 시작
+      startBattle: (matchId: string, playerCardId: string, opponentId: string) => {
+        const arena = getRandomArena();
+        console.log(`[Battle] 배틀 시작: ${playerCardId} vs ${opponentId}, 경기장: ${arena.name}`);
+
+        set({
+          currentBattleState: {
+            isActive: true,
+            matchId,
+            playerCardId,
+            opponentId,
+            arena,
+            currentSet: 1,
+            currentTurn: 1,
+            sets: [],
+            currentSetTurns: [],
+            playerSetWins: 0,
+            opponentSetWins: 0,
+            phase: 'READY',
+          },
+        });
+      },
+
+      // 턴 실행 (한 턴 전투)
+      executeTurn: () => {
+        const { currentBattleState } = get();
+        if (!currentBattleState.isActive || !currentBattleState.playerCardId || !currentBattleState.opponentId) {
+          return null;
+        }
+
+        const playerCard = CHARACTERS_BY_ID[currentBattleState.playerCardId];
+        const opponentCard = CHARACTERS_BY_ID[currentBattleState.opponentId];
+        const arena = currentBattleState.arena;
+
+        if (!playerCard || !opponentCard || !arena) {
+          console.error('[Battle] 카드 또는 경기장 정보 없음');
+          return null;
+        }
+
+        // 기본 전투력 계산
+        const playerBasePower = calculateTotalStat(playerCard);
+        const opponentBasePower = calculateTotalStat(opponentCard);
+
+        // 경기장 효과 적용
+        const playerResult = applyArenaEffect(playerBasePower, playerCard.attribute, arena);
+        const opponentResult = applyArenaEffect(opponentBasePower, opponentCard.attribute, arena);
+
+        // 랜덤 변동 (±15%)
+        const playerVariance = 0.85 + Math.random() * 0.30;
+        const opponentVariance = 0.85 + Math.random() * 0.30;
+
+        const playerFinalPower = Math.round(playerResult.finalPower * playerVariance);
+        const opponentFinalPower = Math.round(opponentResult.finalPower * opponentVariance);
+
+        // 크리티컬 (5% 확률, 1.5배)
+        const playerCritical = Math.random() < 0.05;
+        const opponentCritical = Math.random() < 0.05;
+        const playerPower = playerCritical ? Math.round(playerFinalPower * 1.5) : playerFinalPower;
+        const opponentPower = opponentCritical ? Math.round(opponentFinalPower * 1.5) : opponentFinalPower;
+
+        // 승자 결정
+        const winner: 'player' | 'opponent' = playerPower >= opponentPower ? 'player' : 'opponent';
+
+        const turn: BattleTurn = {
+          turnNumber: currentBattleState.currentTurn,
+          playerPower,
+          opponentPower,
+          winner,
+          criticalHit: playerCritical || opponentCritical,
+          arenaBonus: {
+            player: playerResult.bonusPercent,
+            opponent: opponentResult.bonusPercent,
+          },
+        };
+
+        console.log(`[Battle] 턴 ${turn.turnNumber}: 플레이어 ${playerPower} vs 상대 ${opponentPower} → ${winner} 승`);
+
+        // 상태 업데이트
+        const newSetTurns = [...currentBattleState.currentSetTurns, turn];
+        const playerTurnWins = newSetTurns.filter(t => t.winner === 'player').length;
+        const opponentTurnWins = newSetTurns.filter(t => t.winner === 'opponent').length;
+
+        // 세트 승자 확인 (3판 2선승)
+        const setWinner = playerTurnWins >= 2 ? 'player' : opponentTurnWins >= 2 ? 'opponent' : null;
+
+        if (setWinner) {
+          // 세트 완료
+          const setResult: SetResult = {
+            setNumber: currentBattleState.currentSet,
+            turns: newSetTurns,
+            playerWins: playerTurnWins,
+            opponentWins: opponentTurnWins,
+            winner: setWinner,
+          };
+
+          const newPlayerSetWins = currentBattleState.playerSetWins + (setWinner === 'player' ? 1 : 0);
+          const newOpponentSetWins = currentBattleState.opponentSetWins + (setWinner === 'opponent' ? 1 : 0);
+
+          console.log(`[Battle] 세트 ${setResult.setNumber} 완료: ${setWinner} 승 (세트 스코어: ${newPlayerSetWins}-${newOpponentSetWins})`);
+
+          // 경기 승자 확인 (5판 3선승)
+          const matchWinner = newPlayerSetWins >= 3 ? 'player' : newOpponentSetWins >= 3 ? 'opponent' : null;
+
+          set({
+            currentBattleState: {
+              ...currentBattleState,
+              sets: [...currentBattleState.sets, setResult],
+              currentSetTurns: [],
+              currentTurn: 1,
+              currentSet: currentBattleState.currentSet + 1,
+              playerSetWins: newPlayerSetWins,
+              opponentSetWins: newOpponentSetWins,
+              phase: matchWinner ? 'MATCH_END' : 'SET_END',
+            },
+          });
+        } else {
+          // 세트 진행 중
+          set({
+            currentBattleState: {
+              ...currentBattleState,
+              currentSetTurns: newSetTurns,
+              currentTurn: currentBattleState.currentTurn + 1,
+              phase: 'BATTLING',
+            },
+          });
+        }
+
+        return turn;
+      },
+
+      // 세트 전체 실행 (자동 진행)
+      executeSet: () => {
+        const { executeTurn, currentBattleState } = get();
+
+        // 세트가 끝날 때까지 턴 실행
+        while (currentBattleState.phase !== 'SET_END' && currentBattleState.phase !== 'MATCH_END') {
+          const turn = executeTurn();
+          if (!turn) break;
+
+          // 상태 다시 가져오기
+          const newState = get().currentBattleState;
+          if (newState.phase === 'SET_END' || newState.phase === 'MATCH_END') break;
+        }
+
+        const updatedState = get().currentBattleState;
+        if (updatedState.sets.length > 0) {
+          return updatedState.sets[updatedState.sets.length - 1];
+        }
+        return null;
+      },
+
+      // 배틀 종료 및 결과 반환
+      finishBattle: () => {
+        const { currentBattleState, playMatch } = get();
+        if (!currentBattleState.isActive || !currentBattleState.matchId) {
+          return null;
+        }
+
+        const matchWinner = currentBattleState.playerSetWins >= 3 ? 'player' : 'opponent';
+        const winnerId = matchWinner === 'player'
+          ? currentBattleState.playerCardId!
+          : currentBattleState.opponentId!;
+
+        console.log(`[Battle] 경기 종료: ${matchWinner} 승 (${currentBattleState.playerSetWins}-${currentBattleState.opponentSetWins})`);
+
+        // 경기 결과 생성
+        const result: IndividualMatchResult = {
+          matchId: currentBattleState.matchId,
+          playerCardId: currentBattleState.playerCardId!,
+          opponentId: currentBattleState.opponentId!,
+          arena: currentBattleState.arena!,
+          sets: currentBattleState.sets,
+          playerSetWins: currentBattleState.playerSetWins,
+          opponentSetWins: currentBattleState.opponentSetWins,
+          winner: matchWinner,
+        };
+
+        // 개인 리그 결과 기록
+        playMatch(
+          currentBattleState.matchId,
+          winnerId,
+          { p1: currentBattleState.playerSetWins, p2: currentBattleState.opponentSetWins }
+        );
+
+        // 상태 리셋
+        set({
+          currentBattleState: initialBattleState,
+          lastMatchResult: result,
+        });
+
+        return result;
+      },
+
+      // 배틀 리셋
+      resetBattle: () => {
+        set({
+          currentBattleState: initialBattleState,
+        });
+      },
+
+      // 배틀 통계 가져오기 (UI용)
+      getBattleStats: () => {
+        const { currentBattleState } = get();
+        if (!currentBattleState.isActive) {
+          return { playerCard: null, opponentCard: null, arena: null };
+        }
+
+        const playerCard = currentBattleState.playerCardId ? CHARACTERS_BY_ID[currentBattleState.playerCardId] : null;
+        const opponentCard = currentBattleState.opponentId ? CHARACTERS_BY_ID[currentBattleState.opponentId] : null;
+        const arena = currentBattleState.arena;
+
+        if (!playerCard || !opponentCard || !arena) {
+          return { playerCard: null, opponentCard: null, arena: null };
+        }
+
+        const playerBasePower = calculateTotalStat(playerCard);
+        const opponentBasePower = calculateTotalStat(opponentCard);
+        const playerArenaEffect = applyArenaEffect(playerBasePower, playerCard.attribute, arena);
+        const opponentArenaEffect = applyArenaEffect(opponentBasePower, opponentCard.attribute, arena);
+
+        return {
+          playerCard: {
+            id: currentBattleState.playerCardId!,
+            name: playerCard.name.ko,
+            basePower: playerBasePower,
+            attribute: playerCard.attribute,
+            arenaBonusPercent: playerArenaEffect.bonusPercent,
+          },
+          opponentCard: {
+            id: currentBattleState.opponentId!,
+            name: opponentCard.name.ko,
+            basePower: opponentBasePower,
+            attribute: opponentCard.attribute,
+            arenaBonusPercent: opponentArenaEffect.bonusPercent,
+          },
+          arena,
+        };
+      },
     }),
     {
       name: 'individual-league-storage',
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown, version: number) => {
         console.log('[IndividualLeague] 스토리지 마이그레이션:', { version, persistedState });
-        // 버전 3 이하에서 마이그레이션: 리그 초기화
-        if (version < 4) {
-          console.log('[IndividualLeague] 이전 버전 데이터 초기화');
+        // 버전 4 이하에서 마이그레이션: 배틀 상태 필드 추가
+        if (version < 5) {
+          console.log('[IndividualLeague] 이전 버전 데이터에 배틀 상태 추가');
+          const state = persistedState as Partial<IndividualLeagueState>;
           return {
-            currentSeason: 1,
-            currentLeague: null,
-            history: [],
-            hallOfFame: []
+            currentSeason: state.currentSeason ?? 1,
+            currentLeague: state.currentLeague ?? null,
+            history: state.history ?? [],
+            hallOfFame: state.hallOfFame ?? [],
+            currentBattleState: initialBattleState,
+            lastMatchResult: null
           };
         }
         return persistedState as IndividualLeagueState;
