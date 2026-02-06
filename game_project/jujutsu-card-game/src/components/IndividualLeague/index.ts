@@ -7,6 +7,7 @@ export { PlayerCardStatus } from './PlayerCardStatus';
 export { TournamentBracket } from './TournamentBracket';
 export { GroupStageView } from './GroupStageView';
 export { GroupStageMainView } from './GroupStageMainView';
+export { TournamentMainView } from './TournamentMainView';
 export { GroupCard } from './GroupCard';
 export { DualTournamentFlow } from './DualTournamentFlow';
 export { Round16Bracket } from './Round16Bracket';

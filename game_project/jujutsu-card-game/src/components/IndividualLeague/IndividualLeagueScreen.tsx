@@ -11,6 +11,7 @@ import { Button } from '../UI/Button';
 import { TournamentBracket } from './TournamentBracket';
 import { GroupStageView } from './GroupStageView';
 import { GroupStageMainView } from './GroupStageMainView';
+import { TournamentMainView } from './TournamentMainView';
 import { PlayerCardStatus } from './PlayerCardStatus';
 import { Round16Bracket } from './Round16Bracket';
 import { KnockoutBracket } from './KnockoutBracket';
@@ -30,20 +31,21 @@ interface IndividualLeagueScreenProps {
 }
 
 export function IndividualLeagueScreen({
-  onStartMatch,
+  onStartMatch: _onStartMatch,
   onBack
 }: IndividualLeagueScreenProps) {
+  // _onStartMatch reserved for future integration with parent component
   const {
     currentLeague,
     currentSeason,
     hallOfFame,
     startNewLeague,
     advanceRound,
-    getNextPlayerMatch,
+    getNextPlayerMatch: _getNextPlayerMatch,
     getPlayerCardStatuses,
     // Step 2: 시뮬레이션 기반 배틀
     simulateIndividualMatch,
-    skipToNextPlayerMatch,
+    skipToNextPlayerMatch: _skipToNextPlayerMatch,
     findNextMatch,
     lastSimMatchResult
   } = useIndividualLeagueStore(useShallow(state => ({
@@ -98,31 +100,20 @@ export function IndividualLeagueScreen({
   };
 
   // Step 2: 다음 경기 진행 (시뮬레이션 기반)
-  const handleNextMatch = () => {
-    console.log('[handleNextMatch] 클릭');
-
-    // 내 카드 경기까지 자동 스킵
-    const nextPlayerMatch = skipToNextPlayerMatch();
-
-    if (!nextPlayerMatch) {
-      console.log('[handleNextMatch] 내 카드 경기 없음');
-      // 현재 라운드 완료 체크
-      return;
-    }
-
-    console.log('[handleNextMatch] 내 카드 경기 시작:', nextPlayerMatch.id);
-
-    // 경기 예고 화면 표시
-    const roundName = getRoundName(currentLeague?.status || '');
-    const formatText = getFormatText(currentLeague?.status);
-
-    setPendingMatch({
-      match: nextPlayerMatch,
-      roundName,
-      formatText,
-    });
-    setShowMatchPreview(true);
-  };
+  // Reserved for alternative match navigation flow - commented out temporarily
+  // const handleNextMatch = () => {
+  //   console.log('[handleNextMatch] 클릭');
+  //   const nextPlayerMatch = skipToNextPlayerMatch();
+  //   if (!nextPlayerMatch) {
+  //     console.log('[handleNextMatch] 내 카드 경기 없음');
+  //     return;
+  //   }
+  //   console.log('[handleNextMatch] 내 카드 경기 시작:', nextPlayerMatch.id);
+  //   const roundName = getRoundName(currentLeague?.status || '');
+  //   const formatText = getFormatText(currentLeague?.status);
+  //   setPendingMatch({ match: nextPlayerMatch, roundName, formatText });
+  //   setShowMatchPreview(true);
+  // };
 
   // 경기 시작 (애니메이션 모드)
   const handleStartMatchWithAnimation = () => {
@@ -261,6 +252,42 @@ export function IndividualLeagueScreen({
       formatText: getFormatText('ROUND_32'),
       matchContext: context,
       matchImplication: implication
+    });
+    setShowMatchPreview(true);
+  };
+
+  // 16강~결승 TournamentMainView에서 경기 시작
+  const handleTournamentStartMatch = (matchId: string) => {
+    if (!currentLeague) return;
+
+    let match: IndividualMatch | undefined;
+    let roundName = '';
+
+    if (currentLeague.status === 'ROUND_16') {
+      match = currentLeague.brackets.round16Matches?.find(m => m.id === matchId);
+      roundName = '16강';
+    } else if (currentLeague.status === 'QUARTER') {
+      match = currentLeague.brackets.quarter.find(m => m.id === matchId);
+      roundName = '8강';
+    } else if (currentLeague.status === 'SEMI') {
+      match = currentLeague.brackets.semi.find(m => m.id === matchId);
+      roundName = '4강';
+    } else if (currentLeague.status === 'FINAL') {
+      if (currentLeague.brackets.final?.id === matchId) {
+        match = currentLeague.brackets.final;
+        roundName = '결승';
+      } else if (currentLeague.brackets.thirdPlace?.id === matchId) {
+        match = currentLeague.brackets.thirdPlace;
+        roundName = '3/4위전';
+      }
+    }
+
+    if (!match) return;
+
+    setPendingMatch({
+      match,
+      roundName,
+      formatText: getFormatText(currentLeague.status),
     });
     setShowMatchPreview(true);
   };
@@ -414,7 +441,7 @@ export function IndividualLeagueScreen({
           />
         )}
 
-        {/* 16강 이후: 기존 UI 유지 */}
+        {/* 16강 이후: 카드형 UI 적용 */}
         {currentLeague.status !== 'FINISHED' && currentLeague.status !== 'ROUND_32' && (
           <>
             {/* 내 카드 현황 */}
@@ -440,74 +467,37 @@ export function IndividualLeagueScreen({
               </div>
             </div>
 
-            {/* 액션 버튼 */}
-            <div className="flex flex-wrap justify-center gap-3 mb-4">
-              {currentLeague.status === 'ROUND_16' && (
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowRound16Bracket(true)}
-                >
-                  📊 16강 대진표
-                </Button>
-              )}
-
-              {(currentLeague.status === 'QUARTER' || currentLeague.status === 'SEMI' || currentLeague.status === 'FINAL') && (
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowKnockoutBracket(true)}
-                >
-                  📊 토너먼트 대진표
-                </Button>
-              )}
-
-              {!roundComplete && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log('=== 버튼 클릭됨 ===');
-                    const match = getNextPlayerMatch();
-                    console.log('찾은 경기:', match);
-                    console.log('onStartMatch 존재:', !!onStartMatch);
-
-                    if (match?.playerCardId && match?.opponentId && match?.match && onStartMatch) {
-                      console.log('전투 화면으로 이동 시도:', {
-                        playerCardId: match.playerCardId,
-                        opponentId: match.opponentId,
-                        matchId: match.match.id,
-                        format: match.match.format
-                      });
-                      onStartMatch(match.playerCardId, match.opponentId, match.match.id, match.match.format);
-                      console.log('onStartMatch 호출 완료');
-                    } else {
-                      // Step 2: 시뮬레이션 기반 배틀로 대체
-                      console.log('[Step 2] 시뮬레이션 기반 배틀 실행');
-                      handleNextMatch();
-                    }
-                  }}
-                  className="px-4 py-2 bg-accent hover:bg-accent/80 text-white font-bold rounded-lg transition-colors"
-                >
-                  ⚔️ 다음 경기 진행
-                </button>
-              )}
-
-              {!roundComplete && (
-                <Button
-                  variant="secondary"
-                  onClick={handleSkipAll}
-                >
-                  ⏩ 모든 경기 스킵
-                </Button>
-              )}
-
-              {roundComplete && (
-                <Button
-                  variant="primary"
-                  onClick={handleAdvanceRound}
-                >
-                  ➡️ 다음 라운드
-                </Button>
-              )}
-            </div>
+            {/* 토너먼트 메인 뷰 (카드형 UI) */}
+            <TournamentMainView
+              stage={currentLeague.status as 'ROUND_16' | 'QUARTER' | 'SEMI' | 'FINAL'}
+              matches={
+                currentLeague.status === 'ROUND_16'
+                  ? currentLeague.brackets.round16Matches || []
+                  : currentLeague.status === 'QUARTER'
+                  ? currentLeague.brackets.quarter
+                  : currentLeague.status === 'SEMI'
+                  ? currentLeague.brackets.semi
+                  : currentLeague.status === 'FINAL'
+                  ? [
+                      ...(currentLeague.brackets.final ? [currentLeague.brackets.final] : []),
+                      ...(currentLeague.brackets.thirdPlace ? [currentLeague.brackets.thirdPlace] : [])
+                    ]
+                  : []
+              }
+              participants={currentLeague.participants}
+              playerCardIds={playerCrew}
+              onStartMatch={handleTournamentStartMatch}
+              onSkipAll={handleSkipAll}
+              onNextRound={handleAdvanceRound}
+              onViewBracket={() => {
+                if (currentLeague.status === 'ROUND_16') {
+                  setShowRound16Bracket(true);
+                } else {
+                  setShowKnockoutBracket(true);
+                }
+              }}
+              isRoundComplete={roundComplete}
+            />
           </>
         )}
 

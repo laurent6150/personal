@@ -1427,7 +1427,7 @@ function calculateDominantWins(league: IndividualLeague): Record<string, number>
   return dominantWins;
 }
 
-// 개인상 계산
+// 개인상 계산 (Phase 3 - 3개 모두 표시)
 export function calculateAwards(
   league: IndividualLeague,
   rankings: FinalRanking[]
@@ -1447,28 +1447,30 @@ export function calculateAwards(
     awards.push({
       type: 'MVP',
       title: 'MVP',
-      icon: '🏅',
+      icon: '🏆',
       odId: mvpCandidates[0].odId,
       odName: mvpCandidates[0].odName,
       description: `${mvpCandidates[0].wins}승, 압승 ${mvpCandidates[0].dominantWins}회`,
     });
   }
 
-  // 최다승: 단순 승수 1위 (MVP와 다르면 추가)
+  // 최다승: 단순 승수 1위 (항상 표시)
   const mostWins = [...rankings].sort((a, b) => b.wins - a.wins)[0];
-  if (mostWins && mostWins.odId !== mvpCandidates[0]?.odId) {
+  if (mostWins) {
     awards.push({
       type: 'MOST_WINS',
       title: '최다승',
-      icon: '⚔️',
+      icon: '🔥',
       odId: mostWins.odId,
       odName: mostWins.odName,
       description: `${mostWins.wins}승`,
     });
   }
 
-  // 다크호스: 낮은 등급인데 높은 순위 (8강 이상 진출한 2급 이하)
+  // 다크호스: 세트 득실차 가장 큰 상승 or 낮은 등급에서 높은 순위
   const gradeOrder = ['특급', '준특급', '1급', '준1급', '2급', '준2급', '3급', '준3급', '비술사'];
+
+  // 먼저 낮은 등급에서 높은 순위(8강 이상)를 찾기
   const darkHorseCandidates = rankings
     .filter(r => r.rank <= 8) // 8강 이상
     .map(r => {
@@ -1493,6 +1495,19 @@ export function calculateAwards(
       odName: darkHorseCandidates[0].odName,
       description: `${darkHorseCandidates[0].grade}, ${darkHorseCandidates[0].rank}위`,
     });
+  } else {
+    // 낮은 등급에서 높은 순위가 없으면, 세트 득실차가 가장 큰 참가자 선정
+    const setDiffLeader = [...rankings].sort((a, b) => b.setDiff - a.setDiff)[0];
+    if (setDiffLeader && setDiffLeader.setDiff > 0) {
+      awards.push({
+        type: 'DARK_HORSE',
+        title: '다크호스',
+        icon: '🌟',
+        odId: setDiffLeader.odId,
+        odName: setDiffLeader.odName,
+        description: `세트 +${setDiffLeader.setDiff}`,
+      });
+    }
   }
 
   return awards;
