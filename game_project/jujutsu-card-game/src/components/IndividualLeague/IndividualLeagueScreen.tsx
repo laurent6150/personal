@@ -14,6 +14,7 @@ import { PlayerCardStatus } from './PlayerCardStatus';
 import { Round16Bracket } from './Round16Bracket';
 import { KnockoutBracket } from './KnockoutBracket';
 import { LeagueFinishedScreen } from './LeagueFinishedScreen';
+import { MatchBattle } from './MatchBattle';
 
 interface IndividualLeagueScreenProps {
   onStartMatch?: (playerCardId: string, opponentId: string, matchId: string, format: import('../../types').LeagueMatchFormat) => void;
@@ -58,7 +59,7 @@ export function IndividualLeagueScreen({
   const [showGroups, setShowGroups] = useState(false);
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
   const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
-  const [showMatchResult, setShowMatchResult] = useState(false);
+  const [showBattle, setShowBattle] = useState(false);
 
   // 리그 시작
   const handleStartLeague = () => {
@@ -86,8 +87,8 @@ export function IndividualLeagueScreen({
     const result = simulateIndividualMatch(nextPlayerMatch.id);
 
     if (result) {
-      // 결과 화면 표시 (Step 3에서 구현)
-      setShowMatchResult(true);
+      // Step 3: 전투 애니메이션 화면 표시
+      setShowBattle(true);
     }
   };
 
@@ -425,67 +426,13 @@ export function IndividualLeagueScreen({
           <KnockoutBracket onClose={() => setShowKnockoutBracket(false)} />
         )}
 
-        {/* Step 2: 경기 결과 모달 (임시 - Step 3에서 애니메이션 UI로 대체) */}
-        {showMatchResult && lastSimMatchResult && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-bg-secondary rounded-xl border border-white/20 p-6 max-w-md w-full"
-            >
-              <div className="text-center mb-4">
-                <div className="text-2xl font-bold text-yellow-400 mb-2">
-                  {lastSimMatchResult.isPlayerMatch
-                    ? (lastSimMatchResult.winnerId === lastSimMatchResult.participant1.odId && lastSimMatchResult.participant1.isPlayerCrew) ||
-                      (lastSimMatchResult.winnerId === lastSimMatchResult.participant2.odId && lastSimMatchResult.participant2.isPlayerCrew)
-                      ? '🎉 승리!'
-                      : '😢 패배'
-                    : '⚔️ 경기 종료'}
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center mb-4">
-                <div className={`text-center flex-1 ${lastSimMatchResult.winnerId === lastSimMatchResult.participant1.odId ? 'text-green-400' : 'text-text-secondary'}`}>
-                  <div className="text-lg font-bold">{lastSimMatchResult.participant1.odName}</div>
-                  <div className="text-sm">{lastSimMatchResult.participant1.crewName}</div>
-                </div>
-                <div className="text-2xl font-bold text-white mx-4">
-                  {lastSimMatchResult.score[0]} : {lastSimMatchResult.score[1]}
-                </div>
-                <div className={`text-center flex-1 ${lastSimMatchResult.winnerId === lastSimMatchResult.participant2.odId ? 'text-green-400' : 'text-text-secondary'}`}>
-                  <div className="text-lg font-bold">{lastSimMatchResult.participant2.odName}</div>
-                  <div className="text-sm">{lastSimMatchResult.participant2.crewName}</div>
-                </div>
-              </div>
-
-              {/* 세트별 결과 */}
-              <div className="bg-bg-primary/50 rounded-lg p-3 mb-4">
-                <div className="text-sm font-bold text-text-primary mb-2">세트별 결과</div>
-                <div className="space-y-1">
-                  {lastSimMatchResult.sets.map((set, idx) => {
-                    // 플레이어 카드가 이긴 세트인지 확인
-                    const isPlayerSetWin = (lastSimMatchResult.participant1.isPlayerCrew && set.winnerId === lastSimMatchResult.participant1.odId) ||
-                                           (lastSimMatchResult.participant2.isPlayerCrew && set.winnerId === lastSimMatchResult.participant2.odId);
-                    return (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-text-secondary">세트 {set.setNumber} ({set.arenaName})</span>
-                        <span className={isPlayerSetWin ? 'text-green-400' : 'text-red-400'}>
-                          {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Button
-                variant="primary"
-                onClick={() => setShowMatchResult(false)}
-                className="w-full"
-              >
-                확인
-              </Button>
-            </motion.div>
+        {/* Step 3: 전투 애니메이션 화면 */}
+        {showBattle && lastSimMatchResult && (
+          <div className="fixed inset-0 bg-black z-50">
+            <MatchBattle
+              matchResult={lastSimMatchResult}
+              onComplete={() => setShowBattle(false)}
+            />
           </div>
         )}
       </div>

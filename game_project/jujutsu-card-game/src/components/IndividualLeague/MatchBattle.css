@@ -1,0 +1,408 @@
+/* ========================================
+   경기 배틀 화면 스타일
+   ======================================== */
+
+.match-battle-screen {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
+  padding: 1rem;
+}
+
+.match-battle-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* 헤더 */
+.match-battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.match-battle-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #fbbf24;
+}
+
+.match-battle-round {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+/* 스코어보드 */
+.match-scoreboard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.scoreboard-title {
+  text-align: center;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.75rem;
+}
+
+.scoreboard-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.scoreboard-player {
+  text-align: center;
+  flex: 1;
+  max-width: 150px;
+}
+
+.scoreboard-player-name {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scoreboard-player-crew {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scoreboard-player.winner .scoreboard-player-name {
+  color: #22c55e;
+}
+
+.scoreboard-player.loser .scoreboard-player-name {
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+.scoreboard-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+}
+
+.score-value.win {
+  color: #22c55e;
+}
+
+.score-value.lose {
+  color: #ef4444;
+}
+
+.score-separator {
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 경기장 정보 */
+.arena-info {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.arena-name {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #a78bfa;
+  margin-bottom: 0.25rem;
+}
+
+.arena-description {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.arena-effect {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.arena-bonus {
+  color: #22c55e;
+}
+
+.arena-penalty {
+  color: #ef4444;
+}
+
+/* 세트 진행 표시 */
+.set-progress {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.set-progress-title {
+  text-align: center;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.5rem;
+}
+
+.set-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.set-indicator {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.set-indicator.current {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+  animation: pulse 1.5s infinite;
+}
+
+.set-indicator.win {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.set-indicator.lose {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* 버튼 영역 */
+.match-battle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.battle-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.battle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.battle-btn.primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.battle-btn.primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.battle-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.battle-btn.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.battle-btn.success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+}
+
+.battle-btn.danger {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: white;
+}
+
+/* 속도 컨트롤 */
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.speed-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+}
+
+.speed-btn.active {
+  background: rgba(251, 191, 36, 0.3);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+/* 경기 종료 화면 */
+.match-result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.match-result-content {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.match-result-title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.match-result-title.win {
+  color: #22c55e;
+}
+
+.match-result-title.lose {
+  color: #ef4444;
+}
+
+.match-result-score {
+  font-size: 3rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.match-result-details {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.match-result-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0;
+}
+
+.match-result-row .label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 세트 결과 목록 */
+.set-results-list {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.set-results-title {
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
+}
+
+.set-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+}
+
+.set-result-item:last-child {
+  margin-bottom: 0;
+}
+
+.set-result-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.set-result-arena {
+  font-size: 0.75rem;
+  color: rgba(139, 92, 246, 0.8);
+}
+
+.set-result-winner {
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.set-result-winner.player-win {
+  color: #22c55e;
+}
+
+.set-result-winner.player-lose {
+  color: #ef4444;
+}

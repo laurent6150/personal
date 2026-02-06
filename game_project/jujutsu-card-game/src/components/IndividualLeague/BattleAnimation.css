@@ -1,0 +1,250 @@
+/* ========================================
+   전투 애니메이션 스타일
+   ======================================== */
+
+.battle-animation-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 경기장 배경 */
+.arena-background {
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  background-size: cover;
+  background-position: center;
+}
+
+/* 캐릭터 카드 */
+.battle-card {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 100px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.battle-card.left {
+  left: 15%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: 2px solid #60a5fa;
+}
+
+.battle-card.right {
+  right: 15%;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border: 2px solid #f87171;
+}
+
+.battle-card .card-initial {
+  font-size: 2rem;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.battle-card .card-name {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 4px;
+  text-align: center;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 공격 애니메이션 */
+.battle-card.attacking {
+  animation: attack 0.5s ease-in-out;
+}
+
+.battle-card.left.attacking {
+  animation: attackRight 0.5s ease-in-out;
+}
+
+.battle-card.right.attacking {
+  animation: attackLeft 0.5s ease-in-out;
+}
+
+@keyframes attackRight {
+  0% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(60px) scale(1.1); }
+  100% { transform: translateY(-50%) translateX(0); }
+}
+
+@keyframes attackLeft {
+  0% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(-60px) scale(1.1); }
+  100% { transform: translateY(-50%) translateX(0); }
+}
+
+/* 피격 효과 */
+.battle-card.hit {
+  animation: hit 0.3s ease-in-out;
+}
+
+@keyframes hit {
+  0% { opacity: 1; }
+  25% { opacity: 0.5; filter: brightness(2); }
+  50% { opacity: 1; }
+  75% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* 승리 효과 */
+.battle-card.winner {
+  animation: winner 0.8s ease-in-out;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+}
+
+@keyframes winner {
+  0% { transform: translateY(-50%) scale(1); }
+  50% { transform: translateY(-50%) scale(1.2); }
+  100% { transform: translateY(-50%) scale(1.1); }
+}
+
+/* HP 바 */
+.hp-bar-container {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hp-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.hp-bar.low {
+  background: linear-gradient(90deg, #eab308 0%, #ca8a04 100%);
+}
+
+.hp-bar.critical {
+  background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
+}
+
+/* 데미지 텍스트 */
+.damage-text {
+  position: absolute;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ef4444;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  animation: damageFloat 1s ease-out forwards;
+  pointer-events: none;
+}
+
+.damage-text.critical {
+  font-size: 2rem;
+  color: #fbbf24;
+}
+
+@keyframes damageFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+
+/* VS 표시 */
+.vs-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+/* 이펙트 플래시 */
+.effect-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  animation: flash 0.3s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 액션 텍스트 */
+.action-text {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* 세트 결과 오버레이 */
+.set-result-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.set-result-overlay .result-text {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.set-result-overlay .result-text.win {
+  color: #22c55e;
+}
+
+.set-result-overlay .result-text.lose {
+  color: #ef4444;
+}
+
+.set-result-overlay .score-text {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+}
