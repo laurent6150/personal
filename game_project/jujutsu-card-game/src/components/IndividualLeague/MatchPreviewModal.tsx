@@ -14,6 +14,8 @@ interface MatchPreviewModalProps {
   roundName: string;           // "8강 1경기", "결승" 등
   formatText: string;          // "3판 2선승", "5판 3선승"
   arenaName?: string;
+  matchContext?: string;       // "승자전", "패자전", "최종전" 등
+  matchImplication?: string;   // "승자는 16강 진출 확정!" 등
   onStartMatch: () => void;
   onSkip: () => void;
   onClose: () => void;
@@ -25,6 +27,8 @@ export function MatchPreviewModal({
   roundName,
   formatText,
   arenaName,
+  matchContext,
+  matchImplication,
   onStartMatch,
   onSkip,
   onClose
@@ -40,6 +44,18 @@ export function MatchPreviewModal({
     return (stats.atk || 0) + (stats.def || 0) + (stats.spd || 0) +
            (stats.hp || 0) + (stats.ce || 0);
   };
+
+  // 스탯 비교 함수
+  const compareStats = (stat1: number, stat2: number) => {
+    if (stat1 > stat2) return { p1: '⬆', p2: '' };
+    if (stat2 > stat1) return { p1: '', p2: '⬆' };
+    return { p1: '', p2: '' };
+  };
+
+  const atkComparison = compareStats(card1?.baseStats.atk || 0, card2?.baseStats.atk || 0);
+  const defComparison = compareStats(card1?.baseStats.def || 0, card2?.baseStats.def || 0);
+  const spdComparison = compareStats(card1?.baseStats.spd || 0, card2?.baseStats.spd || 0);
+  const hpComparison = compareStats(card1?.baseStats.hp || 0, card2?.baseStats.hp || 0);
 
   return (
     <motion.div
@@ -59,11 +75,16 @@ export function MatchPreviewModal({
         {/* 헤더 */}
         <div className="bg-gradient-to-r from-red-500/20 via-accent/20 to-blue-500/20 p-4 text-center">
           <div className="text-2xl font-bold text-white mb-1">
-            ⚔️ {roundName} ⚔️
+            ⚔️ {roundName} {matchContext && `- ${matchContext}`} ⚔️
           </div>
           <div className="text-sm text-text-secondary">
             {formatText}
           </div>
+          {matchImplication && (
+            <div className="mt-2 text-sm text-yellow-400 bg-yellow-500/10 rounded-lg py-1 px-3 inline-block">
+              {matchImplication}
+            </div>
+          )}
         </div>
 
         {/* 메인 컨텐츠 */}
@@ -100,10 +121,10 @@ export function MatchPreviewModal({
               {/* 스탯 */}
               <div className="bg-bg-secondary rounded-lg p-3 text-left text-sm">
                 <div className="grid grid-cols-2 gap-1">
-                  <div>ATK: <span className="text-red-400">{card1?.baseStats.atk || 0}</span></div>
-                  <div>DEF: <span className="text-blue-400">{card1?.baseStats.def || 0}</span></div>
-                  <div>SPD: <span className="text-yellow-400">{card1?.baseStats.spd || 0}</span></div>
-                  <div>HP: <span className="text-green-400">{card1?.baseStats.hp || 0}</span></div>
+                  <div>ATK: <span className="text-red-400">{card1?.baseStats.atk || 0}</span> <span className="text-yellow-400">{atkComparison.p1}</span></div>
+                  <div>DEF: <span className="text-blue-400">{card1?.baseStats.def || 0}</span> <span className="text-yellow-400">{defComparison.p1}</span></div>
+                  <div>SPD: <span className="text-yellow-400">{card1?.baseStats.spd || 0}</span> <span className="text-yellow-400">{spdComparison.p1}</span></div>
+                  <div>HP: <span className="text-green-400">{card1?.baseStats.hp || 0}</span> <span className="text-yellow-400">{hpComparison.p1}</span></div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-white/10 text-center">
                   <span className="text-text-secondary">총합: </span>
@@ -155,10 +176,10 @@ export function MatchPreviewModal({
               {/* 스탯 */}
               <div className="bg-bg-secondary rounded-lg p-3 text-left text-sm">
                 <div className="grid grid-cols-2 gap-1">
-                  <div>ATK: <span className="text-red-400">{card2?.baseStats.atk || 0}</span></div>
-                  <div>DEF: <span className="text-blue-400">{card2?.baseStats.def || 0}</span></div>
-                  <div>SPD: <span className="text-yellow-400">{card2?.baseStats.spd || 0}</span></div>
-                  <div>HP: <span className="text-green-400">{card2?.baseStats.hp || 0}</span></div>
+                  <div>ATK: <span className="text-red-400">{card2?.baseStats.atk || 0}</span> <span className="text-yellow-400">{atkComparison.p2}</span></div>
+                  <div>DEF: <span className="text-blue-400">{card2?.baseStats.def || 0}</span> <span className="text-yellow-400">{defComparison.p2}</span></div>
+                  <div>SPD: <span className="text-yellow-400">{card2?.baseStats.spd || 0}</span> <span className="text-yellow-400">{spdComparison.p2}</span></div>
+                  <div>HP: <span className="text-green-400">{card2?.baseStats.hp || 0}</span> <span className="text-yellow-400">{hpComparison.p2}</span></div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-white/10 text-center">
                   <span className="text-text-secondary">총합: </span>

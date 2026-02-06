@@ -1,5 +1,6 @@
 // ========================================
 // 전투 애니메이션 화면 컴포넌트 (Phase 3)
+// 스킬 이펙트, 배속 조절, 전투 로그 추가
 // ========================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
 import { Button } from '../UI/Button';
-import type { SimMatchResult } from '../../types/individualLeague';
+import type { SimMatchResult, SimBattleTurn } from '../../types/individualLeague';
 
 interface BattleAnimationScreenProps {
   matchResult: SimMatchResult;
@@ -16,6 +17,89 @@ interface BattleAnimationScreenProps {
 
 type BattleSpeed = 1 | 2 | 4;
 type BattlePhase = 'INTRO' | 'SET_START' | 'BATTLE' | 'SET_END' | 'MATCH_END';
+
+// 스킬 이펙트 타입별 색상
+const ACTION_COLORS: Record<string, string> = {
+  basic: 'text-white',
+  skill: 'text-blue-400',
+  ultimate: 'text-purple-500'
+};
+
+// 스킬 이펙트 컴포넌트
+function SkillEffectDisplay({
+  actionName,
+  actionType,
+  damage,
+  isCritical
+}: {
+  actionName: string;
+  actionType: 'basic' | 'skill' | 'ultimate';
+  damage: number;
+  isCritical: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.5 }}
+      className="text-center"
+    >
+      {actionType === 'ultimate' && (
+        <motion.div
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="text-3xl mb-1"
+        >
+          ✨
+        </motion.div>
+      )}
+      <div className={`text-2xl font-bold ${isCritical ? 'text-yellow-400' : 'text-red-500'}`}>
+        -{damage}
+      </div>
+      {isCritical && (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 0.3 }}
+          className="text-yellow-400 text-sm font-bold"
+        >
+          CRITICAL!
+        </motion.div>
+      )}
+      <div className={`text-lg ${ACTION_COLORS[actionType]}`}>
+        「{actionName}」
+      </div>
+    </motion.div>
+  );
+}
+
+// 전투 로그 컴포넌트
+function BattleLog({ logs }: { logs: SimBattleTurn[] }) {
+  const recentLogs = logs.slice(-3);
+
+  return (
+    <div className="bg-black/50 rounded-lg p-2 text-xs space-y-1 max-h-20 overflow-hidden">
+      {recentLogs.map((log, idx) => (
+        <motion.div
+          key={`${log.turnNumber}-${idx}`}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="text-text-secondary"
+        >
+          <span className="text-accent">▶</span>{' '}
+          <span className={log.isCritical ? 'text-yellow-400' : 'text-text-primary'}>
+            {log.attackerName}
+          </span>
+          {log.actionType === 'ultimate' && <span className="text-purple-400"> (필살기)</span>}
+          {log.actionType === 'skill' && <span className="text-blue-400"> (스킬)</span>}
+          {' → '}
+          <span className="text-red-400">{log.damage}</span> 데미지
+          {log.isCritical && <span className="text-yellow-400"> 크리티컬!</span>}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimationScreenProps) {
   const [speed, setSpeed] = useState<BattleSpeed>(1);
@@ -28,6 +112,15 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
   const [isAnimating, setIsAnimating] = useState(false);
   const [attackingPlayer, setAttackingPlayer] = useState<'p1' | 'p2' | null>(null);
   const [showDamage, setShowDamage] = useState<{ player: 'p1' | 'p2'; amount: number } | null>(null);
+  const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
+  const [battleLogs, setBattleLogs] = useState<SimBattleTurn[]>([]);
+  const [currentSkillEffect, setCurrentSkillEffect] = useState<{
+    actionName: string;
+    actionType: 'basic' | 'skill' | 'ultimate';
+    damage: number;
+    isCritical: boolean;
+    target: 'p1' | 'p2';
+  } | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,65 +164,70 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
     }
   }, [phase, isAnimating]);
 
-  // 배틀 애니메이션
+  // 배틀 애니메이션 (턴별 실제 데이터 사용)
   const startBattleAnimation = useCallback(() => {
     if (!currentSet) return;
 
     setIsAnimating(true);
+    setBattleLogs([]);
+    setCurrentTurnIndex(0);
 
-    // HP 감소 애니메이션 (여러 단계로)
+    const turns = currentSet.turns;
     const winnerId = currentSet.winnerId;
     const isP1Winner = winnerId === p1.odId;
     const winnerHp = currentSet.winnerHpPercent;
 
-    // 공격 애니메이션 시퀀스
-    const attackSequence = async () => {
-      // 3차 공격 (양쪽 교대)
-      for (let i = 0; i < 3; i++) {
-        // P1 공격
-        setAttackingPlayer('p1');
-        await new Promise(r => setTimeout(r, getDelay(300)));
-        setAttackingPlayer(null);
+    // 턴별 애니메이션 시퀀스
+    const animateTurns = async () => {
+      // HP 초기화
+      let currentP1Hp = 100;
+      let currentP2Hp = 100;
 
-        if (!isP1Winner) {
-          const hpLoss = Math.floor((100 - winnerHp) / 3);
-          setP1Hp(prev => Math.max(0, prev - hpLoss));
-          setShowDamage({ player: 'p1', amount: hpLoss });
-          await new Promise(r => setTimeout(r, getDelay(200)));
-          setShowDamage(null);
-        } else {
-          const hpLoss = Math.floor(100 / 3);
-          setP2Hp(prev => Math.max(0, prev - hpLoss));
-          setShowDamage({ player: 'p2', amount: hpLoss });
-          await new Promise(r => setTimeout(r, getDelay(200)));
-          setShowDamage(null);
-        }
+      for (let i = 0; i < turns.length; i++) {
+        const turn = turns[i];
+        const isP1Attacking = turn.attackerId === p1.odId;
+        const attacker = isP1Attacking ? 'p1' : 'p2';
+        const defender = isP1Attacking ? 'p2' : 'p1';
 
+        // 공격자 애니메이션
+        setAttackingPlayer(attacker);
         await new Promise(r => setTimeout(r, getDelay(200)));
 
-        // P2 공격
-        setAttackingPlayer('p2');
-        await new Promise(r => setTimeout(r, getDelay(300)));
-        setAttackingPlayer(null);
+        // 스킬 이펙트 표시
+        setCurrentSkillEffect({
+          actionName: turn.actionName,
+          actionType: turn.actionType,
+          damage: turn.damage,
+          isCritical: turn.isCritical,
+          target: defender
+        });
 
-        if (isP1Winner) {
-          const hpLoss = Math.floor((100 - winnerHp) / 3);
-          setP2Hp(prev => Math.max(0, prev - hpLoss));
-          setShowDamage({ player: 'p2', amount: hpLoss });
-          await new Promise(r => setTimeout(r, getDelay(200)));
-          setShowDamage(null);
+        // 데미지 적용
+        if (defender === 'p1') {
+          currentP1Hp = Math.max(0, currentP1Hp - turn.damage);
+          setP1Hp(currentP1Hp);
+          setShowDamage({ player: 'p1', amount: turn.damage });
         } else {
-          const hpLoss = Math.floor(100 / 3);
-          setP1Hp(prev => Math.max(0, prev - hpLoss));
-          setShowDamage({ player: 'p1', amount: hpLoss });
-          await new Promise(r => setTimeout(r, getDelay(200)));
-          setShowDamage(null);
+          currentP2Hp = Math.max(0, currentP2Hp - turn.damage);
+          setP2Hp(currentP2Hp);
+          setShowDamage({ player: 'p2', amount: turn.damage });
         }
 
-        await new Promise(r => setTimeout(r, getDelay(300)));
+        // 로그 추가
+        setBattleLogs(prev => [...prev, turn]);
+        setCurrentTurnIndex(i + 1);
+
+        await new Promise(r => setTimeout(r, getDelay(400)));
+
+        // 이펙트 제거
+        setAttackingPlayer(null);
+        setShowDamage(null);
+        setCurrentSkillEffect(null);
+
+        await new Promise(r => setTimeout(r, getDelay(200)));
       }
 
-      // 최종 HP 설정
+      // 최종 HP 설정 (시뮬레이션 결과와 맞춤)
       if (isP1Winner) {
         setP1Hp(winnerHp);
         setP2Hp(0);
@@ -145,7 +243,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
       setPhase('SET_END');
     };
 
-    attackSequence();
+    animateTurns();
   }, [currentSet, p1.odId, getDelay]);
 
   // 세트 종료 처리
@@ -165,6 +263,8 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
           setCurrentSetIndex(prev => prev + 1);
           setP1Hp(100);
           setP2Hp(100);
+          setBattleLogs([]);  // 로그 초기화
+          setCurrentTurnIndex(0);  // 턴 인덱스 초기화
           setPhase('SET_START');
         } else {
           setPhase('MATCH_END');
@@ -204,11 +304,16 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
       {/* 상단: 스코어보드 */}
       <div className="bg-gradient-to-b from-bg-secondary to-transparent p-4">
         <div className="max-w-4xl mx-auto">
-          {/* 경기장 정보 */}
-          <div className="text-center mb-2">
+          {/* 경기장 정보 + 턴 카운터 */}
+          <div className="text-center mb-2 flex items-center justify-center gap-4">
             <span className="text-sm text-purple-400">
               {currentSet?.arenaName || '경기장'}
             </span>
+            {phase === 'BATTLE' && currentSet && (
+              <span className="text-sm text-yellow-400">
+                Turn {currentTurnIndex}/{currentSet.turns.length}
+              </span>
+            )}
           </div>
 
           {/* 스코어 */}
@@ -310,8 +415,24 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
               </AnimatePresence>
             </motion.div>
 
-            {/* VS */}
-            <div className="text-4xl font-bold text-white/50">VS</div>
+            {/* VS + 스킬 이펙트 */}
+            <div className="relative flex flex-col items-center">
+              <div className="text-4xl font-bold text-white/50">VS</div>
+
+              {/* 스킬 이펙트 표시 */}
+              <AnimatePresence>
+                {currentSkillEffect && (
+                  <div className="absolute top-12 left-1/2 transform -translate-x-1/2">
+                    <SkillEffectDisplay
+                      actionName={currentSkillEffect.actionName}
+                      actionType={currentSkillEffect.actionType}
+                      damage={currentSkillEffect.damage}
+                      isCritical={currentSkillEffect.isCritical}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* P2 (오른쪽) */}
             <motion.div
@@ -372,6 +493,13 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
               </AnimatePresence>
             </motion.div>
           </div>
+
+          {/* 전투 로그 */}
+          {phase === 'BATTLE' && battleLogs.length > 0 && (
+            <div className="mt-4">
+              <BattleLog logs={battleLogs} />
+            </div>
+          )}
 
           {/* 세트 결과 표시 */}
           <AnimatePresence>
