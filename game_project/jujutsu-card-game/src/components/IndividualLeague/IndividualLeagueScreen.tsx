@@ -14,7 +14,9 @@ import { PlayerCardStatus } from './PlayerCardStatus';
 import { Round16Bracket } from './Round16Bracket';
 import { KnockoutBracket } from './KnockoutBracket';
 import { LeagueFinishedScreen } from './LeagueFinishedScreen';
-import { MatchBattle } from './MatchBattle';
+import { MatchPreviewModal } from './MatchPreviewModal';
+import { BattleAnimationScreen } from './BattleAnimationScreen';
+import type { IndividualMatch } from '../../types';
 
 interface IndividualLeagueScreenProps {
   onStartMatch?: (playerCardId: string, opponentId: string, matchId: string, format: import('../../types').LeagueMatchFormat) => void;
@@ -59,12 +61,30 @@ export function IndividualLeagueScreen({
   const [showGroups, setShowGroups] = useState(false);
   const [showRound16Bracket, setShowRound16Bracket] = useState(false);
   const [showKnockoutBracket, setShowKnockoutBracket] = useState(false);
-  const [showBattle, setShowBattle] = useState(false);
+  const [showMatchPreview, setShowMatchPreview] = useState(false);
+  const [showBattleAnimation, setShowBattleAnimation] = useState(false);
+  const [pendingMatch, setPendingMatch] = useState<{
+    match: IndividualMatch;
+    roundName: string;
+    formatText: string;
+  } | null>(null);
 
   // 리그 시작
   const handleStartLeague = () => {
     if (playerCrew.length >= 5) {
       startNewLeague(playerCrew, '내 크루');
+    }
+  };
+
+  // 포맷 텍스트 가져오기
+  const getFormatText = (status?: string) => {
+    switch (status) {
+      case 'ROUND_32': return '단판 승부';
+      case 'ROUND_16': return '3판 2선승';
+      case 'QUARTER': return '3판 2선승';
+      case 'SEMI': return '5판 3선승';
+      case 'FINAL': return '5판 3선승';
+      default: return '단판';
     }
   };
 
@@ -83,13 +103,49 @@ export function IndividualLeagueScreen({
 
     console.log('[handleNextMatch] 내 카드 경기 시작:', nextPlayerMatch.id);
 
+    // 경기 예고 화면 표시
+    const roundName = getRoundName(currentLeague?.status || '');
+    const formatText = getFormatText(currentLeague?.status);
+
+    setPendingMatch({
+      match: nextPlayerMatch,
+      roundName,
+      formatText,
+    });
+    setShowMatchPreview(true);
+  };
+
+  // 경기 시작 (애니메이션 모드)
+  const handleStartMatchWithAnimation = () => {
+    if (!pendingMatch) return;
+
+    setShowMatchPreview(false);
+
     // 시뮬레이션 실행
-    const result = simulateIndividualMatch(nextPlayerMatch.id);
+    const result = simulateIndividualMatch(pendingMatch.match.id);
 
     if (result) {
-      // Step 3: 전투 애니메이션 화면 표시
-      setShowBattle(true);
+      // 애니메이션 화면 표시
+      setShowBattleAnimation(true);
     }
+  };
+
+  // 경기 스킵 (결과만)
+  const handleSkipMatch = () => {
+    if (!pendingMatch) return;
+
+    setShowMatchPreview(false);
+
+    // 시뮬레이션 실행
+    simulateIndividualMatch(pendingMatch.match.id);
+
+    setPendingMatch(null);
+  };
+
+  // 애니메이션 완료
+  const handleBattleAnimationComplete = () => {
+    setShowBattleAnimation(false);
+    setPendingMatch(null);
   };
 
   // Step 2: 모든 경기 스킵 (시뮬레이션)
@@ -426,14 +482,28 @@ export function IndividualLeagueScreen({
           <KnockoutBracket onClose={() => setShowKnockoutBracket(false)} />
         )}
 
-        {/* Step 3: 전투 애니메이션 화면 */}
-        {showBattle && lastSimMatchResult && (
-          <div className="fixed inset-0 bg-black z-50">
-            <MatchBattle
-              matchResult={lastSimMatchResult}
-              onComplete={() => setShowBattle(false)}
-            />
-          </div>
+        {/* 경기 예고 모달 */}
+        {showMatchPreview && pendingMatch && currentLeague && (
+          <MatchPreviewModal
+            match={pendingMatch.match}
+            participants={currentLeague.participants}
+            roundName={pendingMatch.roundName}
+            formatText={pendingMatch.formatText}
+            onStartMatch={handleStartMatchWithAnimation}
+            onSkip={handleSkipMatch}
+            onClose={() => {
+              setShowMatchPreview(false);
+              setPendingMatch(null);
+            }}
+          />
+        )}
+
+        {/* 전투 애니메이션 화면 */}
+        {showBattleAnimation && lastSimMatchResult && (
+          <BattleAnimationScreen
+            matchResult={lastSimMatchResult}
+            onComplete={handleBattleAnimationComplete}
+          />
         )}
       </div>
     </div>

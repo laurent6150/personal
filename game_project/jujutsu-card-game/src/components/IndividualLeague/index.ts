@@ -10,3 +10,4 @@ export { Round16Bracket } from './Round16Bracket';
 export { KnockoutBracket } from './KnockoutBracket';
 export { LeagueFinishedScreen } from './LeagueFinishedScreen';
 export { MatchPreviewModal } from './MatchPreviewModal';
+export { BattleAnimationScreen } from './BattleAnimationScreen';
