@@ -2,7 +2,7 @@
 // 개인 리그 1:1 배틀 타입 정의
 // ========================================
 
-import type { Attribute } from './index';
+import type { Attribute, LeagueMatchFormat } from './index';
 
 // 경기장 효과
 export interface ArenaEffect {
@@ -13,6 +13,26 @@ export interface ArenaEffect {
   penaltyAttribute: Attribute; // 페널티 받는 속성
   penaltyPercent: number;        // 페널티 퍼센트 (예: 5 = -5%)
   description: string;
+}
+
+// format에 따른 필요 승리 수 계산
+export function getRequiredWins(format: LeagueMatchFormat): number {
+  switch (format) {
+    case '1WIN': return 1;
+    case '2WIN': return 2;
+    case '3WIN': return 3;
+    default: return 1;
+  }
+}
+
+// format 표시 문자열
+export function getFormatDisplayText(format: LeagueMatchFormat): string {
+  switch (format) {
+    case '1WIN': return '단판';
+    case '2WIN': return '2선승';
+    case '3WIN': return '3선승';
+    default: return '단판';
+  }
 }
 
 // 배틀 턴 (한 턴의 결과)
@@ -57,17 +77,19 @@ export interface BattleState {
   playerCardId: string | null;
   opponentId: string | null;
   arena: ArenaEffect | null;
-  currentSet: number;       // 현재 세트 (1-based)
-  currentTurn: number;      // 현재 턴 (1-based)
-  sets: SetResult[];        // 완료된 세트들
+  format: LeagueMatchFormat;  // 경기 포맷 (1WIN, 2WIN, 3WIN)
+  requiredWins: number;       // 승리에 필요한 세트 수
+  currentSet: number;         // 현재 세트 (1-based)
+  currentTurn: number;        // 현재 턴 (1-based)
+  sets: SetResult[];          // 완료된 세트들
   currentSetTurns: BattleTurn[]; // 현재 세트의 턴들
   playerSetWins: number;
   opponentSetWins: number;
   phase: 'READY' | 'BATTLING' | 'SET_END' | 'MATCH_END';
 }
 
-// 배틀 통계 (UI 표시용)
-export interface BattleStats {
+// 배틀 통계 (UI 표시용 - 기존)
+export interface BattleStatsUI {
   playerCard: {
     id: string;
     name: string;
@@ -93,6 +115,95 @@ export interface BattleStats {
   };
 }
 
+// 전투 스탯 (시뮬레이터용)
+export interface BattleStats {
+  odId: string;
+  name: string;
+  attribute: string;
+  baseStats: {
+    atk: number;
+    def: number;
+    spd: number;
+    ce: number;
+    hp: number;
+    crt: number;
+    tec: number;
+    mnt: number;
+    total: number;
+  };
+  adjustedTotal: number;
+  arenaBonus: number;
+  arenaPenalty: number;
+  currentHp: number;
+  maxHp: number;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 시뮬레이터용 타입 (Step 2)
+// ═══════════════════════════════════════════════════════════
+
+// 참가자 타입 (시뮬레이터용)
+export interface Participant {
+  odId: string;
+  odName: string;
+  crewId: string;
+  crewName: string;
+  isPlayerCrew: boolean;
+  totalStats: number;
+  attribute?: string;
+}
+
+// 배틀 턴 (시뮬레이터용 - HP 기반)
+export interface SimBattleTurn {
+  turnNumber: number;
+  attackerId: string;
+  attackerName: string;
+  defenderId: string;
+  defenderName: string;
+  actionType: 'basic' | 'skill' | 'ultimate';
+  actionName: string;
+  damage: number;
+  isCritical: boolean;
+  attackerHpBefore: number;
+  attackerHpAfter: number;
+  defenderHpBefore: number;
+  defenderHpAfter: number;
+}
+
+// 세트 결과 (시뮬레이터용 - HP 기반)
+export interface SimSetResult {
+  setNumber: number;
+  arenaId: string;
+  arenaName: string;
+  arenaEffect: ArenaEffect | null;
+  winnerId: string;
+  winnerName: string;
+  loserId: string;
+  loserName: string;
+  winnerHpPercent: number;
+  loserHpPercent: number;
+  isDominantWin: boolean;
+  turns: SimBattleTurn[];
+  totalTurns: number;
+}
+
+// 개인전 매치 결과 (시뮬레이터용)
+export interface SimMatchResult {
+  matchId: string;
+  groupId?: string;
+  round: string;
+  matchType: string;
+  participant1: Participant;
+  participant2: Participant;
+  winnerId: string;
+  loserId: string;
+  bestOf: number;
+  score: [number, number];
+  sets: SimSetResult[];
+  isPlayerMatch: boolean;
+  isCompleted: boolean;
+}
+
 // 초기 배틀 상태
 export const initialBattleState: BattleState = {
   isActive: false,
@@ -100,6 +211,8 @@ export const initialBattleState: BattleState = {
   playerCardId: null,
   opponentId: null,
   arena: null,
+  format: '1WIN',
+  requiredWins: 1,
   currentSet: 0,
   currentTurn: 0,
   sets: [],

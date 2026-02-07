@@ -12,6 +12,7 @@ import type {
   FormState,
   FormConfig,
   CharacterCondition,
+  CharacterProgress,
   ExpChangeDetails,
   LevelChangeResult
 } from '../types';
@@ -215,6 +216,7 @@ export function getConditionStatus(value: number): string {
 
 export const MAX_LEVEL = 10;
 
+// 레거시: 기존 경험치 임계값 (하위 호환)
 export const LEVEL_THRESHOLDS = [
   0,      // Lv.1
   200,    // Lv.2
@@ -227,6 +229,139 @@ export const LEVEL_THRESHOLDS = [
   11000,  // Lv.9
   15000   // Lv.10 (만렙)
 ];
+
+// ========================================
+// Step 2.5b-1: 새로운 지수 증가 경험치 테이블
+// ========================================
+
+// 레벨별 누적 필요 경험치 (지수 증가)
+export const EXP_TABLE: Record<number, number> = {
+  1: 0,      // Lv1 시작점
+  2: 100,    // Lv1→2: 100 필요
+  3: 250,    // Lv2→3: 150 필요 (1.5배)
+  4: 475,    // Lv3→4: 225 필요
+  5: 815,    // Lv4→5: 340 필요
+  6: 1325,   // Lv5→6: 510 필요
+  7: 2090,   // Lv6→7: 765 필요
+  8: 3240,   // Lv7→8: 1150 필요
+  9: 4965,   // Lv8→9: 1725 필요
+  10: 7550,  // Lv9→10: 2585 필요
+};
+
+// 레벨업에 필요한 경험치 계산
+export function getExpForNextLevel(currentLevel: number): number {
+  if (currentLevel >= 10) return 0; // 만렙
+  return EXP_TABLE[currentLevel + 1] - EXP_TABLE[currentLevel];
+}
+
+// 현재 레벨 내 경험치 진행률 계산
+export function getExpProgress(totalExp: number, currentLevel: number): {
+  currentLevelExp: number;
+  requiredExp: number;
+  percentage: number;
+} {
+  if (currentLevel >= 10) {
+    return { currentLevelExp: 0, requiredExp: 0, percentage: 100 };
+  }
+
+  const currentLevelStartExp = EXP_TABLE[currentLevel];
+  const nextLevelExp = EXP_TABLE[currentLevel + 1];
+  const currentLevelExp = totalExp - currentLevelStartExp;
+  const requiredExp = nextLevelExp - currentLevelStartExp;
+  const percentage = Math.floor((currentLevelExp / requiredExp) * 100);
+
+  return { currentLevelExp, requiredExp, percentage };
+}
+
+// 총 경험치로 레벨 계산 (새 테이블 기준)
+export function calculateLevelFromExp(totalExp: number): number {
+  for (let level = 10; level >= 1; level--) {
+    if (totalExp >= EXP_TABLE[level]) {
+      return level;
+    }
+  }
+  return 1;
+}
+
+// ========================================
+// Step 2.5b-1: 등급별 레벨업 스탯 증가
+// ========================================
+
+// 등급별 레벨업 시 총 스탯 증가량
+export const STAT_INCREASE_BY_GRADE: Record<Grade, number> = {
+  '특급': 2,
+  '준특급': 3,
+  '1급': 4,
+  '준1급': 5,
+  '2급': 6,
+  '준2급': 7,
+  '3급': 8,
+  '준3급': 9,
+  '비술사': 10,
+};
+
+// 레벨업 시 스탯 증가 계산 (8개 스탯에 랜덤 분배)
+export function calculateLevelUpStats(grade: Grade): Partial<Stats> {
+  const totalIncrease = STAT_INCREASE_BY_GRADE[grade] || 5;
+  const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'ce', 'hp', 'crt', 'tec', 'mnt'];
+
+  const increases: Partial<Stats> = {};
+  let remaining = totalIncrease;
+
+  // 랜덤하게 스탯 분배
+  while (remaining > 0) {
+    const randomStat = statKeys[Math.floor(Math.random() * statKeys.length)];
+    increases[randomStat] = (increases[randomStat] || 0) + 1;
+    remaining--;
+  }
+
+  return increases;
+}
+
+// 경험치 추가 및 레벨업 처리
+export function addExpAndLevelUp(
+  currentProgress: CharacterProgress,
+  expToAdd: number,
+  grade: Grade
+): {
+  newProgress: CharacterProgress;
+  leveledUp: boolean;
+  levelsGained: number;
+  statIncreases: Partial<Stats>;
+} {
+  const newTotalExp = currentProgress.totalExp + expToAdd;
+  const newLevel = calculateLevelFromExp(newTotalExp);
+  const levelsGained = newLevel - currentProgress.level;
+  const leveledUp = levelsGained > 0;
+
+  let statIncreases: Partial<Stats> = {};
+  let newBonusStats = { ...currentProgress.bonusStats };
+
+  // 레벨업 횟수만큼 스탯 증가
+  for (let i = 0; i < levelsGained; i++) {
+    const levelIncrease = calculateLevelUpStats(grade);
+    Object.entries(levelIncrease).forEach(([key, value]) => {
+      const statKey = key as keyof Stats;
+      statIncreases[statKey] = (statIncreases[statKey] || 0) + (value || 0);
+      newBonusStats[statKey] = (newBonusStats[statKey] || 0) + (value || 0);
+    });
+  }
+
+  const { currentLevelExp } = getExpProgress(newTotalExp, newLevel);
+
+  return {
+    newProgress: {
+      ...currentProgress,
+      level: newLevel,
+      exp: currentLevelExp,
+      totalExp: newTotalExp,
+      bonusStats: newBonusStats,
+    },
+    leveledUp,
+    levelsGained,
+    statIncreases,
+  };
+}
 
 /**
  * 경험치 변화량 계산

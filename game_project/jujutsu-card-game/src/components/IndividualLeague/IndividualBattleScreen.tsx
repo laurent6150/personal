@@ -8,6 +8,7 @@ import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
 import { Button } from '../UI/Button';
 import type { BattleTurn } from '../../types/individualLeague';
+import { getFormatDisplayText } from '../../types/individualLeague';
 
 interface IndividualBattleScreenProps {
   onBattleEnd?: () => void;
@@ -83,7 +84,8 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
     );
   }
 
-  const { playerCard, opponentCard, arena } = battleStats;
+  const { playerCard, opponentCard, arena, format, requiredWins } = battleStats;
+  const formatText = getFormatDisplayText(format);
 
   return (
     <div className="min-h-screen bg-bg-primary p-4">
@@ -98,9 +100,9 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
           <div className="text-sm text-text-secondary mt-1">{arena?.description}</div>
         </motion.div>
 
-        {/* 세트 스코어 */}
+        {/* 점수 */}
         <div className="bg-bg-secondary rounded-xl border border-white/10 p-4 mb-4">
-          <div className="text-center text-sm text-text-secondary mb-2">세트 스코어</div>
+          <div className="text-center text-sm text-text-secondary mb-2">경기 점수 ({formatText})</div>
           <div className="flex justify-center items-center gap-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-accent">{currentBattleState.playerSetWins}</div>
@@ -113,7 +115,7 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
             </div>
           </div>
           <div className="text-center text-xs text-text-secondary mt-2">
-            세트 {currentBattleState.currentSet} / 5판 3선승
+            {requiredWins === 1 ? '단판 승부' : `${requiredWins}승 필요`}
           </div>
         </div>
 
@@ -174,10 +176,10 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
           </motion.div>
         </div>
 
-        {/* 현재 세트 턴 현황 */}
+        {/* 현재 턴 현황 */}
         <div className="bg-bg-secondary rounded-xl border border-white/10 p-4 mb-4">
           <div className="text-sm font-bold text-text-primary mb-2">
-            세트 {currentBattleState.currentSet} 진행 상황 (3판 2선승)
+            경기 진행 상황 ({formatText})
           </div>
           <div className="flex justify-center gap-2">
             {currentBattleState.currentSetTurns.map((turn, idx) => (
@@ -192,7 +194,8 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
                 {turn.winner === 'player' ? 'W' : 'L'}
               </div>
             ))}
-            {Array.from({ length: 3 - currentBattleState.currentSetTurns.length }).map((_, idx) => (
+            {/* 남은 승수 표시 (최대 2 * requiredWins - 1까지 가능) */}
+            {Array.from({ length: Math.max(0, requiredWins - currentBattleState.currentSetTurns.length) }).map((_, idx) => (
               <div
                 key={`empty-${idx}`}
                 className="w-8 h-8 rounded-full bg-bg-primary border border-white/20"
@@ -273,7 +276,7 @@ export function IndividualBattleScreen({ onBattleEnd }: IndividualBattleScreenPr
             <>
               <div className="w-full text-center mb-4">
                 <div className="text-2xl font-bold text-yellow-400 mb-2">
-                  {currentBattleState.playerSetWins >= 3 ? '🎉 승리!' : '😢 패배'}
+                  {currentBattleState.playerSetWins >= requiredWins ? '🎉 승리!' : '😢 패배'}
                 </div>
                 <div className="text-text-secondary">
                   최종 스코어: {currentBattleState.playerSetWins} - {currentBattleState.opponentSetWins}

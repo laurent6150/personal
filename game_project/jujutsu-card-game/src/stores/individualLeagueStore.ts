@@ -8,25 +8,27 @@ import type {
   IndividualLeague,
   IndividualLeagueStatus,
   IndividualLeagueHistory,
-  NominationStep,
-  LeagueGroup,
   IndividualMatch,
-  LeagueParticipant
+  IndividualLeagueAward
 } from '../types';
 import type {
   BattleState,
   IndividualMatchResult,
   BattleTurn,
   SetResult,
-  ArenaEffect
+  ArenaEffect,
+  SimMatchResult,
+  Participant
 } from '../types/individualLeague';
-import { initialBattleState } from '../types/individualLeague';
+import { initialBattleState, getRequiredWins } from '../types/individualLeague';
+import type { LeagueMatchFormat } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import { getRandomArena, applyArenaEffect } from '../data/arenaEffects';
+import { getRandomArena, applyArenaEffect, getRandomArenas } from '../data/arenaEffects';
 import {
   generateParticipants,
   generateInitialBrackets,
   simulateMatch,
+  processRound32Results,
   processRound16Results,
   processQuarterResults,
   processSemiResults,
@@ -35,8 +37,15 @@ import {
   isRoundComplete,
   getNextRoundStatus,
   getPlayerCardStatuses,
-  calculateTotalStat
+  calculateTotalStat,
+  calculateFinalRankings,
+  calculateAwards
 } from '../utils/individualLeagueSystem';
+import { usePlayerStore } from './playerStore';
+import {
+  simulateMatch as simulateBattle,
+  getBestOfForRound
+} from '../utils/individualBattleSimulator';
 
 interface IndividualLeagueState {
   currentSeason: number;
@@ -63,18 +72,11 @@ interface IndividualLeagueState {
   finishLeague: () => void;
   resetLeague: () => void;
 
-  // Phase 3 - 16강 지명 시스템
-  startNomination: () => void;
-  nominateCard: (nomineeId: string) => void;
-  autoNominate: () => void;
-  completeNomination: () => void;
-  getCurrentNominationStep: () => NominationStep | null;
-  getAvailableForNomination: () => LeagueParticipant[];
+  // 유틸리티
   getPlayerCrewIds: () => string[];
-  createRound16Matches: () => void;
 
   // 1:1 배틀 액션
-  startBattle: (matchId: string, playerCardId: string, opponentId: string) => void;
+  startBattle: (matchId: string, playerCardId: string, opponentId: string, format: import('../types').LeagueMatchFormat) => void;
   executeTurn: () => BattleTurn | null;
   executeSet: () => SetResult | null;
   finishBattle: () => IndividualMatchResult | null;
@@ -83,7 +85,15 @@ interface IndividualLeagueState {
     playerCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
     opponentCard: { id: string; name: string; basePower: number; attribute: string; arenaBonusPercent: number } | null;
     arena: ArenaEffect | null;
+    format: LeagueMatchFormat;
+    requiredWins: number;
   };
+
+  // Step 2: 시뮬레이션 기반 배틀
+  lastSimMatchResult: SimMatchResult | null;
+  simulateIndividualMatch: (matchId: string) => SimMatchResult | null;
+  skipToNextPlayerMatch: () => IndividualMatch | null;
+  findNextMatch: () => IndividualMatch | null;
 }
 
 export const useIndividualLeagueStore = create<IndividualLeagueState>()(
@@ -97,13 +107,26 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       // 1:1 배틀 상태 초기값
       currentBattleState: initialBattleState,
       lastMatchResult: null,
+      lastSimMatchResult: null,
 
       // 새 리그 시작
       startNewLeague: (playerCrewIds: string[], playerCrewName = '내 크루') => {
-        const { currentSeason } = get();
+        const { currentSeason, hallOfFame } = get();
 
-        // 참가자 생성 (32명)
-        const participants = generateParticipants(playerCrewIds, playerCrewName);
+        // 전 시즌 1~4위 시드 계산 (시즌 2부터)
+        let seeds: string[] = [];
+        if (currentSeason > 1) {
+          // 이전 시즌 결과에서 시드 추출
+          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === currentSeason - 1);
+          if (prevSeasonHallOfFame.length > 0) {
+            seeds.push(prevSeasonHallOfFame[0].championId);  // 1위
+          }
+          // 참고: runnerUp, thirdPlace, fourthPlace는 히스토리에서 가져와야 함
+          // 간단히 현재 hallOfFame만 사용 (추후 확장 가능)
+        }
+
+        // 참가자 생성 (32명, 등급순 선발 + 시드)
+        const participants = generateParticipants(playerCrewIds, playerCrewName, seeds);
 
         // 대진표 생성
         const brackets = generateInitialBrackets(participants);
@@ -124,6 +147,9 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           brackets,
           champion: null,
           runnerUp: null,
+          thirdPlace: null,
+          fourthPlace: null,
+          seeds,
           myCardResults
         };
 
@@ -139,35 +165,61 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         let updatedBrackets = { ...currentLeague.brackets };
         let updatedParticipants = [...currentLeague.participants];
 
-        // 32강 경기
+        // 32강 조별 리그 경기 (풀 리그전)
         if (status === 'ROUND_32') {
+          // round32 배열 업데이트
           updatedBrackets.round32 = updatedBrackets.round32.map(m =>
             m.id === matchId
               ? { ...m, winner, score, played: true }
               : m
           );
+
+          // round32Groups 순위 업데이트
+          if (updatedBrackets.round32Groups) {
+            const match = updatedBrackets.round32.find(m => m.id === matchId);
+            if (match && match.groupId) {
+              updatedBrackets.round32Groups = updatedBrackets.round32Groups.map(group => {
+                if (group.id !== match.groupId) return group;
+
+                // standings 업데이트
+                const updatedStandings = group.standings.map(s => {
+                  if (s.odId === winner) {
+                    return { ...s, wins: s.wins + 1 };
+                  }
+                  const loserId = winner === match.participant1 ? match.participant2 : match.participant1;
+                  if (s.odId === loserId) {
+                    return { ...s, losses: s.losses + 1 };
+                  }
+                  return s;
+                });
+
+                // 조별 리그 완료 체크 (6경기 모두 완료)
+                const groupMatches = updatedBrackets.round32.filter(m => m.groupId === group.id);
+                const allPlayed = groupMatches.every(m => m.played);
+
+                return {
+                  ...group,
+                  standings: updatedStandings,
+                  isCompleted: allPlayed
+                };
+              });
+            }
+          }
         }
 
-        // 16강 조별 경기 (4인 토너먼트: 준결승 2경기 + 조 결승 1경기)
+        // 16강 토너먼트 (1:1 녹아웃)
         if (status === 'ROUND_16') {
-          updatedBrackets.round16 = updatedBrackets.round16.map(group => {
-            const matchIndex = group.matches.findIndex(m => m.id === matchId);
-            if (matchIndex === -1) return group;
+          if (updatedBrackets.round16Matches) {
+            updatedBrackets.round16Matches = updatedBrackets.round16Matches.map(m =>
+              m.id === matchId
+                ? { ...m, winner, score, played: true }
+                : m
+            );
 
-            const updatedMatches = [...group.matches];
-            updatedMatches[matchIndex] = { ...updatedMatches[matchIndex], winner, score, played: true };
-
-            // 준결승 경기인지 확인 (semi1 또는 semi2)
-            const isSemi1 = matchId.includes('_semi1');
-            const isSemi2 = matchId.includes('_semi2');
-            const isFinal = matchId.includes('_final');
-
-            // 조 결승 경기가 완료되면 조 승자 결정
-            if (isFinal) {
-              // 탈락자 처리 (조 결승 패자는 16강 탈락)
-              const loserId = winner === updatedMatches[matchIndex].participant1
-                ? updatedMatches[matchIndex].participant2
-                : updatedMatches[matchIndex].participant1;
+            // 패자 탈락 처리
+            const match = updatedBrackets.round16Matches.find(m => m.id === matchId);
+            if (match) {
+              const loserId = winner === match.participant1 ? match.participant2 : match.participant1;
               const loserIdx = updatedParticipants.findIndex(p => p.odId === loserId);
               if (loserIdx !== -1) {
                 updatedParticipants[loserIdx] = {
@@ -176,54 +228,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
                   eliminatedAt: 'ROUND_16'
                 };
               }
-
-              return {
-                ...group,
-                matches: updatedMatches,
-                winner
-              };
             }
-
-            // 준결승 경기가 완료되면 조 결승 참가자 업데이트
-            if (isSemi1 || isSemi2) {
-              // 준결승 패자 탈락 처리
-              const loserId = winner === updatedMatches[matchIndex].participant1
-                ? updatedMatches[matchIndex].participant2
-                : updatedMatches[matchIndex].participant1;
-              const loserIdx = updatedParticipants.findIndex(p => p.odId === loserId);
-              if (loserIdx !== -1) {
-                updatedParticipants[loserIdx] = {
-                  ...updatedParticipants[loserIdx],
-                  status: 'ELIMINATED',
-                  eliminatedAt: 'ROUND_16'
-                };
-              }
-
-              // 조 결승 매치 찾기 (인덱스 2)
-              const finalMatchIdx = updatedMatches.findIndex(m => m.id.includes('_final'));
-              if (finalMatchIdx !== -1) {
-                const finalMatch = updatedMatches[finalMatchIdx];
-                // 준결승1 승자는 조 결승 participant1
-                // 준결승2 승자는 조 결승 participant2
-                if (isSemi1) {
-                  updatedMatches[finalMatchIdx] = {
-                    ...finalMatch,
-                    participant1: winner
-                  };
-                } else if (isSemi2) {
-                  updatedMatches[finalMatchIdx] = {
-                    ...finalMatch,
-                    participant2: winner
-                  };
-                }
-              }
-            }
-
-            return {
-              ...group,
-              matches: updatedMatches
-            };
-          });
+          }
         }
 
         // 8강 경기
@@ -248,6 +254,16 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         if (status === 'FINAL' && updatedBrackets.final?.id === matchId) {
           updatedBrackets.final = {
             ...updatedBrackets.final,
+            winner,
+            score,
+            played: true
+          };
+        }
+
+        // 3/4위전 경기
+        if (status === 'FINAL' && updatedBrackets.thirdPlace?.id === matchId) {
+          updatedBrackets.thirdPlace = {
+            ...updatedBrackets.thirdPlace,
             winner,
             score,
             played: true
@@ -280,48 +296,12 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         }
 
         if (status === 'ROUND_16') {
-          // 4인 토너먼트 구조: 각 조별로 준결승 2경기 → 조 결승 1경기
-          for (const group of currentLeague.brackets.round16) {
-            // 조별 승자가 결정될 때까지 반복
-            let loopCount = 0;
-            const maxLoops = 10; // 무한 루프 방지
-
-            while (loopCount < maxLoops) {
-              loopCount++;
-
-              // 최신 상태 가져오기
-              const updatedLeague = get().currentLeague;
-              if (!updatedLeague) break;
-
-              const updatedGroup = updatedLeague.brackets.round16.find(g => g.id === group.id);
-              if (!updatedGroup) break;
-              if (updatedGroup.winner) break;
-
-              // 1. 먼저 준결승 경기 처리 (semi1, semi2)
-              const semi1 = updatedGroup.matches.find(m => m.id.includes('_semi1') && !m.played);
-              const semi2 = updatedGroup.matches.find(m => m.id.includes('_semi2') && !m.played);
-
-              if (semi1) {
-                const result = simulateMatch(semi1.participant1, semi1.participant2, semi1.format);
-                playMatch(semi1.id, result.winner, result.score);
-                continue;
-              }
-
-              if (semi2) {
-                const result = simulateMatch(semi2.participant1, semi2.participant2, semi2.format);
-                playMatch(semi2.id, result.winner, result.score);
-                continue;
-              }
-
-              // 2. 준결승 완료 후 조 결승 처리
-              const finalMatch = updatedGroup.matches.find(m => m.id.includes('_final'));
-              if (finalMatch && !finalMatch.played && finalMatch.participant1 && finalMatch.participant2) {
-                const result = simulateMatch(finalMatch.participant1, finalMatch.participant2, finalMatch.format);
-                playMatch(finalMatch.id, result.winner, result.score);
-                continue;
-              }
-
-              break;
+          // 16강 토너먼트: 1:1 녹아웃 8경기
+          const round16Matches = currentLeague.brackets.round16Matches || [];
+          for (const match of round16Matches) {
+            if (!match.played) {
+              const result = simulateMatch(match.participant1, match.participant2, match.format);
+              playMatch(match.id, result.winner, result.score);
             }
           }
         }
@@ -344,16 +324,26 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           }
         }
 
-        if (status === 'FINAL' && currentLeague.brackets.final && !currentLeague.brackets.final.played) {
-          const match = currentLeague.brackets.final;
-          const result = simulateMatch(match.participant1, match.participant2, match.format);
-          playMatch(match.id, result.winner, result.score);
+        if (status === 'FINAL') {
+          // 결승전
+          if (currentLeague.brackets.final && !currentLeague.brackets.final.played) {
+            const match = currentLeague.brackets.final;
+            const result = simulateMatch(match.participant1, match.participant2, match.format);
+            playMatch(match.id, result.winner, result.score);
+          }
+
+          // 3/4위전
+          if (currentLeague.brackets.thirdPlace && !currentLeague.brackets.thirdPlace.played) {
+            const match = currentLeague.brackets.thirdPlace;
+            const result = simulateMatch(match.participant1, match.participant2, match.format);
+            playMatch(match.id, result.winner, result.score);
+          }
         }
       },
 
       // 다음 라운드로 진행
       advanceRound: () => {
-        const { currentLeague, startNomination } = get();
+        const { currentLeague } = get();
         if (!currentLeague) return;
 
         // 현재 라운드 완료 확인
@@ -363,41 +353,25 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         }
 
         const status = currentLeague.status;
-
-        // Phase 3: 32강 완료 시 지명 단계로 전환
-        if (status === 'ROUND_32') {
-          // 탈락자 처리
-          let updatedParticipants = [...currentLeague.participants];
-          for (const match of currentLeague.brackets.round32) {
-            if (match.winner) {
-              const loserId = match.winner === match.participant1 ? match.participant2 : match.participant1;
-              const loser = updatedParticipants.find(p => p.odId === loserId);
-              if (loser) {
-                loser.status = 'ELIMINATED';
-                loser.eliminatedAt = 'ROUND_32';
-              }
-            }
-          }
-
-          set({
-            currentLeague: {
-              ...currentLeague,
-              participants: updatedParticipants,
-            }
-          });
-
-          // 지명 시작
-          startNomination();
-          return;
-        }
-
         let updatedBrackets = currentLeague.brackets;
-        let updatedParticipants = currentLeague.participants;
+        let updatedParticipants = [...currentLeague.participants];
         let newStatus = getNextRoundStatus(status);
         let champion: string | null = null;
         let runnerUp: string | null = null;
+        let thirdPlace: string | null = null;
+        let fourthPlace: string | null = null;
 
+        // 32강 조별 리그 완료 → 16강 토너먼트 생성
+        if (status === 'ROUND_32') {
+          console.log('[advanceRound] 32강 완료 → 16강 진출자 선발');
+          const result = processRound32Results(updatedBrackets, updatedParticipants);
+          updatedBrackets = result.brackets;
+          updatedParticipants = result.participants;
+        }
+
+        // 16강 토너먼트 완료 → 8강 생성
         if (status === 'ROUND_16') {
+          console.log('[advanceRound] 16강 완료 → 8강 진출자 선발');
           const result = processRound16Results(updatedBrackets, updatedParticipants);
           updatedBrackets = result.brackets;
           updatedParticipants = result.participants;
@@ -421,6 +395,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           updatedParticipants = result.participants;
           champion = result.champion;
           runnerUp = result.runnerUp;
+          thirdPlace = result.thirdPlace;
+          fourthPlace = result.fourthPlace;
         }
 
         // 내 카드 결과 업데이트
@@ -444,6 +420,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             participants: updatedParticipants,
             champion,
             runnerUp,
+            thirdPlace,
+            fourthPlace,
             myCardResults
           }
         });
@@ -463,7 +441,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         return getPlayerCardStatuses(currentLeague);
       },
 
-      // 리그 종료 및 히스토리 저장
+      // 리그 종료 및 히스토리 저장 (Step 2.5b-1: 경험치 지급 추가)
       finishLeague: () => {
         const { currentLeague, history, hallOfFame, currentSeason } = get();
         if (!currentLeague || currentLeague.status !== 'FINISHED') return;
@@ -477,19 +455,40 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const runnerUpCard = CHARACTERS_BY_ID[runnerUp];
         const championParticipant = currentLeague.participants.find(p => p.odId === champion);
 
-        // 히스토리 추가
+        // Step 2.5b-1: 최종 순위 계산
+        const rankings = calculateFinalRankings(currentLeague);
+
+        // Step 2.5b-1: 경험치 지급 (playerStore 연동)
+        const { addExpToCard } = usePlayerStore.getState();
+        rankings.forEach(ranking => {
+          if (ranking.isPlayerCrew) {
+            // 내 크루 카드에만 경험치 지급
+            addExpToCard(ranking.odId, ranking.exp);
+            console.log(`[finishLeague] ${ranking.odName}에게 ${ranking.exp} EXP 지급 (${ranking.rank}위)`);
+          }
+        });
+
+        // Step 2.5b-1: 개인상 계산
+        const awards = calculateAwards(currentLeague, rankings);
+
+        // 히스토리 추가 (Step 2.5b-1 확장)
         const historyEntry: IndividualLeagueHistory = {
           season: currentLeague.season,
           champion,
           championName: championCard?.name.ko || '???',
           runnerUp,
           runnerUpName: runnerUpCard?.name.ko || '???',
+          rankings: rankings.slice(0, 16), // 상위 16명
+          awards: awards as IndividualLeagueAward[],
           myCardResults: currentLeague.myCardResults.map(card => {
             const cardInfo = CHARACTERS_BY_ID[card.odId];
+            const ranking = rankings.find(r => r.odId === card.odId);
             return {
               odId: card.odId,
               odName: cardInfo?.name.ko || '???',
               result: card.finalResult,
+              rank: ranking?.rank || 32,
+              exp: ranking?.exp || 0,
               isChampion: card.odId === champion,
               isRunnerUp: card.odId === runnerUp
             };
@@ -517,10 +516,6 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         set({ currentLeague: null });
       },
 
-      // ========================================
-      // Phase 3 - 16강 지명 시스템
-      // ========================================
-
       // 플레이어 크루 카드 ID 목록
       getPlayerCrewIds: () => {
         const { currentLeague } = get();
@@ -530,472 +525,15 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           .map(p => p.odId);
       },
 
-      // 지명 단계 시작 (32강 완료 후 호출)
-      startNomination: () => {
-        const { currentLeague } = get();
-        if (!currentLeague) return;
-
-        console.log('[startNomination] === 16강 지명 시작 ===');
-
-        // 32강 통과자 수집 (각 경기 승자)
-        const advancerIds: string[] = [];
-        for (const match of currentLeague.brackets.round32) {
-          if (match.winner) {
-            advancerIds.push(match.winner);
-          }
-        }
-
-        console.log(`[startNomination] 32강 통과자: ${advancerIds.length}명`);
-
-        // 참가자 정보 업데이트 (totalStats 계산)
-        const updatedParticipants = currentLeague.participants.map(p => {
-          const card = CHARACTERS_BY_ID[p.odId];
-          const totalStats = card ? calculateTotalStat(card) : 0;
-          return { ...p, totalStats, wins: 0, losses: 0, dominantWins: 0 };
-        });
-
-        // 32강 결과 기반 wins/losses 업데이트
-        for (const match of currentLeague.brackets.round32) {
-          if (match.winner) {
-            const winner = updatedParticipants.find(p => p.odId === match.winner);
-            const loserId = match.winner === match.participant1 ? match.participant2 : match.participant1;
-            const loser = updatedParticipants.find(p => p.odId === loserId);
-
-            if (winner) winner.wins = (winner.wins || 0) + 1;
-            if (loser) loser.losses = (loser.losses || 0) + 1;
-          }
-        }
-
-        // 32강 탈락자 수 확인
-        const eliminated = updatedParticipants.filter(p =>
-          p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32'
-        );
-        console.log(`[startNomination] 32강 탈락자: ${eliminated.length}명`);
-
-        // 시드 결정 (승리수 → 압승수 → 총능력치)
-        const advancerParticipants = advancerIds.map(id =>
-          updatedParticipants.find(p => p.odId === id)!
-        ).filter(Boolean);
-
-        const sortedSeeds = [...advancerParticipants].sort((a, b) => {
-          if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
-          if ((b.dominantWins || 0) !== (a.dominantWins || 0)) return (b.dominantWins || 0) - (a.dominantWins || 0);
-          return (b.totalStats || 0) - (a.totalStats || 0);
-        });
-
-        const round16Seeds = sortedSeeds.slice(0, 8).map(p => p.odId);
-        const nonSeedWinners = advancerIds.filter(id => !round16Seeds.includes(id));
-
-        console.log(`[startNomination] 시드 (상위 8명): ${round16Seeds.length}명`);
-        console.log(`[startNomination] 비시드 승자 (하위 8명): ${nonSeedWinners.length}명`);
-        console.log(`[startNomination] 지명 가능 총합: ${eliminated.length + nonSeedWinners.length}명 (24명이어야 함)`);
-
-        // 지명 순서 생성 (A조 → B조 → ... → H조, 각 조 3번씩)
-        const groupNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const nominationSteps: NominationStep[] = [];
-
-        groupNames.forEach((groupId, i) => {
-          const seedId = round16Seeds[i];
-
-          // 1단계: 시드가 2번 지명
-          nominationSteps.push({
-            groupId,
-            nominatorId: seedId,
-            nominatorPosition: 1,
-            targetPosition: 2,
-            nomineeId: null,
-            isCompleted: false,
-          });
-
-          // 2단계: 2번이 3번 지명 (2번은 1단계 결과로 결정)
-          nominationSteps.push({
-            groupId,
-            nominatorId: null,
-            nominatorPosition: 2,
-            targetPosition: 3,
-            nomineeId: null,
-            isCompleted: false,
-          });
-
-          // 3단계: 3번이 4번 지명 (3번은 2단계 결과로 결정)
-          nominationSteps.push({
-            groupId,
-            nominatorId: null,
-            nominatorPosition: 3,
-            targetPosition: 4,
-            nomineeId: null,
-            isCompleted: false,
-          });
-        });
-
-        // 16강 조 초기화 (시드만 배정)
-        const round16Groups: LeagueGroup[] = groupNames.map((groupId, i) => ({
-          id: groupId,
-          participants: [round16Seeds[i]],
-          seedId: round16Seeds[i],
-          matches: [],
-          winner: null,
-          winsCount: {},
-        }));
-
-        set({
-          currentLeague: {
-            ...currentLeague,
-            participants: updatedParticipants,
-            status: 'ROUND_16_NOMINATION',
-            nominationSteps,
-            currentNominationIndex: 0,
-            round16Seeds,
-            brackets: {
-              ...currentLeague.brackets,
-              round16: round16Groups,
-            },
-          },
-        });
-      },
-
-      // 현재 지명 단계 가져오기
-      getCurrentNominationStep: () => {
-        const { currentLeague } = get();
-        if (!currentLeague || !currentLeague.nominationSteps) return null;
-        const index = currentLeague.currentNominationIndex ?? 0;
-        return currentLeague.nominationSteps[index] || null;
-      },
-
-      // 지명 가능한 카드 목록 가져오기
-      getAvailableForNomination: () => {
-        const { currentLeague } = get();
-        if (!currentLeague || !currentLeague.nominationSteps) return [];
-
-        // 이미 지명/배정된 카드 ID
-        const assignedIds = new Set<string>();
-
-        // 조에 이미 배정된 참가자 (시드 포함)
-        currentLeague.brackets.round16.forEach(g => {
-          g.participants.forEach(id => assignedIds.add(id));
-        });
-
-        // 지명 단계에서 지명된 참가자
-        currentLeague.nominationSteps.forEach(step => {
-          if (step.nomineeId) assignedIds.add(step.nomineeId);
-        });
-
-        // 시드 ID 목록
-        const seedIds = new Set(currentLeague.round16Seeds || []);
-
-        // 지명 가능한 카드:
-        // 1. 32강 탈락자 (16명)
-        // 2. 32강 통과자 중 시드가 아닌 자 (8명) - ACTIVE 상태
-        return currentLeague.participants.filter(p => {
-          // 이미 배정됨
-          if (assignedIds.has(p.odId)) return false;
-
-          // 32강 탈락자
-          if (p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32') return true;
-
-          // 32강 통과자 중 시드가 아닌 자 (비시드 승자)
-          if (p.status === 'ACTIVE' && !seedIds.has(p.odId)) return true;
-
-          return false;
-        });
-      },
-
-      // 카드 지명 (내 카드가 지명할 때)
-      nominateCard: (nomineeId: string) => {
-        const { currentLeague } = get();
-        if (!currentLeague || !currentLeague.nominationSteps) return;
-
-        const currentIndex = currentLeague.currentNominationIndex ?? 0;
-        const currentStep = currentLeague.nominationSteps[currentIndex];
-        if (!currentStep || currentStep.isCompleted) {
-          console.log('[nominateCard] 현재 스텝 없거나 완료됨');
-          return;
-        }
-
-        console.log(`[nominateCard] ${currentStep.nominatorId}가 ${nomineeId}를 지명`);
-
-        // 지명 완료 처리
-        const updatedSteps = [...currentLeague.nominationSteps];
-        updatedSteps[currentIndex] = {
-          ...currentStep,
-          nomineeId,
-          isCompleted: true,
-        };
-
-        // 다음 지명자 설정 (같은 조 내 다음 단계)
-        const nextStepIndex = currentIndex + 1;
-        if (nextStepIndex < updatedSteps.length) {
-          const nextStep = updatedSteps[nextStepIndex];
-
-          // 같은 조의 다음 단계면 지명자 설정
-          if (nextStep.groupId === currentStep.groupId && nextStep.nominatorPosition > 1) {
-            updatedSteps[nextStepIndex] = {
-              ...nextStep,
-              nominatorId: nomineeId,
-            };
-          }
-        }
-
-        // 16강 조에 참가자 추가
-        const updatedGroups = currentLeague.brackets.round16.map(g => {
-          if (g.id === currentStep.groupId) {
-            return {
-              ...g,
-              participants: [...g.participants, nomineeId],
-            };
-          }
-          return g;
-        });
-
-        // 지명된 참가자 상태 업데이트: ELIMINATED → ACTIVE (16강 참가)
-        const updatedParticipants = currentLeague.participants.map(p => {
-          if (p.odId === nomineeId && p.status === 'ELIMINATED') {
-            console.log(`[nominateCard] ${p.odName} 상태 변경: ELIMINATED → ACTIVE (16강 지명)`);
-            return {
-              ...p,
-              status: 'ACTIVE' as const,
-              eliminatedAt: undefined, // 탈락 단계 초기화
-            };
-          }
-          return p;
-        });
-
-        // 상태 업데이트
-        set({
-          currentLeague: {
-            ...currentLeague,
-            participants: updatedParticipants,
-            nominationSteps: updatedSteps,
-            currentNominationIndex: nextStepIndex,
-            brackets: {
-              ...currentLeague.brackets,
-              round16: updatedGroups,
-            },
-          },
-        });
-
-        console.log(`[nominateCard] 다음 인덱스: ${nextStepIndex}, 총 스텝: ${updatedSteps.length}`);
-
-        // 지명 완료 체크 (모든 스텝 완료 시)
-        if (nextStepIndex >= updatedSteps.length) {
-          console.log('[nominateCard] 모든 지명 완료');
-          setTimeout(() => get().completeNomination(), 300);
-        }
-        // AI 자동 지명은 NominationScreen의 useEffect에서 처리
-      },
-
-      // AI 자동 지명 (직접 상태 업데이트)
-      autoNominate: () => {
-        const { currentLeague, getAvailableForNomination } = get();
-        if (!currentLeague || !currentLeague.nominationSteps) {
-          console.log('[autoNominate] 리그 또는 지명 스텝 없음');
-          return;
-        }
-
-        const currentIndex = currentLeague.currentNominationIndex ?? 0;
-        const currentStep = currentLeague.nominationSteps[currentIndex];
-        if (!currentStep || currentStep.isCompleted) {
-          console.log('[autoNominate] 현재 스텝 없거나 완료됨');
-          return;
-        }
-
-        console.log(`[autoNominate] === 지명 ${currentIndex + 1}/${currentLeague.nominationSteps.length} ===`);
-        console.log(`[autoNominate] 지명자: ${currentStep.nominatorId}, 조: ${currentStep.groupId}`);
-
-        const availableCards = getAvailableForNomination();
-        console.log(`[autoNominate] 지명 가능 카드 수: ${availableCards.length}`);
-
-        if (availableCards.length === 0) {
-          console.error('[autoNominate] ❌ 지명 가능한 카드가 없습니다!');
-          console.log('[autoNominate] 디버깅 정보:');
-          const seedIds = new Set(currentLeague.round16Seeds || []);
-          const eliminated = currentLeague.participants.filter(p =>
-            p.status === 'ELIMINATED' && p.eliminatedAt === 'ROUND_32'
-          );
-          const nonSeedWinners = currentLeague.participants.filter(p =>
-            p.status === 'ACTIVE' && !seedIds.has(p.odId)
-          );
-          console.log(`- 시드: ${seedIds.size}명`);
-          console.log(`- 32강 탈락자: ${eliminated.length}명`);
-          console.log(`- 비시드 승자: ${nonSeedWinners.length}명`);
-          console.log(`- 이미 배정된 카드:`, currentLeague.brackets.round16.flatMap(g => g.participants).length);
-          // 지명 완료 체크
-          get().completeNomination();
-          return;
-        }
-
-        // AI 지명 로직: 가장 약한 상대 선택 (총 능력치 낮은 순)
-        const sorted = [...availableCards].sort((a, b) =>
-          (a.totalStats || 0) - (b.totalStats || 0)
-        );
-        const nominee = sorted[0];
-        const nomineeId = nominee.odId;
-
-        console.log(`[autoNominate] ✅ ${currentStep.nominatorId}가 ${nominee.odName}(${nomineeId})를 지명`);
-
-        // 직접 상태 업데이트 (nominateCard 호출 대신)
-        const updatedSteps = [...currentLeague.nominationSteps];
-        updatedSteps[currentIndex] = {
-          ...currentStep,
-          nomineeId,
-          isCompleted: true,
-        };
-
-        // 다음 지명자 설정
-        const nextStepIndex = currentIndex + 1;
-        if (nextStepIndex < updatedSteps.length) {
-          const nextStep = updatedSteps[nextStepIndex];
-
-          // 같은 조의 다음 단계면 지명자 설정
-          if (nextStep.groupId === currentStep.groupId && nextStep.nominatorPosition > 1) {
-            updatedSteps[nextStepIndex] = {
-              ...nextStep,
-              nominatorId: nomineeId,
-            };
-          }
-        }
-
-        // 16강 조에 참가자 추가
-        const updatedGroups = currentLeague.brackets.round16.map(g => {
-          if (g.id === currentStep.groupId) {
-            return {
-              ...g,
-              participants: [...g.participants, nomineeId],
-            };
-          }
-          return g;
-        });
-
-        // 지명된 참가자 상태 업데이트: ELIMINATED → ACTIVE (16강 참가)
-        const updatedParticipants = currentLeague.participants.map(p => {
-          if (p.odId === nomineeId && p.status === 'ELIMINATED') {
-            console.log(`[autoNominate] ${p.odName} 상태 변경: ELIMINATED → ACTIVE (16강 지명)`);
-            return {
-              ...p,
-              status: 'ACTIVE' as const,
-              eliminatedAt: undefined, // 탈락 단계 초기화
-            };
-          }
-          return p;
-        });
-
-        // 상태 업데이트
-        set({
-          currentLeague: {
-            ...currentLeague,
-            participants: updatedParticipants,
-            nominationSteps: updatedSteps,
-            currentNominationIndex: nextStepIndex,
-            brackets: {
-              ...currentLeague.brackets,
-              round16: updatedGroups,
-            },
-          },
-        });
-
-        console.log(`[autoNominate] 다음 인덱스: ${nextStepIndex}, 총 스텝: ${updatedSteps.length}`);
-
-        // 지명 완료 체크
-        if (nextStepIndex >= updatedSteps.length) {
-          console.log('[autoNominate] 모든 지명 완료');
-          setTimeout(() => get().completeNomination(), 300);
-        }
-        // 다음 AI 지명은 NominationScreen의 useEffect에서 처리
-      },
-
-      // 지명 완료 처리
-      completeNomination: () => {
-        const { currentLeague, createRound16Matches } = get();
-        if (!currentLeague) return;
-
-        // 모든 조가 4명씩 있는지 확인
-        const allGroupsComplete = currentLeague.brackets.round16.every(
-          g => g.participants.length === 4
-        );
-
-        if (!allGroupsComplete) {
-          console.error('지명이 완료되지 않았습니다');
-          return;
-        }
-
-        // 16강 경기 생성
-        createRound16Matches();
-
-        set({
-          currentLeague: {
-            ...currentLeague,
-            status: 'ROUND_16',
-          },
-        });
-      },
-
-      // 16강 경기 생성 (조별 4명 토너먼트)
-      createRound16Matches: () => {
-        const { currentLeague } = get();
-        if (!currentLeague) return;
-
-        const updatedGroups = currentLeague.brackets.round16.map(group => {
-          const [p1, p2, p3, p4] = group.participants;
-
-          // 1경기: 시드(1번) vs 4번 (2선승)
-          const match1: IndividualMatch = {
-            id: `r16_${group.id}_semi1`,
-            participant1: p1,
-            participant2: p4,
-            winner: null,
-            score: { p1: 0, p2: 0 },
-            format: '2WIN',
-            played: false,
-          };
-
-          // 2경기: 2번 vs 3번 (2선승)
-          const match2: IndividualMatch = {
-            id: `r16_${group.id}_semi2`,
-            participant1: p2,
-            participant2: p3,
-            winner: null,
-            score: { p1: 0, p2: 0 },
-            format: '2WIN',
-            played: false,
-          };
-
-          // 3경기: 1경기 승자 vs 2경기 승자 (2선승, 조 결승)
-          const match3: IndividualMatch = {
-            id: `r16_${group.id}_final`,
-            participant1: '', // 나중에 설정
-            participant2: '', // 나중에 설정
-            winner: null,
-            score: { p1: 0, p2: 0 },
-            format: '2WIN',
-            played: false,
-          };
-
-          return {
-            ...group,
-            matches: [match1, match2, match3],
-            winsCount: { [p1]: 0, [p2]: 0, [p3]: 0, [p4]: 0 },
-          };
-        });
-
-        set({
-          currentLeague: {
-            ...currentLeague,
-            brackets: {
-              ...currentLeague.brackets,
-              round16: updatedGroups,
-            },
-          },
-        });
-      },
-
       // ========================================
       // 1:1 배틀 시스템
       // ========================================
 
       // 배틀 시작
-      startBattle: (matchId: string, playerCardId: string, opponentId: string) => {
+      startBattle: (matchId: string, playerCardId: string, opponentId: string, format: LeagueMatchFormat) => {
         const arena = getRandomArena();
-        console.log(`[Battle] 배틀 시작: ${playerCardId} vs ${opponentId}, 경기장: ${arena.name}`);
+        const requiredWins = getRequiredWins(format);
+        console.log(`[Battle] 배틀 시작: ${playerCardId} vs ${opponentId}, 경기장: ${arena.name}, 포맷: ${format} (${requiredWins}선승)`);
 
         set({
           currentBattleState: {
@@ -1004,6 +542,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             playerCardId,
             opponentId,
             arena,
+            format,
+            requiredWins,
             currentSet: 1,
             currentTurn: 1,
             sets: [],
@@ -1074,46 +614,46 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const playerTurnWins = newSetTurns.filter(t => t.winner === 'player').length;
         const opponentTurnWins = newSetTurns.filter(t => t.winner === 'opponent').length;
 
-        // 세트 승자 확인 (3판 2선승)
-        const setWinner = playerTurnWins >= 2 ? 'player' : opponentTurnWins >= 2 ? 'opponent' : null;
+        // 필요 승수 (format에 따라 결정)
+        const { requiredWins } = currentBattleState;
 
-        if (setWinner) {
-          // 세트 완료
+        // 경기 승자 확인 (requiredWins 기반)
+        const matchWinner = playerTurnWins >= requiredWins ? 'player' : opponentTurnWins >= requiredWins ? 'opponent' : null;
+
+        console.log(`[Battle] 현재 스코어: ${playerTurnWins}-${opponentTurnWins} (${requiredWins}선승)`);
+
+        if (matchWinner) {
+          // 경기 완료
           const setResult: SetResult = {
-            setNumber: currentBattleState.currentSet,
+            setNumber: 1,
             turns: newSetTurns,
             playerWins: playerTurnWins,
             opponentWins: opponentTurnWins,
-            winner: setWinner,
+            winner: matchWinner,
           };
 
-          const newPlayerSetWins = currentBattleState.playerSetWins + (setWinner === 'player' ? 1 : 0);
-          const newOpponentSetWins = currentBattleState.opponentSetWins + (setWinner === 'opponent' ? 1 : 0);
-
-          console.log(`[Battle] 세트 ${setResult.setNumber} 완료: ${setWinner} 승 (세트 스코어: ${newPlayerSetWins}-${newOpponentSetWins})`);
-
-          // 경기 승자 확인 (5판 3선승)
-          const matchWinner = newPlayerSetWins >= 3 ? 'player' : newOpponentSetWins >= 3 ? 'opponent' : null;
+          console.log(`[Battle] 경기 완료: ${matchWinner} 승 (${playerTurnWins}-${opponentTurnWins})`);
 
           set({
             currentBattleState: {
               ...currentBattleState,
-              sets: [...currentBattleState.sets, setResult],
-              currentSetTurns: [],
-              currentTurn: 1,
-              currentSet: currentBattleState.currentSet + 1,
-              playerSetWins: newPlayerSetWins,
-              opponentSetWins: newOpponentSetWins,
-              phase: matchWinner ? 'MATCH_END' : 'SET_END',
+              sets: [setResult],
+              currentSetTurns: newSetTurns,
+              currentTurn: currentBattleState.currentTurn + 1,
+              playerSetWins: playerTurnWins,
+              opponentSetWins: opponentTurnWins,
+              phase: 'MATCH_END',
             },
           });
         } else {
-          // 세트 진행 중
+          // 경기 진행 중
           set({
             currentBattleState: {
               ...currentBattleState,
               currentSetTurns: newSetTurns,
               currentTurn: currentBattleState.currentTurn + 1,
+              playerSetWins: playerTurnWins,
+              opponentSetWins: opponentTurnWins,
               phase: 'BATTLING',
             },
           });
@@ -1150,7 +690,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           return null;
         }
 
-        const matchWinner = currentBattleState.playerSetWins >= 3 ? 'player' : 'opponent';
+        const { requiredWins } = currentBattleState;
+        const matchWinner = currentBattleState.playerSetWins >= requiredWins ? 'player' : 'opponent';
         const winnerId = matchWinner === 'player'
           ? currentBattleState.playerCardId!
           : currentBattleState.opponentId!;
@@ -1196,7 +737,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       getBattleStats: () => {
         const { currentBattleState } = get();
         if (!currentBattleState.isActive) {
-          return { playerCard: null, opponentCard: null, arena: null };
+          return { playerCard: null, opponentCard: null, arena: null, format: '1WIN' as LeagueMatchFormat, requiredWins: 1 };
         }
 
         const playerCard = currentBattleState.playerCardId ? CHARACTERS_BY_ID[currentBattleState.playerCardId] : null;
@@ -1204,7 +745,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         const arena = currentBattleState.arena;
 
         if (!playerCard || !opponentCard || !arena) {
-          return { playerCard: null, opponentCard: null, arena: null };
+          return { playerCard: null, opponentCard: null, arena: null, format: currentBattleState.format, requiredWins: currentBattleState.requiredWins };
         }
 
         const playerBasePower = calculateTotalStat(playerCard);
@@ -1228,27 +769,303 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             arenaBonusPercent: opponentArenaEffect.bonusPercent,
           },
           arena,
+          format: currentBattleState.format,
+          requiredWins: currentBattleState.requiredWins,
         };
+      },
+
+      // ========================================
+      // Step 2: 시뮬레이션 기반 배틀 시스템
+      // ========================================
+
+      // 개인전 경기 시뮬레이션
+      simulateIndividualMatch: (matchId: string): SimMatchResult | null => {
+        const { currentLeague, playMatch } = get();
+        if (!currentLeague) return null;
+
+        const status = currentLeague.status;
+        console.log('[simulateIndividualMatch] 시작:', matchId, 'phase:', status);
+
+        // 현재 phase의 매치 배열 선택
+        let matches: IndividualMatch[] = [];
+        let matchType = '';
+        let groupId: string | undefined;
+
+        switch (status) {
+          case 'ROUND_32':
+            matches = currentLeague.brackets.round32;
+            matchType = 'ROUND_32';
+            // 32강은 groupId가 있음
+            const r32Match = matches.find(m => m.id === matchId);
+            if (r32Match) {
+              groupId = r32Match.groupId;
+            }
+            break;
+          case 'ROUND_16':
+            // 16강 토너먼트 (1:1 녹아웃)
+            matches = currentLeague.brackets.round16Matches || [];
+            matchType = 'ROUND_16';
+            break;
+          case 'QUARTER':
+            matches = currentLeague.brackets.quarter;
+            matchType = 'QUARTER';
+            break;
+          case 'SEMI':
+            matches = currentLeague.brackets.semi;
+            matchType = 'SEMI';
+            break;
+          case 'FINAL':
+            // 결승과 3/4위전 모두 포함
+            matches = [];
+            if (currentLeague.brackets.final) {
+              matches.push(currentLeague.brackets.final);
+            }
+            if (currentLeague.brackets.thirdPlace) {
+              matches.push(currentLeague.brackets.thirdPlace);
+            }
+            matchType = 'FINAL';
+            break;
+          default:
+            return null;
+        }
+
+        const match = matches.find(m => m.id === matchId);
+        // 3/4위전인 경우 bestOf 계산을 위해 matchType 변경
+        const effectiveMatchType = match?.id === 'third_place' ? 'THIRD_PLACE' : matchType;
+        if (!match || match.played) {
+          console.log('[simulateIndividualMatch] 매치 없거나 완료됨');
+          return null;
+        }
+
+        // 참가자 정보 가져오기
+        const p1Data = currentLeague.participants.find(p => p.odId === match.participant1);
+        const p2Data = currentLeague.participants.find(p => p.odId === match.participant2);
+
+        if (!p1Data || !p2Data) {
+          console.error('[simulateIndividualMatch] 참가자 없음');
+          return null;
+        }
+
+        // Participant 형식으로 변환
+        const p1Card = CHARACTERS_BY_ID[p1Data.odId];
+        const p2Card = CHARACTERS_BY_ID[p2Data.odId];
+
+        const participant1: Participant = {
+          odId: p1Data.odId,
+          odName: p1Data.odName,
+          crewId: p1Data.crewId,
+          crewName: p1Data.crewName,
+          isPlayerCrew: p1Data.isPlayerCrew,
+          totalStats: p1Card ? calculateTotalStat(p1Card) : 0,
+          attribute: p1Card?.attribute,
+        };
+
+        const participant2: Participant = {
+          odId: p2Data.odId,
+          odName: p2Data.odName,
+          crewId: p2Data.crewId,
+          crewName: p2Data.crewName,
+          isPlayerCrew: p2Data.isPlayerCrew,
+          totalStats: p2Card ? calculateTotalStat(p2Card) : 0,
+          attribute: p2Card?.attribute,
+        };
+
+        // bestOf 값 결정 (3/4위전은 별도 처리)
+        const bestOf = getBestOfForRound(effectiveMatchType);
+
+        // 경기장 랜덤 선택
+        const arenaIds = getRandomArenas(bestOf);
+
+        // 시뮬레이션 실행
+        const result = simulateBattle(participant1, participant2, arenaIds, bestOf);
+
+        // 결과 객체 생성
+        const playerCardIds = currentLeague.participants
+          .filter(p => p.isPlayerCrew)
+          .map(p => p.odId);
+
+        const matchResult: SimMatchResult = {
+          matchId,
+          groupId,
+          round: status,
+          matchType,
+          participant1,
+          participant2,
+          winnerId: result.winnerId,
+          loserId: result.loserId,
+          bestOf,
+          score: result.score,
+          sets: result.sets,
+          isPlayerMatch: playerCardIds.includes(participant1.odId) || playerCardIds.includes(participant2.odId),
+          isCompleted: true,
+        };
+
+        // 경기 완료 처리 (기존 playMatch 사용)
+        playMatch(matchId, result.winnerId, { p1: result.score[0], p2: result.score[1] });
+
+        // 결과 저장
+        set({ lastSimMatchResult: matchResult });
+
+        console.log('[simulateIndividualMatch] 완료:', result.winnerId, '승리');
+        return matchResult;
+      },
+
+      // 다음 미완료 경기 찾기
+      findNextMatch: (): IndividualMatch | null => {
+        const { currentLeague } = get();
+        if (!currentLeague) return null;
+
+        const status = currentLeague.status;
+        console.log('[findNextMatch] 현재 phase:', status);
+
+        let matches: IndividualMatch[] = [];
+        switch (status) {
+          case 'ROUND_32':
+            matches = currentLeague.brackets.round32;
+            console.log('[findNextMatch] 32강 경기 수:', matches.length);
+            break;
+          case 'ROUND_16':
+            // 16강 토너먼트 (1:1 녹아웃)
+            matches = currentLeague.brackets.round16Matches || [];
+            console.log('[findNextMatch] 16강 경기 수:', matches.length);
+            break;
+          case 'QUARTER':
+            matches = currentLeague.brackets.quarter;
+            console.log('[findNextMatch] 8강 경기 수:', matches.length);
+            break;
+          case 'SEMI':
+            matches = currentLeague.brackets.semi;
+            console.log('[findNextMatch] 4강 경기 수:', matches.length);
+            break;
+          case 'FINAL':
+            // 결승과 3/4위전 모두 포함
+            matches = [];
+            if (currentLeague.brackets.final) {
+              matches.push(currentLeague.brackets.final);
+            }
+            if (currentLeague.brackets.thirdPlace) {
+              matches.push(currentLeague.brackets.thirdPlace);
+            }
+            console.log('[findNextMatch] 결승/3,4위전 경기 수:', matches.length);
+            break;
+          default:
+            console.log('[findNextMatch] 알 수 없는 phase:', status);
+            return null;
+        }
+
+        // 미완료 경기 찾기
+        const incompleteMatches = matches.filter(m => !m.played);
+        console.log('[findNextMatch] 미완료 경기 수:', incompleteMatches.length);
+
+        // 참가자 설정된 경기만
+        const validMatches = incompleteMatches.filter(m => m.participant1 && m.participant2);
+        console.log('[findNextMatch] 유효한 경기 수:', validMatches.length);
+
+        if (validMatches.length > 0) {
+          console.log('[findNextMatch] 다음 경기:', validMatches[0].id);
+          return validMatches[0];
+        }
+
+        console.log('[findNextMatch] 다음 경기 없음');
+        return null;
+      },
+
+      // 내 카드 경기까지 자동 스킵
+      skipToNextPlayerMatch: (): IndividualMatch | null => {
+        const { simulateIndividualMatch, findNextMatch, advanceRound } = get();
+
+        // 현재 상태를 다시 가져오기 (advanceRound 후 변경될 수 있음)
+        const getCurrentLeague = () => get().currentLeague;
+        const getPlayerCardIds = () => {
+          const league = getCurrentLeague();
+          if (!league) return [];
+          return league.participants
+            .filter(p => p.isPlayerCrew)
+            .map(p => p.odId);
+        };
+
+        const currentLeague = getCurrentLeague();
+        if (!currentLeague) return null;
+
+        console.log('[skipToNextPlayerMatch] 시작, phase:', currentLeague.status);
+        console.log('[skipToNextPlayerMatch] 내 카드 IDs:', getPlayerCardIds());
+
+        let safetyCounter = 0;
+        const maxIterations = 100; // 무한루프 방지
+
+        while (safetyCounter < maxIterations) {
+          safetyCounter++;
+
+          let nextMatch = findNextMatch();
+
+          // 다음 경기가 없으면 라운드 완료 체크
+          if (!nextMatch) {
+            const league = getCurrentLeague();
+            if (!league) break;
+
+            console.log('[skipToNextPlayerMatch] 다음 경기 없음 - 라운드 완료 체크, phase:', league.status);
+
+            // 현재 라운드가 완료되었는지 확인
+            const roundComplete = isRoundComplete(league);
+            console.log('[skipToNextPlayerMatch] 라운드 완료 여부:', roundComplete);
+
+            if (roundComplete && league.status !== 'FINISHED') {
+              // 다음 라운드로 자동 진행
+              console.log('[skipToNextPlayerMatch] 다음 라운드로 자동 진행');
+              advanceRound();
+
+              // 다시 경기 찾기 시도
+              nextMatch = get().findNextMatch();
+              if (!nextMatch) {
+                console.log('[skipToNextPlayerMatch] 다음 라운드에서도 경기 없음');
+                break;
+              }
+            } else {
+              console.log('[skipToNextPlayerMatch] 라운드 미완료 또는 리그 종료');
+              break;
+            }
+          }
+
+          const playerCardIds = getPlayerCardIds();
+          const isPlayerMatch = playerCardIds.includes(nextMatch.participant1) ||
+                                playerCardIds.includes(nextMatch.participant2);
+
+          console.log(`[skipToNextPlayerMatch] 경기: ${nextMatch.id}, 내 카드 경기: ${isPlayerMatch}`);
+
+          if (isPlayerMatch) {
+            console.log('[skipToNextPlayerMatch] 내 카드 경기 발견!');
+            return nextMatch;
+          }
+
+          // 내 카드 경기가 아니면 시뮬레이션 후 다음으로
+          console.log('[skipToNextPlayerMatch] 타 카드 경기 스킵:', nextMatch.id);
+          simulateIndividualMatch(nextMatch.id);
+        }
+
+        console.log('[skipToNextPlayerMatch] 루프 종료');
+        return null;
       },
     }),
     {
       name: 'individual-league-storage',
-      version: 5,
+      version: 7, // Step 2.5b-1: 경험치/순위 시스템 추가
       migrate: (persistedState: unknown, version: number) => {
         console.log('[IndividualLeague] 스토리지 마이그레이션:', { version, persistedState });
-        // 버전 4 이하에서 마이그레이션: 배틀 상태 필드 추가
-        if (version < 5) {
-          console.log('[IndividualLeague] 이전 버전 데이터에 배틀 상태 추가');
-          const state = persistedState as Partial<IndividualLeagueState>;
+
+        // Step 2.5b-1: 버전 7 마이그레이션 - 기존 데이터 초기화
+        if (version < 7) {
+          console.log('[IndividualLeague] 데이터 초기화 (v7 마이그레이션)');
           return {
-            currentSeason: state.currentSeason ?? 1,
-            currentLeague: state.currentLeague ?? null,
-            history: state.history ?? [],
-            hallOfFame: state.hallOfFame ?? [],
+            currentSeason: 1,
+            currentLeague: null,
+            history: [],
+            hallOfFame: [],
             currentBattleState: initialBattleState,
-            lastMatchResult: null
+            lastMatchResult: null,
+            lastSimMatchResult: null
           };
         }
+
         return persistedState as IndividualLeagueState;
       }
     }

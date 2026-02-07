@@ -22,13 +22,14 @@ import { ATTRIBUTES } from '../data/constants';
 import type { Item, Award, CharacterCard, PlayerCard, CardSeasonRecord, CardRecord, FormState } from '../types';
 import { AWARD_CONFIG } from '../types';
 import { FORM_CONFIG } from '../data/growthSystem';
+import { IndividualLeagueRecordTab } from '../components/Card/IndividualLeagueRecordTab';
 
 interface CardDetailProps {
   cardId: string;
   onBack: () => void;
 }
 
-type MainTab = 'info' | 'seasonStats' | 'record';
+type MainTab = 'info' | 'seasonStats' | 'individualLeague' | 'record';
 type RecordTab = 'career' | number; // 'career' for 통산, number for season
 
 export function CardDetail({ cardId, onBack }: CardDetailProps) {
@@ -197,7 +198,17 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            📊 시즌 성적
+            🏆 팀리그 성적
+          </button>
+          <button
+            onClick={() => setMainTab('individualLeague')}
+            className={`flex-1 py-3 text-center font-bold transition-colors ${
+              mainTab === 'individualLeague'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            👤 개인리그 성적
           </button>
           <button
             onClick={() => setMainTab('record')}
@@ -254,6 +265,16 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
               seasonHistory={seasonHistory}
               awards={awards}
             />
+          </motion.div>
+        )}
+        {mainTab === 'individualLeague' && (
+          <motion.div
+            key="individualLeague"
+            initial={{ opacity: 0, x: 0 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <IndividualLeagueRecordTab cardId={cardId} />
           </motion.div>
         )}
         {mainTab === 'record' && (
