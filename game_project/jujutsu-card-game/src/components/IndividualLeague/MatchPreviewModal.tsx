@@ -22,13 +22,18 @@ interface MatchPreviewModalProps {
   onClose: () => void;
 }
 
-// 8각형 레이더 차트 컴포넌트
-function RadarChart({ stats, color, size = 120 }: { stats: Stats; color: string; size?: number }) {
+// 8각형 레이더 차트 컴포넌트 (확대 + 라벨 표시)
+function RadarChart({ stats, color, size = 180, showLabels = true }: { stats: Stats; color: string; size?: number; showLabels?: boolean }) {
   const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'hp', 'ce', 'crt', 'tec', 'mnt'];
+  const statLabels: Record<string, string> = {
+    atk: 'ATK', def: 'DEF', spd: 'SPD', hp: 'HP',
+    ce: 'CE', crt: 'CRT', tec: 'TEC', mnt: 'MNT'
+  };
   const maxStat = 100; // 최대 스탯값 (스케일링용)
+  const labelOffset = showLabels ? 28 : 10; // 라벨 공간 확보
   const centerX = size / 2;
   const centerY = size / 2;
-  const radius = (size / 2) - 10;
+  const radius = (size / 2) - labelOffset;
 
   // 각 스탯 포인트 계산
   const points = statKeys.map((key, index) => {
@@ -37,7 +42,10 @@ function RadarChart({ stats, color, size = 120 }: { stats: Stats; color: string;
     const angle = (Math.PI * 2 * index) / statKeys.length - Math.PI / 2;
     const x = centerX + radius * normalizedValue * Math.cos(angle);
     const y = centerY + radius * normalizedValue * Math.sin(angle);
-    return { x, y, value, key };
+    // 라벨 위치 (바깥쪽)
+    const labelX = centerX + (radius + 18) * Math.cos(angle);
+    const labelY = centerY + (radius + 18) * Math.sin(angle);
+    return { x, y, value, key, labelX, labelY, angle };
   });
 
   // 다각형 path 생성
@@ -63,7 +71,7 @@ function RadarChart({ stats, color, size = 120 }: { stats: Stats; color: string;
             key={i}
             d={gridPoints}
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke="rgba(255,255,255,0.15)"
             strokeWidth="1"
           />
         );
@@ -81,7 +89,7 @@ function RadarChart({ stats, color, size = 120 }: { stats: Stats; color: string;
             y1={centerY}
             x2={x}
             y2={y}
-            stroke="rgba(255,255,255,0.1)"
+            stroke="rgba(255,255,255,0.15)"
             strokeWidth="1"
           />
         );
@@ -105,54 +113,62 @@ function RadarChart({ stats, color, size = 120 }: { stats: Stats; color: string;
           key={i}
           cx={point.x}
           cy={point.y}
-          r={3}
+          r={4}
           fill={color}
         />
       ))}
-    </svg>
-  );
-}
 
-// 스탯 리스트 컴포넌트
-function StatList({
-  stats,
-  opponentStats,
-  color: _color
-}: {
-  stats: Stats;
-  opponentStats: Stats;
-  color: string;
-}) {
-  // _color reserved for future stat highlighting
-  const statConfig: { key: keyof Stats; label: string; textColor: string }[] = [
-    { key: 'atk', label: 'ATK', textColor: 'text-red-400' },
-    { key: 'def', label: 'DEF', textColor: 'text-blue-400' },
-    { key: 'spd', label: 'SPD', textColor: 'text-yellow-400' },
-    { key: 'hp', label: 'HP', textColor: 'text-green-400' },
-    { key: 'ce', label: 'CE', textColor: 'text-purple-400' },
-    { key: 'crt', label: 'CRT', textColor: 'text-orange-400' },
-    { key: 'tec', label: 'TEC', textColor: 'text-cyan-400' },
-    { key: 'mnt', label: 'MNT', textColor: 'text-pink-400' },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-      {statConfig.map(({ key, label, textColor }) => {
-        const value = stats[key] || 0;
-        const opponentValue = opponentStats[key] || 0;
-        const isHigher = value > opponentValue;
+      {/* 라벨 + 수치 표시 */}
+      {showLabels && points.map((point, i) => {
+        const key = point.key as keyof Stats;
+        const label = statLabels[key] || key.toUpperCase();
+        const value = point.value;
+        // 텍스트 정렬 조정
+        let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+        if (point.labelX < centerX - 10) textAnchor = 'end';
+        else if (point.labelX > centerX + 10) textAnchor = 'start';
 
         return (
-          <div key={key} className="flex items-center justify-between">
-            <span className="text-text-secondary">{label}:</span>
-            <span className={textColor}>
+          <g key={i}>
+            <text
+              x={point.labelX}
+              y={point.labelY - 5}
+              fill="rgba(255,255,255,0.9)"
+              fontSize="9"
+              fontWeight="bold"
+              textAnchor={textAnchor}
+              dominantBaseline="middle"
+            >
+              {label}
+            </text>
+            <text
+              x={point.labelX}
+              y={point.labelY + 7}
+              fill={color}
+              fontSize="10"
+              fontWeight="bold"
+              textAnchor={textAnchor}
+              dominantBaseline="middle"
+            >
               {value}
-              {isHigher && <span className="text-yellow-400 ml-1">⬆</span>}
-            </span>
-          </div>
+            </text>
+          </g>
         );
       })}
-    </div>
+
+      {/* 중앙 총합 표시 */}
+      <text
+        x={centerX}
+        y={centerY}
+        fill="white"
+        fontSize="14"
+        fontWeight="bold"
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
+        {Object.values(stats).reduce((a, b) => a + (b || 0), 0)}
+      </text>
+    </svg>
   );
 }
 
@@ -191,12 +207,6 @@ export function MatchPreviewModal({
 
   const stats1 = getFullStats(card1);
   const stats2 = getFullStats(card2);
-
-  // 총합 계산
-  const getTotalStats = (stats: Stats) => {
-    return stats.atk + stats.def + stats.spd + stats.hp + stats.ce +
-           stats.crt + stats.tec + stats.mnt;
-  };
 
   return (
     <motion.div
@@ -259,18 +269,9 @@ export function MatchPreviewModal({
                 </div>
               </div>
 
-              {/* 레이더 차트 */}
+              {/* 레이더 차트 (확대 + 라벨 통합) */}
               <div className="mb-3">
-                <RadarChart stats={stats1} color="#ef4444" size={140} />
-              </div>
-
-              {/* 8가지 능력치 */}
-              <div className="bg-bg-secondary rounded-lg p-3 text-left">
-                <StatList stats={stats1} opponentStats={stats2} color="red" />
-                <div className="mt-2 pt-2 border-t border-white/10 text-center">
-                  <span className="text-text-secondary text-sm">총합: </span>
-                  <span className="text-white font-bold">{getTotalStats(stats1)}</span>
-                </div>
+                <RadarChart stats={stats1} color="#ef4444" size={200} showLabels={true} />
               </div>
 
               {/* 필살기 */}
@@ -327,18 +328,9 @@ export function MatchPreviewModal({
                 </div>
               </div>
 
-              {/* 레이더 차트 */}
+              {/* 레이더 차트 (확대 + 라벨 통합) */}
               <div className="mb-3">
-                <RadarChart stats={stats2} color="#3b82f6" size={140} />
-              </div>
-
-              {/* 8가지 능력치 */}
-              <div className="bg-bg-secondary rounded-lg p-3 text-left">
-                <StatList stats={stats2} opponentStats={stats1} color="blue" />
-                <div className="mt-2 pt-2 border-t border-white/10 text-center">
-                  <span className="text-text-secondary text-sm">총합: </span>
-                  <span className="text-white font-bold">{getTotalStats(stats2)}</span>
-                </div>
+                <RadarChart stats={stats2} color="#3b82f6" size={200} showLabels={true} />
               </div>
 
               {/* 필살기 */}

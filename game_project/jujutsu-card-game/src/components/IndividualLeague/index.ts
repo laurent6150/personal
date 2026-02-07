@@ -18,3 +18,5 @@ export { BattleAnimationScreen } from './BattleAnimationScreen';
 export { BattleResultModal } from './BattleResultModal';
 export { AwardsDisplay } from './AwardsDisplay';
 export { RewardClaimScreen } from './RewardClaimScreen';
+export { MapBanPickScreen } from './MapBanPickScreen';
+export { SetProgressView, SetProgressInline } from './SetProgressView';

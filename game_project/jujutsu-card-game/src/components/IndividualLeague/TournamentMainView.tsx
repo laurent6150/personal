@@ -193,13 +193,27 @@ function TournamentMatchCard({
           </div>
         </div>
 
-        {/* VS */}
+        {/* VS + 세트 현황 */}
         <div className="flex flex-col items-center">
           <div className="text-2xl font-bold text-white">VS</div>
           {match.played && match.score && (
-            <div className="text-lg text-text-secondary">
-              {match.score.p1} : {match.score.p2}
-            </div>
+            <>
+              <div className="text-lg text-text-secondary mt-1">
+                {match.score.p1} : {match.score.p2}
+              </div>
+              {/* 세트별 결과 인디케이터 */}
+              <div className="flex gap-1 mt-2">
+                {Array.from({ length: (match.score.p1 || 0) + (match.score.p2 || 0) }).map((_, i) => {
+                  const isP1Win = i < (match.score?.p1 || 0);
+                  return (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full ${isP1Win ? 'bg-accent' : 'bg-red-400'}`}
+                    />
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 

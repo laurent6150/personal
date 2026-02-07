@@ -1,7 +1,9 @@
 // ========================================
 // 리그 종료 화면 컴포넌트 (개선된 UI)
+// Phase 3: RewardClaimScreen 통합
 // ========================================
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -9,12 +11,15 @@ import { calculateFinalRankings, calculateAwards } from '../../utils/individualL
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
 import { Button } from '../UI/Button';
+import { RewardClaimScreen } from './RewardClaimScreen';
+import { AwardsDisplay } from './AwardsDisplay';
 
 interface LeagueFinishedScreenProps {
   onFinish?: () => void;
 }
 
 export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
+  const [showRewardScreen, setShowRewardScreen] = useState(false);
   const { currentLeague, finishLeague } = useIndividualLeagueStore(
     useShallow(state => ({
       currentLeague: state.currentLeague,
@@ -30,9 +35,61 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
   const myCards = rankings.filter(r => r.isPlayerCrew);
   const top16 = rankings.slice(0, 16);
 
-  const handleFinish = () => {
+  // 보상 수령 버튼 클릭 -> RewardClaimScreen 표시
+  const handleClaimReward = () => {
+    setShowRewardScreen(true);
+  };
+
+  // RewardClaimScreen에서 확인 버튼 클릭 -> 리그 종료
+  const handleRewardConfirm = () => {
+    setShowRewardScreen(false);
     finishLeague();
     onFinish?.();
+  };
+
+  // RewardClaimScreen용 데이터 변환
+  const getRewardData = () => {
+    return myCards.map(card => {
+      const character = CHARACTERS_BY_ID[card.odId];
+      const baseStats = character?.baseStats;
+
+      // 레벨업 계산 (현재 레벨 + EXP 기준)
+      // 여기서는 단순화: 레벨1 기준, 100EXP마다 레벨업
+      const currentExp = 0; // 실제로는 저장된 EXP
+      const totalExp = currentExp + card.exp;
+      const levelBefore = 1;
+      const expPerLevel = 100;
+      const levelUps = Math.floor(totalExp / expPerLevel);
+      const levelAfter = levelBefore + levelUps;
+      const expAfter = totalExp % expPerLevel;
+
+      // 레벨업 시 스탯 증가 (레벨당 총 +4)
+      const statIncrease = levelUps * 4;
+      const statsAfter = baseStats ? {
+        atk: (baseStats.atk || 0) + Math.floor(statIncrease / 4),
+        def: (baseStats.def || 0) + Math.floor(statIncrease / 4),
+        spd: (baseStats.spd || 0) + Math.floor(statIncrease / 4),
+        hp: (baseStats.hp || 0) + Math.floor(statIncrease / 4),
+        ce: baseStats.ce || 0,
+        crt: (baseStats as { crt?: number })?.crt || 50,
+        tec: (baseStats as { tec?: number })?.tec || 50,
+        mnt: (baseStats as { mnt?: number })?.mnt || 50,
+      } : undefined;
+
+      return {
+        odId: card.odId,
+        odName: card.odName,
+        rank: card.rank,
+        exp: card.exp,
+        levelBefore,
+        levelAfter,
+        expBefore: currentExp,
+        expAfter,
+        statsBefore: baseStats,
+        statsAfter,
+        statIncrease: levelUps > 0 ? statIncrease : 0
+      };
+    });
   };
 
   const getRankIcon = (rank: number) => {
@@ -104,29 +161,13 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
         </div>
       </div>
 
-      {/* 개인상 */}
+      {/* 개인상 (AwardsDisplay 컴포넌트 사용) */}
       {awards.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-lg font-bold text-text-primary mb-3">
-            ═══ 개인상 ═══
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {awards.map(award => (
-              <div
-                key={award.type}
-                className="bg-gradient-to-r from-yellow-500/20 to-amber-500/20 rounded-lg px-4 py-2 border border-yellow-500/30"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{award.icon}</span>
-                  <div>
-                    <div className="font-bold text-yellow-400">{award.title}</div>
-                    <div className="text-sm text-text-primary">{award.odName}</div>
-                    <div className="text-xs text-text-secondary">{award.description}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <AwardsDisplay
+            awards={awards}
+            playerCardIds={myCards.map(c => c.odId)}
+          />
         </div>
       )}
 
@@ -196,10 +237,19 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
 
       {/* 종료 버튼 */}
       <div className="text-center">
-        <Button variant="primary" onClick={handleFinish} className="px-8">
-          🎁 보상 수령 및 리그 종료
+        <Button variant="primary" onClick={handleClaimReward} className="px-8">
+          🎁 보상 수령하기
         </Button>
       </div>
+
+      {/* RewardClaimScreen 모달 */}
+      {showRewardScreen && (
+        <RewardClaimScreen
+          season={currentLeague.season}
+          myCardRewards={getRewardData()}
+          onConfirm={handleRewardConfirm}
+        />
+      )}
     </motion.div>
   );
 }
