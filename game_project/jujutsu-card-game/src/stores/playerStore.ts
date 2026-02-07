@@ -1,14 +1,17 @@
 // ========================================
 // 플레이어 데이터 상태 관리 (Zustand + LocalStorage)
+// Phase 5: 연봉/생애주기 시스템 통합
 // ========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PlayerData, PlayerCard, RoundResult, Grade, CharacterProgress, FormState } from '../types';
+import type { PlayerData, PlayerCard, RoundResult, Grade, CharacterProgress, FormState, CareerPhase, LegacyGrade } from '../types';
 import { STARTER_CREW, ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
-import { CREW_SIZE } from '../data/constants';
+import { CREW_SIZE, SALARY_CAP } from '../data/constants';
 import { calculateExpReward, checkLevelUp } from '../utils/battleCalculator';
 import { initializeGrowthData, addExpAndLevelUp } from '../data/growthSystem';
+import { calculateSalary } from '../utils/salarySystem';
+import { determineCareerPhase, applyDecline } from '../utils/agingSystem';
 
 // 초기 플레이어 데이터 생성
 function createInitialPlayerData(): PlayerData {
@@ -35,7 +38,11 @@ function createInitialPlayerData(): PlayerData {
       currentForm: growthData.currentForm,
       recentResults: growthData.recentResults,
       currentWinStreak: growthData.currentWinStreak,
-      maxWinStreak: growthData.maxWinStreak
+      maxWinStreak: growthData.maxWinStreak,
+      // Phase 5: 생애주기 필드
+      seasonsInCrew: 0,
+      careerPhase: 'ROOKIE' as CareerPhase,
+      isRookieScale: true  // 첫 시즌은 루키 스케일 적용
     };
   }
 
@@ -104,6 +111,19 @@ interface PlayerState {
   isCardOwned: (cardId: string) => boolean;
   isCardInCrew: (cardId: string) => boolean;
   canAddToCrew: (cardId: string) => boolean;
+
+  // Phase 5: 연봉/생애주기 함수
+  getCardSalary: (cardId: string) => number;
+  getTotalCrewSalary: () => number;
+  isUnderSalaryCap: () => boolean;
+  getSalaryCapStatus: () => { total: number; cap: number; remaining: number; isOver: boolean };
+  processSeasonEnd: () => { agedCards: string[]; declinedCards: string[] };
+  getCardCareerInfo: (cardId: string) => {
+    phase: CareerPhase;
+    seasonsInCrew: number;
+    salary: number;
+    isRookieScale: boolean;
+  } | null;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -445,6 +465,134 @@ export const usePlayerStore = create<PlayerState>()(
         return true;
       },
 
+      // ========================================
+      // Phase 5: 연봉/생애주기 함수
+      // ========================================
+
+      // 카드 연봉 계산
+      getCardSalary: (cardId: string) => {
+        const { player } = get();
+        const playerCard = player.ownedCards[cardId];
+        const char = CHARACTERS_BY_ID[cardId];
+
+        if (!playerCard || !char) return 0;
+
+        const grade = char.grade as LegacyGrade;
+        const level = playerCard.level || 1;
+        const careerPhase = playerCard.careerPhase || 'GROWTH';
+        const isRookieScale = playerCard.isRookieScale || false;
+
+        return calculateSalary(grade, level, careerPhase, isRookieScale);
+      },
+
+      // 크루 총 연봉 계산
+      getTotalCrewSalary: () => {
+        const { player, getCardSalary } = get();
+        let total = 0;
+
+        for (const cardId of player.currentCrew) {
+          total += getCardSalary(cardId);
+        }
+
+        return total;
+      },
+
+      // 샐러리 캡 미달 여부
+      isUnderSalaryCap: () => {
+        const { getTotalCrewSalary } = get();
+        return getTotalCrewSalary() <= SALARY_CAP;
+      },
+
+      // 샐러리 캡 상태 조회
+      getSalaryCapStatus: () => {
+        const { getTotalCrewSalary } = get();
+        const total = getTotalCrewSalary();
+        const remaining = SALARY_CAP - total;
+
+        return {
+          total,
+          cap: SALARY_CAP,
+          remaining,
+          isOver: total > SALARY_CAP
+        };
+      },
+
+      // 시즌 종료 처리 (노화 + 쇠퇴)
+      processSeasonEnd: () => {
+        const { player } = get();
+        const agedCards: string[] = [];
+        const declinedCards: string[] = [];
+        const newOwnedCards = { ...player.ownedCards };
+
+        // 크루에 있는 카드들만 처리
+        for (const cardId of player.currentCrew) {
+          const playerCard = newOwnedCards[cardId];
+          const char = CHARACTERS_BY_ID[cardId];
+
+          if (!playerCard || !char) continue;
+
+          // 시즌 수 증가
+          const newSeasonsInCrew = (playerCard.seasonsInCrew || 0) + 1;
+          agedCards.push(cardId);
+
+          // 생애주기 재계산
+          const grade = char.grade as LegacyGrade;
+          const newCareerPhase = determineCareerPhase(grade, newSeasonsInCrew);
+
+          // 루키 스케일 해제 (첫 시즌 이후)
+          const isRookieScale = newSeasonsInCrew <= 1;
+
+          // 쇠퇴 처리
+          let newBonusStats = playerCard.bonusStats || {};
+          if (newCareerPhase === 'DECLINE' || newCareerPhase === 'RETIREMENT_ELIGIBLE') {
+            const declineResult = applyDecline(newCareerPhase, newBonusStats);
+            if (Object.keys(declineResult.decreases).length > 0) {
+              declinedCards.push(cardId);
+              // 보너스 스탯에서 감소 적용
+              newBonusStats = { ...newBonusStats };
+              for (const [key, value] of Object.entries(declineResult.decreases)) {
+                const statKey = key as keyof typeof newBonusStats;
+                newBonusStats[statKey] = Math.max(0, (newBonusStats[statKey] || 0) + (value || 0));
+              }
+              console.log(`[processSeasonEnd] ${char.name.ko} ${declineResult.message}`);
+            }
+          }
+
+          newOwnedCards[cardId] = {
+            ...playerCard,
+            seasonsInCrew: newSeasonsInCrew,
+            careerPhase: newCareerPhase,
+            isRookieScale,
+            bonusStats: newBonusStats
+          };
+        }
+
+        set({
+          player: {
+            ...player,
+            ownedCards: newOwnedCards
+          }
+        });
+
+        console.log(`[processSeasonEnd] 노화 처리: ${agedCards.length}명, 쇠퇴: ${declinedCards.length}명`);
+        return { agedCards, declinedCards };
+      },
+
+      // 카드 커리어 정보 조회
+      getCardCareerInfo: (cardId: string) => {
+        const { player, getCardSalary } = get();
+        const playerCard = player.ownedCards[cardId];
+
+        if (!playerCard) return null;
+
+        return {
+          phase: playerCard.careerPhase || 'ROOKIE',
+          seasonsInCrew: playerCard.seasonsInCrew || 0,
+          salary: getCardSalary(cardId),
+          isRookieScale: playerCard.isRookieScale || false
+        };
+      },
+
       // Step 2.5b-1: 카드에 경험치 추가 함수
       addExpToCard: (cardId: string, exp: number) => {
         const { player } = get();
@@ -498,13 +646,38 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'jujutsu-card-game-player',
-      version: 3, // 기술 시스템 개편
+      version: 4, // Phase 5: 연봉/생애주기 시스템
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Player Store] 마이그레이션:', version, '->', 3);
+        console.log('[Player Store] 마이그레이션:', version, '->', 4);
         // 버전 2 이하의 데이터는 리셋 (기술 시스템 개편)
         if (version < 3) {
           console.log('[Player Store] 등급 체계 변경으로 데이터 리셋');
           return { player: createInitialPlayerData() };
+        }
+        // 버전 3 -> 4: Phase 5 필드 추가
+        if (version < 4) {
+          console.log('[Player Store] Phase 5 생애주기 필드 추가');
+          const state = persistedState as PlayerState;
+          const newOwnedCards = { ...state.player.ownedCards };
+
+          // 기존 카드들에 Phase 5 필드 추가
+          for (const cardId of Object.keys(newOwnedCards)) {
+            const card = newOwnedCards[cardId];
+            newOwnedCards[cardId] = {
+              ...card,
+              seasonsInCrew: card.seasonsInCrew ?? 0,
+              careerPhase: card.careerPhase ?? ('GROWTH' as CareerPhase),
+              isRookieScale: card.isRookieScale ?? false
+            };
+          }
+
+          return {
+            ...state,
+            player: {
+              ...state.player,
+              ownedCards: newOwnedCards
+            }
+          };
         }
         return persistedState as PlayerState;
       }

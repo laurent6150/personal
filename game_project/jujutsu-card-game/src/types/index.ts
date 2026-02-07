@@ -310,6 +310,11 @@ export interface PlayerCard {
   };
   unlockedAchievements: string[];
 
+  // Phase 5: 생애주기 필드
+  seasonsInCrew?: number;            // 크루 소속 시즌 수
+  careerPhase?: CareerPhase;         // 생애 주기
+  isRookieScale?: boolean;           // 루키 스케일 연봉 적용 중
+
   // 성장 시스템 (신규)
   bonusStats: Stats;                 // 레벨업으로 얻은 추가 스탯
   condition: CharacterCondition;     // 컨디션
@@ -499,6 +504,7 @@ export interface Arena {
   imageUrl: string;
   effects: ArenaEffect[];
   category: ArenaCategory;
+  favoredStat?: FavoredStat;  // Phase 5: 스탯 유리 시스템
 }
 
 // 아이템 특수 효과
@@ -520,9 +526,10 @@ export interface Item {
   name: { ko: string; en: string };
   description: string;
   rarity: ItemRarity;
+  price: number;                              // Phase 5: CP 구매 가격
   statBonus: Partial<Stats>;
   specialEffect?: ItemSpecialEffect;
-  unlockCondition: ItemUnlockCondition;
+  unlockCondition?: ItemUnlockCondition;      // Phase 5: optional로 변경 (구매로 해금)
 }
 
 // 전투 계산 결과
@@ -927,7 +934,13 @@ export type NewsType =
   | 'SEASON_START'      // 시즌 시작
   | 'SEASON_END'        // 시즌 종료
   | 'PLAYOFF'           // 플레이오프 소식
-  | 'MILESTONE';        // 마일스톤 달성
+  | 'MILESTONE'         // 마일스톤 달성
+  // Phase 5: 스토리라인 뉴스
+  | 'RIVALRY'           // 라이벌 관련
+  | 'CAREER'            // 커리어 변화
+  | 'RETIREMENT'        // 은퇴
+  | 'DRAFT'             // 드래프트
+  | 'HALF_SEASON';      // 반기 종료
 
 // 뉴스 아이템
 export interface NewsItem {
@@ -1445,3 +1458,297 @@ export const BATTLE_COMMENTS: Record<BattleCommentType, string[]> = {
     "🎤 🔥 역올킬을 노리는 상대의 반격!"
   ]
 };
+
+// ========================================
+// Phase 5: 경제 시스템 타입
+// ========================================
+
+// 생애주기
+export type CareerPhase = 'ROOKIE' | 'GROWTH' | 'PEAK' | 'DECLINE' | 'RETIREMENT_ELIGIBLE';
+
+// PlayerCard Phase 5 확장 (기존 PlayerCard와 병합용)
+export interface PlayerCardPhase5Extension {
+  salary: number;                          // 시즌 연봉 (자동 계산)
+  seasonsInCrew: number;                   // 크루 소속 시즌 수 (노화 기반)
+  careerPhase: CareerPhase;                // 생애 주기
+  draftedSeason?: number;                  // 드래프트로 선발된 시즌 (루키 스케일용)
+  isOnRookieScale?: boolean;               // 루키 스케일 연봉 적용 중
+}
+
+// ========================================
+// Phase 5: 시즌 구조 타입
+// ========================================
+
+// 시즌 반기
+export type SeasonHalf = 'FIRST' | 'SECOND';
+
+// 시즌 상태 확장
+export type SeasonStatusPhase5 =
+  | 'REGULAR'
+  | 'HALF_TRANSITION'    // 전환기
+  | 'PLAYOFF_SEMI'
+  | 'PLAYOFF_FINAL'
+  | 'COMPLETED';
+
+// Season Phase 5 확장 필드
+export interface SeasonPhase5Extension {
+  currentHalf: SeasonHalf;                 // 전반기/후반기
+  halfTransitionDone: boolean;             // 전환기 이벤트 완료 여부
+  tradeWindowOpen: boolean;                // 트레이드 윈도우 상태
+  tradeDeadlinePassed: boolean;            // 트레이드 마감 여부
+  gamesPlayedThisHalf: number;             // 현재 반기 경기 수
+}
+
+// ========================================
+// Phase 5: 활동 시스템 타입
+// ========================================
+
+export type ActivityType = 'TRAIN' | 'REST' | 'SCOUT' | 'PRACTICE' | 'FAN_MEETING';
+
+export interface ActivityOption {
+  type: ActivityType;
+  label: string;
+  apCost: number;
+  cpCost: number;
+  description: string;
+  icon: string;
+}
+
+export const ACTIVITY_OPTIONS: ActivityOption[] = [
+  { type: 'TRAIN', label: '훈련', apCost: 2, cpCost: 200, description: '선택한 카드에 임시 스탯 +2 (1경기)', icon: '💪' },
+  { type: 'REST', label: '휴식', apCost: 1, cpCost: 0, description: '선택한 카드 컨디션 +15', icon: '😴' },
+  { type: 'SCOUT', label: '스카우트', apCost: 3, cpCost: 500, description: '다음 상대 정보 확인', icon: '🔍' },
+  { type: 'PRACTICE', label: '연습경기', apCost: 2, cpCost: 100, description: '선택한 카드 경험치 +20', icon: '⚔️' },
+  { type: 'FAN_MEETING', label: '팬미팅', apCost: 2, cpCost: 0, description: 'CP +300 획득', icon: '🎉' },
+];
+
+// ========================================
+// Phase 5: 드래프트 시스템 타입
+// ========================================
+
+export type DraftSource = 'RETIREMENT_RESET' | 'WAIVER_UNCLAIMED' | 'INITIAL_POOL';
+
+// 드래프트 풀 카드
+export interface DraftPoolCard {
+  cardId: string;
+  source: DraftSource;
+  addedSeason: number;
+  isResetCard: boolean;      // 은퇴 후 리셋 카드 여부
+}
+
+// 드래프트 픽
+export interface DraftPick {
+  season: number;
+  originalOwner: string;     // 원래 픽 소유 크루
+  currentOwner: string;      // 현재 픽 소유 크루
+  pickOrder?: number;        // 확정된 순서 (시즌 종료 후)
+  used: boolean;
+}
+
+// 드래프트 픽 참조 (트레이드용)
+export interface DraftPickReference {
+  season: number;
+  originalOwner: string;
+}
+
+// 쿨다운 카드 (은퇴 후 대기)
+export interface CooldownCard {
+  cardId: string;
+  retiredSeason: number;
+  cooldownRemaining: number;
+  originalGrade: LegacyGrade;
+}
+
+// 드래프트 결과
+export interface DraftResult {
+  season: number;
+  picks: {
+    pickOrder: number;
+    crewId: string;
+    cardId: string;
+    isPlayerPick: boolean;
+  }[];
+}
+
+// ========================================
+// Phase 5: 트레이드 시스템 타입 (패키지 기반)
+// ========================================
+
+// 트레이드 패키지
+export interface TradePackage {
+  cards: string[];                  // 카드 ID들
+  cp: number;                      // CP 재화
+  items: string[];                  // 아이템 ID들
+  draftPicks: DraftPickReference[]; // 드래프트 픽
+}
+
+// 확장된 트레이드 오퍼 (패키지 기반)
+export interface TradeOfferPhase5 {
+  id: string;
+  seasonNumber: number;
+  timestamp: number;
+  proposerCrewId: string;
+  targetCrewId: string;
+
+  // 패키지 기반
+  proposerPackage: TradePackage;    // 제안자가 보내는 것
+  targetPackage: TradePackage;      // 제안자가 받고 싶은 것
+
+  status: TradeStatus;
+  rejectReason?: TradeRejectReason;
+
+  // Trade Value 정보
+  proposerTV?: number;
+  targetTV?: number;
+}
+
+// ========================================
+// Phase 5: 전투 성향 시스템 타입
+// ========================================
+
+export type BattleStyle = 'AGGRESSIVE' | 'DEFENSIVE' | 'TECHNICAL' | 'CURSED' | 'SPEED' | 'BALANCED';
+
+export const BATTLE_STYLE_INFO: Record<BattleStyle, { label: string; icon: string; description: string }> = {
+  AGGRESSIVE: { label: '공격형', icon: '⚔️', description: '강력한 공격으로 상대를 압도' },
+  DEFENSIVE: { label: '수비형', icon: '🛡️', description: '견고한 방어로 상대를 지치게' },
+  TECHNICAL: { label: '기술형', icon: '🎯', description: '정교한 기술로 약점을 공략' },
+  CURSED: { label: '저주형', icon: '👁️', description: '저주로 상대를 약화시킴' },
+  SPEED: { label: '속공형', icon: '⚡', description: '빠른 속도로 선제공격' },
+  BALANCED: { label: '균형형', icon: '⚖️', description: '모든 면에서 균형 잡힌 스타일' },
+};
+
+// 전투 성향 상성표 (key가 value를 이김)
+export const STYLE_ADVANTAGE: Record<BattleStyle, BattleStyle> = {
+  AGGRESSIVE: 'TECHNICAL',   // 공격 > 기술
+  TECHNICAL:  'CURSED',      // 기술 > 저주
+  CURSED:     'DEFENSIVE',   // 저주 > 수비
+  DEFENSIVE:  'AGGRESSIVE',  // 수비 > 공격
+  SPEED:      'AGGRESSIVE',  // 속공 > 공격
+  BALANCED:   'BALANCED',    // 균형: 상성 없음
+};
+
+export const STYLE_ADVANTAGE_BONUS = 0.08;       // +8%
+export const STYLE_DISADVANTAGE_PENALTY = 0.08; // -8%
+
+// ========================================
+// Phase 5: 코칭 시스템 타입
+// ========================================
+
+// 팀 리그: 크루 방침
+export type CrewPolicy = 'AGGRESSIVE' | 'BALANCED' | 'DEFENSIVE';
+
+export const CREW_POLICY_EFFECTS: Record<CrewPolicy, {
+  label: string;
+  atkMod: number;
+  defMod: number;
+  icon: string;
+}> = {
+  AGGRESSIVE: { label: '공격적', atkMod: 1.05, defMod: 0.97, icon: '⚔️' },
+  BALANCED:   { label: '균형',   atkMod: 1.00, defMod: 1.00, icon: '⚖️' },
+  DEFENSIVE:  { label: '수비적', atkMod: 0.97, defMod: 1.05, icon: '🛡️' },
+};
+
+// 개인 리그: 카드별 전략
+export type CoachingStrategy =
+  | 'AGGRESSIVE'      // ATK +15%, DEF -10%
+  | 'DEFENSIVE'       // DEF +15%, ATK -10%
+  | 'ULTIMATE_FOCUS'  // 궁극기 게이지 +30% 시작, HP -10%
+  | 'SPEED_RUSH'      // SPD +20%, HP -15%
+  | 'CE_MAX'          // CE +20%, SPD -15%
+  | 'BALANCED';       // 변화 없음
+
+export const COACHING_EFFECTS: Record<CoachingStrategy, {
+  label: string;
+  icon: string;
+  statMods: Partial<Record<keyof Stats | 'gaugeStart' | 'hpMod', number>>;
+}> = {
+  AGGRESSIVE:     { label: '공격적 전개', icon: '⚔️', statMods: { atk: 1.15, def: 0.90 } },
+  DEFENSIVE:      { label: '수비적 전개', icon: '🛡️', statMods: { def: 1.15, atk: 0.90 } },
+  ULTIMATE_FOCUS: { label: '필살기 집중', icon: '💫', statMods: { gaugeStart: 30, hpMod: 0.90 } },
+  SPEED_RUSH:     { label: '속공',       icon: '⚡', statMods: { spd: 1.20, hpMod: 0.85 } },
+  CE_MAX:         { label: '주력 극대화', icon: '🔮', statMods: { ce: 1.20, spd: 0.85 } },
+  BALANCED:       { label: '균형',       icon: '⚖️', statMods: {} },
+};
+
+// ========================================
+// Phase 5: 경기장 스탯 유리 타입
+// ========================================
+
+export type FavoredStatBonusType = 'DAMAGE_RESIST' | 'EVASION' | 'SKILL_DAMAGE' | 'HP_RECOVERY';
+
+export interface FavoredStat {
+  stat: keyof Stats;
+  threshold: number;               // 기준치
+  bonusType: FavoredStatBonusType;
+  bonusValue: number;              // 보너스 %
+}
+
+// ========================================
+// Phase 5: 은퇴 시스템 타입
+// ========================================
+
+export interface RetirementResult {
+  cardId: string;
+  cpReward: number;                // CP 보상
+  successorBuff: {
+    attribute: Attribute;
+    expBonus: number;              // 같은 속성 카드 EXP 보너스 (예: 0.3 = +30%)
+  };
+  cooldownSeasons: number;         // 복귀까지 대기 시즌 수
+}
+
+export const RETIREMENT_CP_REWARD: Record<LegacyGrade, number> = {
+  '특급': 5000,
+  '1급': 3000,
+  '준1급': 2000,
+  '2급': 1500,
+  '준2급': 1000,
+  '3급': 800,
+};
+
+// ========================================
+// Phase 5: 뉴스피드 확장 타입
+// ========================================
+
+export type NewsTypePhase5 =
+  | NewsType
+  | 'DRAFT'            // 드래프트 결과
+  | 'RETIREMENT'       // 은퇴 소식
+  | 'RIVAL'            // 라이벌 매칭
+  | 'STORYLINE'        // 스토리라인
+  | 'HALF_TRANSITION'; // 전환기
+
+// 스토리라인 유형
+export type StorylineType =
+  | 'SLUMP'           // 4연패 슬럼프
+  | 'HOT_STREAK'      // 5연승 선풍
+  | 'DARK_HORSE'      // 다크호스 약진
+  | 'CHAMPION_STRUGGLE' // 챔피언의 고전
+  | 'ROOKIE_STORM'    // 루키 돌풍
+  | 'VETERAN_FLAME';  // 베테랑의 마지막 불꽃
+
+// ========================================
+// Phase 5: 시즌 어워드 확장 타입
+// ========================================
+
+export type AwardTypePhase5 =
+  | AwardType
+  | 'DEFENSIVE_KING'    // 수비왕
+  | 'ALLKILL_KING'      // 올킬왕
+  | 'IRONMAN'           // 철인상
+  | 'RUNNER_UP'         // 만년 준우승
+  | 'ROOKIE_OF_YEAR'    // 신인왕
+  | 'RIVAL_MASTER';     // 최다 라이벌전 승리
+
+// 라이벌 정보
+export interface RivalInfo {
+  cardId?: string;              // 자신의 카드 ID (선택적)
+  opponentId?: string;          // 상대 카드 ID (선택적)
+  rivalCardId: string;          // 라이벌 카드 ID (필수)
+  matchCount?: number;          // 총 대전 횟수
+  totalMatches: number;         // 총 대전 횟수 (alias)
+  wins: number;
+  losses: number;
+  isRival?: boolean;            // 라이벌 여부
+  establishedSeason?: number;   // 라이벌 성립 시즌
+}

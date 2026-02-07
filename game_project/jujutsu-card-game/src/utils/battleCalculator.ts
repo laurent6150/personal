@@ -1,5 +1,6 @@
 // ========================================
 // 전투 계산 시스템
+// Phase 5: 전투 성향, 코칭, 경기장 스탯 유리 추가
 // ========================================
 
 import type {
@@ -13,11 +14,13 @@ import type {
   RoundResult,
   SkillEffect,
   AppliedStatusEffect,
-  TurnResult
+  TurnResult,
+  CrewPolicy,
+  CoachingStrategy
 } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { EXP_TABLE, MAX_LEVEL } from '../data/constants';
+import { EXP_TABLE, MAX_LEVEL, RIVAL_ATK_BONUS } from '../data/constants';
 import {
   getAttributeMultiplier,
   getArenaAttributeBonus,
@@ -28,6 +31,8 @@ import {
 } from './attributeSystem';
 import { getStatusEffect } from '../data/statusEffects';
 import { getUltimateSkillEffects, type UltimateSkillData } from '../data/ultimateSkillEffects';
+import { getStyleMultiplier, getCharacterBattleStyle } from '../data/battleStyles';
+import { checkFavoredStatBonus } from '../data/arenas';
 
 /**
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
@@ -1364,4 +1369,224 @@ export function getLevelProgress(currentExp: number, currentLevel: number): numb
   const expNeeded = nextLevelExp - prevLevelExp;
 
   return Math.floor((expInLevel / expNeeded) * 100);
+}
+
+// ========================================
+// Phase 5: 전투 성향 시스템
+// ========================================
+
+/**
+ * 전투 성향 상성에 따른 데미지 배율 계산
+ */
+export function getBattleStyleDamageMultiplier(
+  attackerCardId: string,
+  defenderCardId: string
+): number {
+  const attackerStyle = getCharacterBattleStyle(attackerCardId);
+  const defenderStyle = getCharacterBattleStyle(defenderCardId);
+  return getStyleMultiplier(attackerStyle, defenderStyle);
+}
+
+// ========================================
+// Phase 5: 코칭 시스템
+// ========================================
+
+import { CREW_POLICY_EFFECTS as CrewPolicyEffects, COACHING_EFFECTS as CoachingEffects } from '../types';
+
+/**
+ * 크루 방침 적용 (팀 리그용)
+ */
+export function applyCrewPolicyToStats(
+  stats: Stats,
+  policy: CrewPolicy
+): Stats {
+  const effects = CrewPolicyEffects[policy];
+  return {
+    ...stats,
+    atk: Math.floor(stats.atk * effects.atkMod),
+    def: Math.floor(stats.def * effects.defMod),
+  };
+}
+
+/**
+ * 코칭 전략 적용 (개인 리그용)
+ */
+export function applyCoachingStrategyToStats(
+  stats: Stats,
+  strategy: CoachingStrategy
+): { stats: Stats; gaugeStart: number } {
+  const effects = CoachingEffects[strategy];
+  const mods = effects.statMods;
+
+  const newStats = { ...stats };
+  let gaugeStart = 0;
+
+  // ATK 배율
+  if (mods.atk !== undefined) {
+    newStats.atk = Math.floor(stats.atk * mods.atk);
+  }
+
+  // DEF 배율
+  if (mods.def !== undefined) {
+    newStats.def = Math.floor(stats.def * mods.def);
+  }
+
+  // SPD 배율
+  if (mods.spd !== undefined) {
+    newStats.spd = Math.floor(stats.spd * mods.spd);
+  }
+
+  // CE 배율
+  if (mods.ce !== undefined) {
+    newStats.ce = Math.floor(stats.ce * mods.ce);
+  }
+
+  // HP 배율
+  if (mods.hpMod !== undefined) {
+    newStats.hp = Math.floor(stats.hp * mods.hpMod);
+  }
+
+  // 궁극기 게이지 시작값
+  if (mods.gaugeStart !== undefined) {
+    gaugeStart = mods.gaugeStart;
+  }
+
+  return { stats: newStats, gaugeStart };
+}
+
+// ========================================
+// Phase 5: 경기장 스탯 유리 시스템
+// ========================================
+
+export interface FavoredStatBonusResult {
+  hasBonus: boolean;
+  bonusType?: string;
+  bonusValue?: number;
+}
+
+/**
+ * 경기장 스탯 유리 보너스 적용
+ */
+export function applyFavoredStatBonus(
+  arenaId: string,
+  stats: Stats
+): FavoredStatBonusResult {
+  return checkFavoredStatBonus(arenaId, stats as unknown as Record<string, number>);
+}
+
+/**
+ * 경기장 스탯 유리 보너스에 따른 효과 적용
+ */
+export function getFavoredStatEffect(
+  bonusType: string,
+  bonusValue: number,
+  _baseDamage: number,
+  _baseHp: number
+): { damageModifier: number; evasionChance: number; hpRecovery: number } {
+  let damageModifier = 1.0;
+  let evasionChance = 0;
+  let hpRecovery = 0;
+
+  switch (bonusType) {
+    case 'DAMAGE_RESIST':
+      damageModifier = 1 - (bonusValue / 100);  // 받는 데미지 감소
+      break;
+    case 'EVASION':
+      evasionChance = bonusValue;  // 회피 확률
+      break;
+    case 'SKILL_DAMAGE':
+      damageModifier = 1 + (bonusValue / 100);  // 스킬 데미지 증가
+      break;
+    case 'HP_RECOVERY':
+      hpRecovery = bonusValue;  // 턴당 HP 회복
+      break;
+  }
+
+  return { damageModifier, evasionChance, hpRecovery };
+}
+
+// ========================================
+// Phase 5: 라이벌 시스템
+// ========================================
+
+/**
+ * 라이벌 보너스 적용
+ */
+export function applyRivalBonus(
+  baseAtk: number,
+  isRivalMatch: boolean
+): number {
+  if (isRivalMatch) {
+    return Math.floor(baseAtk * (1 + RIVAL_ATK_BONUS));
+  }
+  return baseAtk;
+}
+
+// ========================================
+// Phase 5: 종합 데미지 계산 (모든 Phase 5 요소 포함)
+// ========================================
+
+export interface Phase5DamageContext {
+  attackerCardId: string;
+  defenderCardId: string;
+  arenaId: string;
+  attackerStats: Stats;
+  defenderStats: Stats;
+  isRivalMatch?: boolean;
+  crewPolicy?: CrewPolicy;
+  coachingStrategy?: CoachingStrategy;
+}
+
+/**
+ * Phase 5 모든 요소를 포함한 최종 데미지 계산
+ */
+export function calculatePhase5Damage(
+  context: Phase5DamageContext,
+  _arena: Arena,
+  baseDamage: number
+): {
+  finalDamage: number;
+  battleStyleMod: number;
+  favoredStatMod: number;
+  rivalBonus: number;
+  breakdown: string[];
+} {
+  const breakdown: string[] = [];
+  let finalDamage = baseDamage;
+
+  // 1. 전투 성향 상성
+  const battleStyleMod = getBattleStyleDamageMultiplier(
+    context.attackerCardId,
+    context.defenderCardId
+  );
+  if (battleStyleMod !== 1.0) {
+    finalDamage = Math.floor(finalDamage * battleStyleMod);
+    const percent = Math.round((battleStyleMod - 1) * 100);
+    breakdown.push(`전투 성향 ${percent >= 0 ? '+' : ''}${percent}%`);
+  }
+
+  // 2. 경기장 스탯 유리
+  let favoredStatMod = 1.0;
+  const favoredBonus = applyFavoredStatBonus(context.arenaId, context.attackerStats);
+  if (favoredBonus.hasBonus && favoredBonus.bonusType === 'SKILL_DAMAGE') {
+    favoredStatMod = 1 + (favoredBonus.bonusValue! / 100);
+    finalDamage = Math.floor(finalDamage * favoredStatMod);
+    breakdown.push(`경기장 스킬 보너스 +${favoredBonus.bonusValue}%`);
+  }
+
+  // 3. 라이벌 보너스
+  let rivalBonus = 0;
+  if (context.isRivalMatch) {
+    rivalBonus = Math.floor(finalDamage * RIVAL_ATK_BONUS);
+    finalDamage += rivalBonus;
+    breakdown.push(`라이벌 보너스 +${Math.round(RIVAL_ATK_BONUS * 100)}%`);
+  }
+
+  return {
+    finalDamage: Math.max(1, finalDamage),
+    battleStyleMod,
+    favoredStatMod,
+    rivalBonus,
+    breakdown,
+  };
 }

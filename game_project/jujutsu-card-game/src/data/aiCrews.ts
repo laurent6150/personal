@@ -4,7 +4,8 @@
 
 import type { AICrew, Difficulty, LegacyGrade } from '../types';
 import { ALL_CHARACTERS } from './characters';
-import { CREW_SIZE, CREW_COUNT } from './constants';
+import { CREW_SIZE, CREW_COUNT, SALARY_CAP } from './constants';
+import { calculateSalary } from '../utils/salarySystem';
 
 // AI 팀 기본 정보 (크루 카드는 시즌 시작 시 랜덤 배정)
 export interface AICrewTemplate {
@@ -248,5 +249,130 @@ export const AI_CREWS_BY_ID: Record<string, AICrew> = {};
 // 플레이어 크루 ID (고정)
 export const PLAYER_CREW_ID = 'player';
 
-// 등급 제한 정보 내보내기
+// 등급 제한 정보 내보내기 (레거시 호환)
 export { GRADE_LIMITS };
+
+// ========================================
+// Phase 5: 샐러리 캡 기반 크루 배분
+// ========================================
+
+// 카드의 연봉 계산 (레벨 1, 성장기 기준)
+function getCardBaseSalary(characterId: string): number {
+  const char = ALL_CHARACTERS.find(c => c.id === characterId);
+  if (!char) return 0;
+  const grade = char.grade as LegacyGrade;
+  // 레벨 1, 성장기, 루키 스케일 없음
+  return calculateSalary(grade, 1, 'GROWTH', false);
+}
+
+// 샐러리 캡을 고려한 크루 배분
+export function distributeCharactersWithSalaryCap(
+  availableCharacters: string[],
+  crewCount: number,
+  salaryCap: number = SALARY_CAP
+): string[][] {
+  // 등급별로 캐릭터 분류
+  const byGrade: Record<string, string[]> = {
+    '특급': [],
+    '1급': [],
+    '준1급': [],
+    '2급': [],
+    '준2급': [],
+    '3급': []
+  };
+
+  for (const charId of availableCharacters) {
+    const grade = getCharacterGrade(charId);
+    if (grade && byGrade[grade]) {
+      byGrade[grade].push(charId);
+    }
+  }
+
+  // 각 등급 셔플
+  Object.keys(byGrade).forEach(grade => {
+    byGrade[grade] = shuffleArray(byGrade[grade]);
+  });
+
+  // 크루 초기화
+  const crews: string[][] = Array.from({ length: crewCount }, () => []);
+  const crewSalaries: number[] = Array.from({ length: crewCount }, () => 0);
+
+  // 1. 특급 배분 (각 크루 최대 1명, 샐러리 캡 고려)
+  let specialIndex = 0;
+  for (let i = 0; i < crewCount && specialIndex < byGrade['특급'].length; i++) {
+    const cardId = byGrade['특급'][specialIndex];
+    const salary = getCardBaseSalary(cardId);
+    if (crewSalaries[i] + salary <= salaryCap) {
+      crews[i].push(cardId);
+      crewSalaries[i] += salary;
+      specialIndex++;
+    }
+  }
+
+  // 2. 1급 배분 (샐러리 캡 고려, 라운드 로빈)
+  let firstGradeIndex = 0;
+  for (let round = 0; round < 3 && firstGradeIndex < byGrade['1급'].length; round++) {
+    for (let i = 0; i < crewCount && firstGradeIndex < byGrade['1급'].length; i++) {
+      const cardId = byGrade['1급'][firstGradeIndex];
+      const salary = getCardBaseSalary(cardId);
+      if (crewSalaries[i] + salary <= salaryCap) {
+        crews[i].push(cardId);
+        crewSalaries[i] += salary;
+        firstGradeIndex++;
+      }
+    }
+  }
+
+  // 3. 나머지 등급 배분 (샐러리 캡 고려)
+  const remainingCharacters = [
+    ...byGrade['준1급'],
+    ...byGrade['2급'],
+    ...byGrade['준2급'],
+    ...byGrade['3급']
+  ];
+
+  const shuffledRemaining = shuffleArray(remainingCharacters);
+
+  // 각 크루를 CREW_SIZE까지 채움 (샐러리 캡 고려)
+  for (let i = 0; i < crewCount; i++) {
+    for (const cardId of shuffledRemaining) {
+      if (crews[i].length >= CREW_SIZE) break;
+
+      // 이미 다른 크루에 배정되었는지 확인
+      if (crews.some(crew => crew.includes(cardId))) continue;
+
+      const salary = getCardBaseSalary(cardId);
+      if (crewSalaries[i] + salary <= salaryCap) {
+        crews[i].push(cardId);
+        crewSalaries[i] += salary;
+      }
+    }
+  }
+
+  // 로그
+  console.log('[AI Crews] 샐러리 캡 기반 배분 완료');
+  crews.forEach((crew, idx) => {
+    console.log(`  크루 ${idx + 1}: ${crew.length}명, 총 연봉: ${crewSalaries[idx]}`);
+  });
+
+  return crews;
+}
+
+// 크루 총 연봉 계산
+export function calculateCrewSalary(crewCardIds: string[]): number {
+  return crewCardIds.reduce((sum, cardId) => sum + getCardBaseSalary(cardId), 0);
+}
+
+// 크루 샐러리 캡 유효성 검사
+export function validateCrewSalaryCap(
+  crewCardIds: string[],
+  salaryCap: number = SALARY_CAP
+): { valid: boolean; totalSalary: number; overAmount: number } {
+  const totalSalary = calculateCrewSalary(crewCardIds);
+  const overAmount = Math.max(0, totalSalary - salaryCap);
+  return {
+    valid: totalSalary <= salaryCap,
+    totalSalary,
+    overAmount
+  };
+}

@@ -24,7 +24,13 @@ const NEWS_ICONS: Record<NewsType, string> = {
   SEASON_START: '🎉',
   SEASON_END: '🏁',
   PLAYOFF: '🎯',
-  MILESTONE: '⭐'
+  MILESTONE: '⭐',
+  // Phase 5: 스토리라인 뉴스
+  RIVALRY: '👊',
+  CAREER: '📈',
+  RETIREMENT: '🌅',
+  DRAFT: '📋',
+  HALF_SEASON: '📊'
 };
 
 // 상대적 시간 표시

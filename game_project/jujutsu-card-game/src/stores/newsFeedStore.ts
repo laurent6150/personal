@@ -1,11 +1,12 @@
 // ========================================
 // 뉴스 피드 스토어
+// Phase 5: 스토리라인, 라이벌, 커리어 뉴스
 // ========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import type { NewsItem } from '../types';
+import type { NewsItem, CareerPhase } from '../types';
 
 interface NewsFeedStore {
   news: NewsItem[];
@@ -77,6 +78,55 @@ interface NewsFeedStore {
 
   // 뉴스 초기화
   clearNews: () => void;
+
+  // Phase 5: 스토리라인 뉴스
+  addRivalNews: (params: {
+    seasonNumber: number;
+    cardId1: string;
+    cardId2: string;
+    matchCount: number;
+  }) => void;
+
+  addRivalMatchNews: (params: {
+    seasonNumber: number;
+    cardId1: string;
+    cardId2: string;
+    winnerId: string;
+  }) => void;
+
+  addCareerPhaseNews: (params: {
+    seasonNumber: number;
+    cardId: string;
+    newPhase: CareerPhase;
+  }) => void;
+
+  addRetirementNews: (params: {
+    seasonNumber: number;
+    cardId: string;
+    seasonsPlayed: number;
+    totalWins: number;
+  }) => void;
+
+  addDraftNews: (params: {
+    seasonNumber: number;
+    crewName: string;
+    cardId: string;
+    pickNumber: number;
+  }) => void;
+
+  addTradeNews: (params: {
+    seasonNumber: number;
+    fromCrewName: string;
+    toCrewName: string;
+    cardIds: string[];
+  }) => void;
+
+  addHalfSeasonNews: (params: {
+    seasonNumber: number;
+    half: 'FIRST' | 'SECOND';
+    leaderCrewName: string;
+    leaderPoints: number;
+  }) => void;
 }
 
 export const useNewsFeedStore = create<NewsFeedStore>()(
@@ -256,11 +306,169 @@ export const useNewsFeedStore = create<NewsFeedStore>()(
 
       clearNews: () => {
         set({ news: [], lastReadTimestamp: Date.now() });
+      },
+
+      // ========================================
+      // Phase 5: 스토리라인 뉴스
+      // ========================================
+
+      // 라이벌 성립 뉴스
+      addRivalNews: (params) => {
+        const { seasonNumber, cardId1, cardId2, matchCount } = params;
+        const card1 = CHARACTERS_BY_ID[cardId1];
+        const card2 = CHARACTERS_BY_ID[cardId2];
+
+        if (!card1 || !card2) return;
+
+        get().addNews({
+          type: 'RIVALRY',
+          seasonNumber,
+          title: `🔥 숙명의 라이벌 탄생!`,
+          content: `${card1.name.ko}와 ${card2.name.ko}가 ${matchCount}번의 대결 끝에 라이벌로 인정되었습니다!\n앞으로의 대결에서는 특별한 보너스가 적용됩니다.`,
+          highlight: true,
+          relatedCards: [cardId1, cardId2]
+        });
+      },
+
+      // 라이벌 대결 뉴스
+      addRivalMatchNews: (params) => {
+        const { seasonNumber, cardId1, cardId2, winnerId } = params;
+        const card1 = CHARACTERS_BY_ID[cardId1];
+        const card2 = CHARACTERS_BY_ID[cardId2];
+        const winner = CHARACTERS_BY_ID[winnerId];
+
+        if (!card1 || !card2 || !winner) return;
+
+        const loser = winnerId === cardId1 ? card2 : card1;
+
+        get().addNews({
+          type: 'RIVALRY',
+          seasonNumber,
+          title: `⚔️ 라이벌 대결! ${winner.name.ko} 승리!`,
+          content: `${winner.name.ko}가 숙적 ${loser.name.ko}를 상대로 승리를 거머쥐었습니다!`,
+          highlight: true,
+          relatedCards: [cardId1, cardId2]
+        });
+      },
+
+      // 커리어 페이즈 변화 뉴스
+      addCareerPhaseNews: (params) => {
+        const { seasonNumber, cardId, newPhase } = params;
+        const card = CHARACTERS_BY_ID[cardId];
+
+        if (!card) return;
+
+        let title = '';
+        let content = '';
+
+        switch (newPhase) {
+          case 'GROWTH':
+            title = `📈 ${card.name.ko}, 성장기 진입`;
+            content = `신입 기간을 마치고 본격적인 성장기에 접어들었습니다.`;
+            break;
+          case 'PEAK':
+            title = `⭐ ${card.name.ko}, 전성기 돌입!`;
+            content = `${card.name.ko}가 전성기에 접어들었습니다! 최고의 활약이 기대됩니다.`;
+            break;
+          case 'DECLINE':
+            title = `📉 ${card.name.ko}, 쇠퇴기 시작`;
+            content = `${card.name.ko}의 기량이 서서히 쇠퇴하기 시작했습니다. 은퇴를 고려해볼 시점입니다.`;
+            break;
+          case 'RETIREMENT_ELIGIBLE':
+            title = `🌅 ${card.name.ko}, 은퇴 권유`;
+            content = `${card.name.ko}에게 은퇴가 권유되었습니다. 더 이상의 활동은 스탯 하락으로 이어질 수 있습니다.`;
+            break;
+          default:
+            return;
+        }
+
+        get().addNews({
+          type: 'CAREER',
+          seasonNumber,
+          title,
+          content,
+          highlight: newPhase === 'PEAK' || newPhase === 'RETIREMENT_ELIGIBLE',
+          relatedCards: [cardId]
+        });
+      },
+
+      // 은퇴 뉴스
+      addRetirementNews: (params) => {
+        const { seasonNumber, cardId, seasonsPlayed, totalWins } = params;
+        const card = CHARACTERS_BY_ID[cardId];
+
+        if (!card) return;
+
+        get().addNews({
+          type: 'RETIREMENT',
+          seasonNumber,
+          title: `👋 ${card.name.ko}, 은퇴 선언`,
+          content: `${seasonsPlayed}시즌 동안 ${totalWins}승을 기록한 ${card.name.ko}가 은퇴를 선언했습니다.\n팬들의 사랑에 감사드립니다.`,
+          highlight: true,
+          relatedCards: [cardId]
+        });
+      },
+
+      // 드래프트 뉴스
+      addDraftNews: (params) => {
+        const { seasonNumber, crewName, cardId, pickNumber } = params;
+        const card = CHARACTERS_BY_ID[cardId];
+
+        if (!card) return;
+
+        const pickSuffix = pickNumber === 1 ? '1순위' : `${pickNumber}순위`;
+
+        get().addNews({
+          type: 'DRAFT',
+          seasonNumber,
+          title: `📋 ${crewName}, ${card.name.ko} 지명`,
+          content: `${crewName}가 ${pickSuffix} 지명권으로 ${card.name.ko}를 선택했습니다!`,
+          highlight: pickNumber <= 3,
+          relatedCards: [cardId],
+          relatedCrews: [crewName]
+        });
+      },
+
+      // 트레이드 뉴스
+      addTradeNews: (params) => {
+        const { seasonNumber, fromCrewName, toCrewName, cardIds } = params;
+        const cardNames = cardIds
+          .map(id => CHARACTERS_BY_ID[id]?.name.ko)
+          .filter(Boolean)
+          .join(', ');
+
+        if (!cardNames) return;
+
+        get().addNews({
+          type: 'TRADE',
+          seasonNumber,
+          title: `🔄 트레이드 성사!`,
+          content: `${fromCrewName} → ${toCrewName}: ${cardNames}`,
+          highlight: cardIds.length > 1,
+          relatedCards: cardIds,
+          relatedCrews: [fromCrewName, toCrewName]
+        });
+      },
+
+      // 반기 종료 뉴스
+      addHalfSeasonNews: (params) => {
+        const { seasonNumber, half, leaderCrewName, leaderPoints } = params;
+
+        const halfText = half === 'FIRST' ? '전반기' : '후반기';
+
+        get().addNews({
+          type: 'HALF_SEASON',
+          seasonNumber,
+          title: `📊 시즌 ${seasonNumber} ${halfText} 종료`,
+          content: `${halfText} 1위: ${leaderCrewName} (${leaderPoints}승점)\n${half === 'FIRST' ? '전환기 이벤트가 시작됩니다!' : '플레이오프가 다가옵니다!'}`,
+          highlight: true,
+          relatedCrews: [leaderCrewName]
+        });
       }
     }),
     {
       name: 'jjk-news-feed',
-      version: 1
+      version: 2  // v2: Phase 5 스토리라인 뉴스
     }
   )
 );

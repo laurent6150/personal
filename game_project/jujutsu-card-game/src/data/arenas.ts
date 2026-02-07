@@ -1,8 +1,9 @@
 // ========================================
 // 경기장 데이터 (25개)
+// Phase 5: favoredStat 추가
 // ========================================
 
-import type { Arena, ArenaCategory } from '../types';
+import type { Arena, ArenaCategory, FavoredStat } from '../types';
 
 // 카테고리 정보
 export const ARENA_CATEGORIES: Record<ArenaCategory, { name: string; icon: string }> = {
@@ -614,3 +615,98 @@ export const getRandomArenaByCategory = (category: ArenaCategory): Arena => {
   const index = Math.floor(Math.random() * filtered.length);
   return filtered[index];
 };
+
+// ========================================
+// Phase 5: 경기장별 유리 스탯 설정
+// ========================================
+
+// 경기장 ID별 favoredStat 매핑
+export const ARENA_FAVORED_STATS: Record<string, FavoredStat> = {
+  // 젠인가 수련장: SPD 높으면 회피 보너스
+  zenin_training: {
+    stat: 'spd',
+    threshold: 18,
+    bonusType: 'EVASION',
+    bonusValue: 10  // +10% 회피
+  },
+  // 복마전신: ATK 높으면 스킬 데미지 보너스
+  malevolent_shrine: {
+    stat: 'atk',
+    threshold: 20,
+    bonusType: 'SKILL_DAMAGE',
+    bonusValue: 15  // +15% 스킬 데미지
+  },
+  // 무량공처: CE 높으면 데미지 저항
+  domain_void: {
+    stat: 'ce',
+    threshold: 20,
+    bonusType: 'DAMAGE_RESIST',
+    bonusValue: 10  // -10% 받는 데미지
+  },
+  // 심해 결계: DEF 높으면 HP 회복
+  ocean_abyss: {
+    stat: 'def',
+    threshold: 18,
+    bonusType: 'HP_RECOVERY',
+    bonusValue: 5  // +5 HP 회복/턴
+  },
+  // 도쿄 제1콜로니: ATK 높으면 스킬 데미지
+  tokyo_colony: {
+    stat: 'atk',
+    threshold: 18,
+    bonusType: 'SKILL_DAMAGE',
+    bonusValue: 10
+  },
+  // 센다이 콜로니: CRT 높으면 회피
+  sendai_colony: {
+    stat: 'crt',
+    threshold: 14,
+    bonusType: 'EVASION',
+    bonusValue: 8
+  },
+  // 사투암흑도박장: MNT 높으면 데미지 저항
+  idle_deaths_gamble: {
+    stat: 'mnt',
+    threshold: 15,
+    bonusType: 'DAMAGE_RESIST',
+    bonusValue: 8
+  },
+  // 헤이안 시대 신사: TEC 높으면 스킬 데미지
+  heian_shrine: {
+    stat: 'tec',
+    threshold: 15,
+    bonusType: 'SKILL_DAMAGE',
+    bonusValue: 12
+  }
+};
+
+/**
+ * 경기장의 favoredStat 가져오기
+ */
+export function getArenaFavoredStat(arenaId: string): FavoredStat | null {
+  return ARENA_FAVORED_STATS[arenaId] || null;
+}
+
+/**
+ * 캐릭터가 경기장 favoredStat 보너스를 받는지 확인
+ */
+export function checkFavoredStatBonus(
+  arenaId: string,
+  characterStats: Record<string, number>
+): { hasBonus: boolean; bonusType?: string; bonusValue?: number } {
+  const favoredStat = ARENA_FAVORED_STATS[arenaId];
+  if (!favoredStat) {
+    return { hasBonus: false };
+  }
+
+  const statValue = characterStats[favoredStat.stat] || 0;
+  if (statValue >= favoredStat.threshold) {
+    return {
+      hasBonus: true,
+      bonusType: favoredStat.bonusType,
+      bonusValue: favoredStat.bonusValue
+    };
+  }
+
+  return { hasBonus: false };
+}
