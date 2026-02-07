@@ -23,6 +23,8 @@ import { BattleAnimationScreen } from './BattleAnimationScreen';
 // import { AwardsDisplay } from './AwardsDisplay';
 // import { RewardClaimScreen } from './RewardClaimScreen';
 // import { calculateFinalRankings, calculateAwards } from '../../utils/individualLeagueSystem';
+import { getRandomArenas } from '../../data/arenaEffects';
+import { getBestOfForRound } from '../../utils/individualBattleSimulator';
 import type { IndividualMatch } from '../../types';
 
 interface IndividualLeagueScreenProps {
@@ -78,6 +80,7 @@ export function IndividualLeagueScreen({
     formatText: string;
     matchContext?: string;
     matchImplication?: string;
+    arenaIds?: string[];
   } | null>(null);
 
   // 리그 시작
@@ -121,8 +124,8 @@ export function IndividualLeagueScreen({
 
     setShowMatchPreview(false);
 
-    // 시뮬레이션 실행
-    const result = simulateIndividualMatch(pendingMatch.match.id);
+    // 시뮬레이션 실행 (사전 배정된 경기장 전달)
+    const result = simulateIndividualMatch(pendingMatch.match.id, pendingMatch.arenaIds);
 
     if (result) {
       // 애니메이션 화면 표시
@@ -136,8 +139,8 @@ export function IndividualLeagueScreen({
 
     setShowMatchPreview(false);
 
-    // 시뮬레이션 실행
-    simulateIndividualMatch(pendingMatch.match.id);
+    // 시뮬레이션 실행 (사전 배정된 경기장 전달)
+    simulateIndividualMatch(pendingMatch.match.id, pendingMatch.arenaIds);
 
     setPendingMatch(null);
   };
@@ -246,12 +249,17 @@ export function IndividualLeagueScreen({
 
     const { context, implication } = getMatchContext(matchId, match.groupId);
 
+    // 32강은 단판이므로 경기장 미리보기 불필요 (bestOf = 1)
+    const bestOf = getBestOfForRound('ROUND_32');
+    const arenaIds = bestOf > 1 ? getRandomArenas(bestOf) : [];
+
     setPendingMatch({
       match,
       roundName: `${match.groupId}조`,
       formatText: getFormatText('ROUND_32'),
       matchContext: context,
-      matchImplication: implication
+      matchImplication: implication,
+      arenaIds
     });
     setShowMatchPreview(true);
   };
@@ -262,6 +270,7 @@ export function IndividualLeagueScreen({
 
     let match: IndividualMatch | undefined;
     let roundName = '';
+    let roundStatus: string = currentLeague.status;
 
     if (currentLeague.status === 'ROUND_16') {
       match = currentLeague.brackets.round16Matches?.find(m => m.id === matchId);
@@ -279,15 +288,21 @@ export function IndividualLeagueScreen({
       } else if (currentLeague.brackets.thirdPlace?.id === matchId) {
         match = currentLeague.brackets.thirdPlace;
         roundName = '3/4위전';
+        roundStatus = 'THIRD_PLACE';
       }
     }
 
     if (!match) return;
 
+    // 다전제 경기장 사전 배정
+    const bestOf = getBestOfForRound(roundStatus);
+    const arenaIds = bestOf > 1 ? getRandomArenas(bestOf) : [];
+
     setPendingMatch({
       match,
       roundName,
       formatText: getFormatText(currentLeague.status),
+      arenaIds
     });
     setShowMatchPreview(true);
   };
@@ -538,6 +553,7 @@ export function IndividualLeagueScreen({
             formatText={pendingMatch.formatText}
             matchContext={pendingMatch.matchContext}
             matchImplication={pendingMatch.matchImplication}
+            arenaIds={pendingMatch.arenaIds}
             onStartMatch={handleStartMatchWithAnimation}
             onSkip={handleSkipMatch}
             onClose={() => {

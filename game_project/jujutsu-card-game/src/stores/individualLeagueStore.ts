@@ -93,7 +93,7 @@ interface IndividualLeagueState {
 
   // Step 2: 시뮬레이션 기반 배틀
   lastSimMatchResult: SimMatchResult | null;
-  simulateIndividualMatch: (matchId: string) => SimMatchResult | null;
+  simulateIndividualMatch: (matchId: string, preAssignedArenaIds?: string[]) => SimMatchResult | null;
   skipToNextPlayerMatch: () => IndividualMatch | null;
   findNextMatch: () => IndividualMatch | null;
 }
@@ -811,7 +811,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       // ========================================
 
       // 개인전 경기 시뮬레이션
-      simulateIndividualMatch: (matchId: string): SimMatchResult | null => {
+      simulateIndividualMatch: (matchId: string, preAssignedArenaIds?: string[]): SimMatchResult | null => {
         const { currentLeague, playMatch } = get();
         if (!currentLeague) return null;
 
@@ -905,8 +905,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         // bestOf 값 결정 (3/4위전은 별도 처리)
         const bestOf = getBestOfForRound(effectiveMatchType);
 
-        // 경기장 랜덤 선택
-        const arenaIds = getRandomArenas(bestOf);
+        // 경기장 선택: 외부에서 전달된 arenaIds가 있으면 사용, 없으면 랜덤 생성
+        const arenaIds = preAssignedArenaIds && preAssignedArenaIds.length >= bestOf
+          ? preAssignedArenaIds
+          : getRandomArenas(bestOf);
 
         // 시뮬레이션 실행
         const result = simulateBattle(participant1, participant2, arenaIds, bestOf);

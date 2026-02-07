@@ -130,14 +130,15 @@ export function getArenaById(id: string): ArenaEffect | null {
   return ARENA_EFFECTS[id] || null;
 }
 
-// 여러 개의 랜덤 경기장 선택 (중복 가능)
+// 여러 개의 랜덤 경기장 선택 (중복 없이)
 export function getRandomArenas(count: number): string[] {
   const arenaIds = Object.keys(ARENA_EFFECTS);
-  const result: string[] = [];
-  for (let i = 0; i < count; i++) {
-    result.push(arenaIds[Math.floor(Math.random() * arenaIds.length)]);
-  }
-  return result;
+
+  // 셔플 후 필요한 만큼 반환 (중복 없이)
+  const shuffled = [...arenaIds].sort(() => Math.random() - 0.5);
+
+  // 경기장 수보다 많이 요청하면 전체 반환 (10개 경기장 > 5세트이므로 충분)
+  return shuffled.slice(0, Math.min(count, arenaIds.length));
 }
 
 // 특정 속성에 유리한 경기장 찾기

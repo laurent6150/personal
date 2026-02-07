@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
+import { ARENA_EFFECTS } from '../../data/arenaEffects';
 import type { IndividualMatch, LeagueParticipant, Stats } from '../../types';
 import { Button } from '../UI/Button';
 import { useCardRecordStore } from '../../stores/cardRecordStore';
@@ -26,6 +27,7 @@ interface MatchPreviewModalProps {
   arenaName?: string;
   matchContext?: string;       // "승자전", "패자전", "최종전" 등
   matchImplication?: string;   // "승자는 16강 진출 확정!" 등
+  arenaIds?: string[];         // 다전제 경기장 ID 배열
   onStartMatch: () => void;
   onSkip: () => void;
   onClose: () => void;
@@ -202,6 +204,7 @@ export function MatchPreviewModal({
   arenaName,
   matchContext,
   matchImplication,
+  arenaIds,
   onStartMatch,
   onSkip,
   onClose
@@ -409,6 +412,75 @@ export function MatchPreviewModal({
             </div>
           </div>
         </div>
+
+        {/* 다전제 경기장 미리보기 - VS 섹션 아래, 버튼 위에 배치 */}
+        {arenaIds && arenaIds.length > 1 && (
+          <div className="px-4 md:px-6 pb-4">
+            <div className="bg-gradient-to-r from-purple-500/10 via-accent/10 to-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+              <h3 className="text-center text-sm font-bold text-purple-300 mb-3">
+                경기장 배정
+              </h3>
+              <div className={`grid gap-3 ${
+                arenaIds.length === 3 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-5'
+              }`}>
+                {arenaIds.map((arenaId, index) => {
+                  const arena = ARENA_EFFECTS[arenaId];
+                  if (!arena) return null;
+
+                  // 각 캐릭터에 대한 경기장 효과 계산
+                  const p1Attr = card1?.attribute || '';
+                  const p2Attr = card2?.attribute || '';
+                  const p1Bonus = p1Attr === arena.bonusAttribute ? `+${arena.bonusPercent}%`
+                                : p1Attr === arena.penaltyAttribute ? `-${arena.penaltyPercent}%`
+                                : '±0%';
+                  const p2Bonus = p2Attr === arena.bonusAttribute ? `+${arena.bonusPercent}%`
+                                : p2Attr === arena.penaltyAttribute ? `-${arena.penaltyPercent}%`
+                                : '±0%';
+
+                  return (
+                    <div key={index}
+                         className="bg-bg-secondary/50 rounded-lg p-3 text-center border border-white/5">
+                      {/* 세트 번호 */}
+                      <div className="text-xs text-text-secondary mb-1">
+                        세트 {index + 1}
+                      </div>
+
+                      {/* 경기장 이름 */}
+                      <div className="text-sm font-bold text-white mb-2">
+                        {arena.name}
+                      </div>
+
+                      {/* 경기장 효과 설명 */}
+                      <div className="text-xs text-text-secondary mb-2 line-clamp-2">
+                        {arena.description}
+                      </div>
+
+                      {/* 각 선수에 대한 효과 */}
+                      <div className="flex justify-between text-xs gap-2">
+                        <div className={`flex-1 rounded px-2 py-1 ${
+                          p1Bonus.startsWith('+') ? 'bg-green-500/10 text-green-400'
+                          : p1Bonus.startsWith('-') ? 'bg-red-500/10 text-red-400'
+                          : 'bg-gray-500/10 text-gray-400'
+                        }`}>
+                          <div className="truncate">{card1?.name.ko}</div>
+                          <div className="font-bold">{p1Bonus}</div>
+                        </div>
+                        <div className={`flex-1 rounded px-2 py-1 ${
+                          p2Bonus.startsWith('+') ? 'bg-green-500/10 text-green-400'
+                          : p2Bonus.startsWith('-') ? 'bg-red-500/10 text-red-400'
+                          : 'bg-gray-500/10 text-gray-400'
+                        }`}>
+                          <div className="truncate">{card2?.name.ko}</div>
+                          <div className="font-bold">{p2Bonus}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 버튼 영역 - Phase 4 Task 4.9: 뒤로가기 버튼 추가 */}
         <div className="p-4 border-t border-white/10 flex justify-center gap-4">
