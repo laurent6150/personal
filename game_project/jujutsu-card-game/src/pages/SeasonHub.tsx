@@ -14,10 +14,13 @@ import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
+import { ActivityPanel, APIndicator } from '../components/Phase5/ActivityPanel';
+import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
+import { CoachingPanel } from '../components/Phase5/CoachingPanel';
 import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
 import { GRADE_LIMITS } from '../data/aiCrews';
 import { getCharacterImage } from '../utils/imageHelper';
-import type { LeagueStanding, CharacterCard, LegacyGrade } from '../types';
+import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
@@ -90,11 +93,23 @@ export function SeasonHub({
     finalizeSeason: state.finalizeSeason
   })));
 
-  const player = usePlayerStore(state => state.player);
+  const { player, getTotalCrewSalary, getPlayerCard } = usePlayerStore(useShallow(state => ({
+    player: state.player,
+    getTotalCrewSalary: state.getTotalCrewSalary,
+    getPlayerCard: state.getPlayerCard
+  })));
+  // Phase 5: Activity Store (APIndicator에서 직접 사용)
   const standings = getCurrentStandings();
   const nextMatch = getNextMatch();
   const playerRank = getPlayerRank();
   const playoffOpponent = getPlayoffOpponent();
+
+  // 플레이어 크루 카드 정보 (ActivityPanel용)
+  const playerCrewCards: PlayerCard[] = useMemo(() => {
+    return playerCrew
+      .map(cardId => getPlayerCard(cardId))
+      .filter((card): card is PlayerCard => card !== undefined);
+  }, [playerCrew, getPlayerCard]);
 
   // 크루 선택 상태
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
@@ -646,6 +661,11 @@ export function SeasonHub({
               {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
             </p>
           </div>
+          {/* Phase 5: AP와 샐러리캡 인디케이터 */}
+          <div className="flex items-center gap-3">
+            <APIndicator />
+            <SalaryCapMini currentTotal={getTotalCrewSalary()} />
+          </div>
           <div className="text-right">
             <div className="text-sm text-text-secondary text-shadow">내 순위</div>
             <div className="text-3xl font-bold text-accent text-shadow-strong">{playerRank}위</div>
@@ -779,6 +799,38 @@ export function SeasonHub({
           </div>
         </motion.div>
       </div>
+
+      {/* Phase 5: 활동 패널 */}
+      {nextMatch && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="max-w-4xl mx-auto mt-6"
+        >
+          <ActivityPanel
+            cards={playerCrewCards}
+            season={currentSeason.number}
+            currentMatch={currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length + 1}
+          />
+        </motion.div>
+      )}
+
+      {/* Phase 5: 코칭 패널 */}
+      {nextMatch && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="max-w-4xl mx-auto mt-6"
+        >
+          <CoachingPanel
+            cards={playerCrewCards}
+            season={currentSeason.number}
+            compact
+          />
+        </motion.div>
+      )}
 
       {/* 뉴스 피드 */}
       <motion.div

@@ -21,3 +21,9 @@ export {
   ActivityPanel,
   APIndicator,
 } from './ActivityPanel';
+
+// 코칭 패널
+export {
+  CoachingPanel,
+  StrategyIndicator,
+} from './CoachingPanel';
