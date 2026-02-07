@@ -66,6 +66,12 @@ export function IndividualLeagueScreen({
   })));
 
   const playerCrew = useSeasonStore(state => state.playerCrew);
+  const { individualLeagueCompleted, teamLeagueCompleted } = useSeasonStore(
+    useShallow(state => ({
+      individualLeagueCompleted: state.individualLeagueCompleted,
+      teamLeagueCompleted: state.teamLeagueCompleted,
+    }))
+  );
 
   const [showBracket, setShowBracket] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
@@ -83,9 +89,18 @@ export function IndividualLeagueScreen({
     arenaIds?: string[];
   } | null>(null);
 
+  // 리그 시작 가능 여부 확인
+  const canStartNewLeague = (() => {
+    // 카드 5장 미만이면 불가
+    if (playerCrew.length < 5) return { allowed: false, reason: '크루에 5장 이상의 카드가 필요합니다.' };
+    // 이번 시즌 개인리그를 이미 완료했으면 불가
+    if (individualLeagueCompleted) return { allowed: false, reason: '이번 시즌 개인 리그가 완료되었습니다. 팀 리그를 완료하고 시즌을 종료해주세요.' };
+    return { allowed: true, reason: '' };
+  })();
+
   // 리그 시작
   const handleStartLeague = () => {
-    if (playerCrew.length >= 5) {
+    if (canStartNewLeague.allowed) {
       startNewLeague(playerCrew, '내 크루');
     }
   };
@@ -364,16 +379,37 @@ export function IndividualLeagueScreen({
             <Button
               variant="primary"
               onClick={handleStartLeague}
-              disabled={playerCrew.length < 5}
+              disabled={!canStartNewLeague.allowed}
               className="px-8"
             >
               🚀 리그 시작
             </Button>
 
-            {playerCrew.length < 5 && (
+            {!canStartNewLeague.allowed && (
               <p className="text-sm text-red-400 mt-2">
-                크루에 5장 이상의 카드가 필요합니다.
+                {canStartNewLeague.reason}
               </p>
+            )}
+
+            {/* 개인리그 완료 후 안내 */}
+            {individualLeagueCompleted && (
+              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="text-4xl mb-2">✅</div>
+                <h3 className="text-lg font-bold text-green-400 mb-2">
+                  이번 시즌 개인 리그 완료!
+                </h3>
+                <p className="text-text-secondary text-sm mb-3">
+                  {teamLeagueCompleted
+                    ? '팀 리그도 완료되었습니다. 시즌 허브에서 시즌을 종료해주세요.'
+                    : '팀 리그를 완료하면 시즌을 종료할 수 있습니다.'
+                  }
+                </p>
+                {onBack && (
+                  <Button variant="secondary" onClick={onBack}>
+                    ← 시즌 허브로 돌아가기
+                  </Button>
+                )}
+              </div>
             )}
           </motion.div>
 

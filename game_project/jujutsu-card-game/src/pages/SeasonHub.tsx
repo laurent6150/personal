@@ -61,7 +61,12 @@ export function SeasonHub({
     getPlayoffOpponent,
     resetGame,
     getAICrewById,
-    getHeadToHead
+    getHeadToHead,
+    // Phase 4: 시즌 동기화
+    teamLeagueCompleted,
+    individualLeagueCompleted,
+    isSeasonComplete,
+    finalizeSeason
   } = useSeasonStore(useShallow(state => ({
     isInitialized: state.isInitialized,
     playerCrew: state.playerCrew,
@@ -77,7 +82,12 @@ export function SeasonHub({
     getPlayoffOpponent: state.getPlayoffOpponent,
     resetGame: state.resetGame,
     getAICrewById: state.getAICrewById,
-    getHeadToHead: state.getHeadToHead
+    getHeadToHead: state.getHeadToHead,
+    // Phase 4: 시즌 동기화
+    teamLeagueCompleted: state.teamLeagueCompleted,
+    individualLeagueCompleted: state.individualLeagueCompleted,
+    isSeasonComplete: state.isSeasonComplete,
+    finalizeSeason: state.finalizeSeason
   })));
 
   const player = usePlayerStore(state => state.player);
@@ -439,9 +449,46 @@ export function SeasonHub({
             </div>
           </div>
 
-          <Button onClick={startNewSeason} variant="primary" size="lg" className="w-full mb-3">
-            다음 시즌 시작
-          </Button>
+          {/* Phase 4: 시즌 완료 상태에 따른 분기 */}
+          {isSeasonComplete() ? (
+            <>
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
+                <div className="text-sm text-green-400 mb-1">✅ 양쪽 리그 모두 완료!</div>
+                <div className="text-xs text-text-secondary">
+                  시즌을 종료하고 경험치를 수령하세요.
+                </div>
+              </div>
+              <Button
+                onClick={() => {
+                  finalizeSeason();
+                  startNewSeason();
+                }}
+                variant="primary"
+                size="lg"
+                className="w-full mb-3"
+              >
+                🎁 시즌 종료 & 다음 시즌 시작
+              </Button>
+            </>
+          ) : teamLeagueCompleted && !individualLeagueCompleted ? (
+            <>
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                <div className="text-sm text-yellow-400 mb-1">⏳ 개인 리그 미완료</div>
+                <div className="text-xs text-text-secondary">
+                  개인 리그를 완료하면 시즌을 종료할 수 있습니다.
+                </div>
+              </div>
+              {onIndividualLeague && (
+                <Button onClick={onIndividualLeague} variant="primary" size="lg" className="w-full mb-3">
+                  🏆 개인 리그로 이동
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button onClick={startNewSeason} variant="primary" size="lg" className="w-full mb-3">
+              다음 시즌 시작
+            </Button>
+          )}
 
           <Button
             onClick={() => setShowResetConfirm(true)}

@@ -304,10 +304,19 @@ export const useSeasonStore = create<SeasonState>()(
 
       // 시즌 시작 (첫 시즌 또는 다음 시즌)
       startNewSeason: () => {
-        const { isInitialized, seasonHistory, playerCrew } = get();
+        const { isInitialized, seasonHistory, playerCrew, teamLeagueCompleted, individualLeagueCompleted } = get();
 
         if (!isInitialized) {
           console.error('먼저 initializeGame을 호출하세요');
+          return;
+        }
+
+        // 시즌 2 이상부터: 이전 시즌의 양쪽 리그가 finalizeSeason으로 정산된 후에만 시작 가능
+        // finalizeSeason()이 completed 플래그를 false로 리셋하므로,
+        // 아직 true인 상태 = finalizeSeason 미호출 = 다음 시즌 시작 불가
+        // 단, 첫 시즌(seasonHistory.length === 0)은 체크 불필요
+        if (seasonHistory.length > 0 && (teamLeagueCompleted || individualLeagueCompleted)) {
+          console.warn('[startNewSeason] 이전 시즌의 finalizeSeason이 완료되지 않았습니다');
           return;
         }
 
@@ -601,6 +610,9 @@ export const useSeasonStore = create<SeasonState>()(
             },
             seasonHistory: [...get().seasonHistory, newHistory]
           });
+
+          // Phase 4: 팀 리그 완료 마킹
+          get().markTeamLeagueComplete();
           return;
         }
 
@@ -725,6 +737,9 @@ export const useSeasonStore = create<SeasonState>()(
                 },
                 seasonHistory: [...get().seasonHistory, newHistory]
               });
+
+              // Phase 4: 팀 리그 완료 마킹 (준결승 탈락)
+              get().markTeamLeagueComplete();
             }
           } else {
             set({
@@ -782,6 +797,9 @@ export const useSeasonStore = create<SeasonState>()(
               },
               seasonHistory: [...get().seasonHistory, newHistory]
             });
+
+            // Phase 4: 팀 리그 완료 마킹 (결승 종료)
+            get().markTeamLeagueComplete();
           } else {
             set({
               currentSeason: {

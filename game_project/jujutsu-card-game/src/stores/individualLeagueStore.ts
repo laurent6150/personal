@@ -113,13 +113,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 새 리그 시작
       startNewLeague: (playerCrewIds: string[], playerCrewName = '내 크루') => {
-        const { currentSeason, hallOfFame } = get();
+        // seasonStore에서 현재 시즌 번호 가져오기
+        const seasonStoreState = useSeasonStore.getState();
+        const seasonNumber = seasonStoreState.currentSeason?.number ||
+                             seasonStoreState.seasonHistory.length + 1;
+
+        // 개인 리그 완료 여부 체크 (이미 이번 시즌 개인리그를 완료했으면 시작 불가)
+        if (seasonStoreState.individualLeagueCompleted) {
+          console.warn('[startNewLeague] 이번 시즌 개인 리그가 이미 완료되었습니다. 시즌 종료를 먼저 처리하세요.');
+          return;
+        }
+
+        const { hallOfFame } = get();
 
         // 전 시즌 1~4위 시드 계산 (시즌 2부터)
         let seeds: string[] = [];
-        if (currentSeason > 1) {
+        if (seasonNumber > 1) {
           // 이전 시즌 결과에서 시드 추출
-          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === currentSeason - 1);
+          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === seasonNumber - 1);
           if (prevSeasonHallOfFame.length > 0) {
             seeds.push(prevSeasonHallOfFame[0].championId);  // 1위
           }
@@ -143,7 +154,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           }));
 
         const league: IndividualLeague = {
-          season: currentSeason,
+          season: seasonNumber,     // seasonStore 기반 시즌 번호 사용
           status: 'ROUND_32',
           participants,
           brackets,
@@ -155,7 +166,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           myCardResults
         };
 
-        set({ currentLeague: league });
+        set({
+          currentSeason: seasonNumber,
+          currentLeague: league
+        });
       },
 
       // 경기 결과 기록 (플레이어 직접 플레이 또는 시뮬레이션)
@@ -445,7 +459,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 리그 종료 및 히스토리 저장 (Step 2.5b-1: 경험치 지급 추가)
       finishLeague: () => {
-        const { currentLeague, history, hallOfFame, currentSeason } = get();
+        const { currentLeague, history, hallOfFame } = get();
         if (!currentLeague || currentLeague.status !== 'FINISHED') return;
 
         const champion = currentLeague.champion;
@@ -535,7 +549,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         set({
           history: [...history, historyEntry],
           hallOfFame: [...hallOfFame, hallEntry],
-          currentSeason: currentSeason + 1,
+          // currentSeason 증가는 finalizeSeason 이후 다음 시즌 시작 시 자동 반영
           currentLeague: null
         });
 
