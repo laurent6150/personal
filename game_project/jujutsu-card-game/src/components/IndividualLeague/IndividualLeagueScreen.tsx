@@ -249,9 +249,8 @@ export function IndividualLeagueScreen({
 
     const { context, implication } = getMatchContext(matchId, match.groupId);
 
-    // 32강은 단판이므로 경기장 미리보기 불필요 (bestOf = 1)
-    const bestOf = getBestOfForRound('ROUND_32');
-    const arenaIds = bestOf > 1 ? getRandomArenas(bestOf) : [];
+    // 32강: 단판이므로 경기장 1개
+    const arenaIds = getRandomArenas(1);
 
     setPendingMatch({
       match,

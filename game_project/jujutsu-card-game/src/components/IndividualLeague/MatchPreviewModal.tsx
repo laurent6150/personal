@@ -196,12 +196,60 @@ function RadarChart({ stats, color, size = 180, showLabels = true }: { stats: St
   );
 }
 
+// 단판용: 경기장 효과 행 (한 줄)
+function ArenaEffectRow({ name, attr, arena }: {
+  name: string;
+  attr: string;
+  arena: { bonusAttribute: string; bonusPercent: number; penaltyAttribute: string; penaltyPercent: number }
+}) {
+  const isBonus = attr === arena.bonusAttribute;
+  const isPenalty = attr === arena.penaltyAttribute;
+  const text = isBonus ? `+${arena.bonusPercent}%`
+             : isPenalty ? `-${arena.penaltyPercent}%`
+             : '±0%';
+  const colorClass = isBonus ? 'text-green-400 bg-green-500/10'
+                   : isPenalty ? 'text-red-400 bg-red-500/10'
+                   : 'text-gray-400 bg-gray-500/10';
+
+  return (
+    <div className={`flex items-center justify-between text-xs rounded px-2 py-1 ${colorClass}`}>
+      <span className="truncate max-w-[80px]">{name}</span>
+      <span className="font-bold">
+        {isBonus && '▲ '}{isPenalty && '▼ '}{text}
+      </span>
+    </div>
+  );
+}
+
+// 다전제용: 경기장 효과 배지 (컴팩트)
+function ArenaEffectBadge({ name, attr, arena }: {
+  name: string;
+  attr: string;
+  arena: { bonusAttribute: string; bonusPercent: number; penaltyAttribute: string; penaltyPercent: number }
+}) {
+  const isBonus = attr === arena.bonusAttribute;
+  const isPenalty = attr === arena.penaltyAttribute;
+  const text = isBonus ? `+${arena.bonusPercent}%`
+             : isPenalty ? `-${arena.penaltyPercent}%`
+             : '±0%';
+  const colorClass = isBonus ? 'text-green-400 bg-green-500/15'
+                   : isPenalty ? 'text-red-400 bg-red-500/15'
+                   : 'text-gray-400 bg-gray-500/10';
+
+  return (
+    <div className={`flex-1 text-center text-xs rounded px-1.5 py-0.5 ${colorClass}`}>
+      <span className="truncate">{name.slice(0, 4)}</span>
+      <span className="font-bold ml-1">{text}</span>
+    </div>
+  );
+}
+
 export function MatchPreviewModal({
   match,
   participants,
   roundName,
   formatText,
-  arenaName,
+  arenaName: _arenaName, // 하위 호환 유지 (unused)
   matchContext,
   matchImplication,
   arenaIds,
@@ -209,6 +257,7 @@ export function MatchPreviewModal({
   onSkip,
   onClose
 }: MatchPreviewModalProps) {
+  // _arenaName은 하위 호환을 위해 유지되지만, arenaIds로 대체됨
   const p1 = participants.find(p => p.odId === match.participant1);
   const p2 = participants.find(p => p.odId === match.participant2);
   const card1 = CHARACTERS_BY_ID[match.participant1];
@@ -323,15 +372,84 @@ export function MatchPreviewModal({
 
             {/* 중앙 VS */}
             <div className="flex flex-col items-center justify-center px-4 py-4">
-              <div className="text-5xl font-bold text-white mb-4">VS</div>
-              <div className="text-lg text-text-secondary mb-4">0 : 0</div>
 
-              {arenaName && (
-                <div className="bg-bg-secondary rounded-lg px-4 py-2 text-center mb-4">
-                  <div className="text-xs text-text-secondary">경기장</div>
-                  <div className="text-sm text-accent font-bold">{arenaName}</div>
+              {/* ===== 경기장 정보 (VS 윗부분) ===== */}
+              {arenaIds && arenaIds.length > 0 && (
+                <div className="bg-gradient-to-b from-purple-900/30 to-bg-secondary/40
+                                border border-purple-500/20 rounded-xl p-3 mb-4 w-full max-w-[220px]">
+
+                  {/* 단판 (32강): 경기장 1개 */}
+                  {arenaIds.length === 1 && (() => {
+                    const arena = ARENA_EFFECTS[arenaIds[0]];
+                    if (!arena) return null;
+                    const p1Attr = card1?.attribute || '';
+                    const p2Attr = card2?.attribute || '';
+
+                    return (
+                      <div className="text-center">
+                        <div className="text-xs text-purple-300 mb-1">경기장</div>
+                        <div className="text-sm font-bold text-white mb-2">
+                          {arena.name}
+                        </div>
+                        <div className="text-xs text-text-secondary mb-2">
+                          {arena.description}
+                        </div>
+                        {/* 양 선수 효과 */}
+                        <div className="space-y-1">
+                          <ArenaEffectRow name={card1?.name.ko || '???'} attr={p1Attr} arena={arena} />
+                          <ArenaEffectRow name={card2?.name.ko || '???'} attr={p2Attr} arena={arena} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 다전제 (16강~): 세트별 경기장 */}
+                  {arenaIds.length > 1 && (
+                    <div>
+                      <div className="text-xs text-purple-300 text-center mb-2">
+                        세트별 경기장
+                      </div>
+                      <div className="space-y-2">
+                        {arenaIds.map((arenaId, idx) => {
+                          const arena = ARENA_EFFECTS[arenaId];
+                          if (!arena) return null;
+                          const p1Attr = card1?.attribute || '';
+                          const p2Attr = card2?.attribute || '';
+
+                          return (
+                            <div key={idx} className="bg-bg-primary/30 rounded-lg p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-yellow-400 font-bold">
+                                  Set {idx + 1}
+                                </span>
+                                <span className="text-xs font-bold text-white">
+                                  {arena.name}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                <ArenaEffectBadge
+                                  name={card1?.name.ko || '???'}
+                                  attr={p1Attr}
+                                  arena={arena}
+                                />
+                                <ArenaEffectBadge
+                                  name={card2?.name.ko || '???'}
+                                  attr={p2Attr}
+                                  arena={arena}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* VS */}
+              <div className="text-5xl font-bold text-white mb-4">VS</div>
+              <div className="text-lg text-text-secondary mb-4">0 : 0</div>
 
               {/* Phase 4.3: 통합 상대전적 표시 (항상 표시) */}
               <div className="bg-bg-secondary/50 rounded-lg p-3 w-full mt-2">
@@ -412,75 +530,6 @@ export function MatchPreviewModal({
             </div>
           </div>
         </div>
-
-        {/* 다전제 경기장 미리보기 - VS 섹션 아래, 버튼 위에 배치 */}
-        {arenaIds && arenaIds.length > 1 && (
-          <div className="px-4 md:px-6 pb-4">
-            <div className="bg-gradient-to-r from-purple-500/10 via-accent/10 to-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-              <h3 className="text-center text-sm font-bold text-purple-300 mb-3">
-                경기장 배정
-              </h3>
-              <div className={`grid gap-3 ${
-                arenaIds.length === 3 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-5'
-              }`}>
-                {arenaIds.map((arenaId, index) => {
-                  const arena = ARENA_EFFECTS[arenaId];
-                  if (!arena) return null;
-
-                  // 각 캐릭터에 대한 경기장 효과 계산
-                  const p1Attr = card1?.attribute || '';
-                  const p2Attr = card2?.attribute || '';
-                  const p1Bonus = p1Attr === arena.bonusAttribute ? `+${arena.bonusPercent}%`
-                                : p1Attr === arena.penaltyAttribute ? `-${arena.penaltyPercent}%`
-                                : '±0%';
-                  const p2Bonus = p2Attr === arena.bonusAttribute ? `+${arena.bonusPercent}%`
-                                : p2Attr === arena.penaltyAttribute ? `-${arena.penaltyPercent}%`
-                                : '±0%';
-
-                  return (
-                    <div key={index}
-                         className="bg-bg-secondary/50 rounded-lg p-3 text-center border border-white/5">
-                      {/* 세트 번호 */}
-                      <div className="text-xs text-text-secondary mb-1">
-                        세트 {index + 1}
-                      </div>
-
-                      {/* 경기장 이름 */}
-                      <div className="text-sm font-bold text-white mb-2">
-                        {arena.name}
-                      </div>
-
-                      {/* 경기장 효과 설명 */}
-                      <div className="text-xs text-text-secondary mb-2 line-clamp-2">
-                        {arena.description}
-                      </div>
-
-                      {/* 각 선수에 대한 효과 */}
-                      <div className="flex justify-between text-xs gap-2">
-                        <div className={`flex-1 rounded px-2 py-1 ${
-                          p1Bonus.startsWith('+') ? 'bg-green-500/10 text-green-400'
-                          : p1Bonus.startsWith('-') ? 'bg-red-500/10 text-red-400'
-                          : 'bg-gray-500/10 text-gray-400'
-                        }`}>
-                          <div className="truncate">{card1?.name.ko}</div>
-                          <div className="font-bold">{p1Bonus}</div>
-                        </div>
-                        <div className={`flex-1 rounded px-2 py-1 ${
-                          p2Bonus.startsWith('+') ? 'bg-green-500/10 text-green-400'
-                          : p2Bonus.startsWith('-') ? 'bg-red-500/10 text-red-400'
-                          : 'bg-gray-500/10 text-gray-400'
-                        }`}>
-                          <div className="truncate">{card2?.name.ko}</div>
-                          <div className="font-bold">{p2Bonus}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* 버튼 영역 - Phase 4 Task 4.9: 뒤로가기 버튼 추가 */}
         <div className="p-4 border-t border-white/10 flex justify-center gap-4">
