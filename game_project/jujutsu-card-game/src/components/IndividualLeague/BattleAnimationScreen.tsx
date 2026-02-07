@@ -404,13 +404,15 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
         setP2Hp(winnerHp);
       }
 
-      setIsAnimating(false);
-
-      // 세트 종료로 전환
-      await new Promise(r => setTimeout(r, getDelay(500)));
+      // Phase 4.3 버그 수정: phase를 먼저 SET_END로 변경하여
+      // useEffect에서 전투가 재시작되는 것을 방지
+      // (기존: isAnimating=false 후 500ms 대기 중 phase가 BATTLE이어서 재시작됨)
       if (!shouldStopRef.current) {
         setPhase('SET_END');
       }
+
+      // phase 변경 후에 isAnimating을 false로 설정
+      setIsAnimating(false);
     };
 
     animateTurns();
