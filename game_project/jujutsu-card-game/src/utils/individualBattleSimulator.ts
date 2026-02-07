@@ -87,30 +87,29 @@ export function applyArenaEffect(
 
 
 // ═══════════════════════════════════════════════════════════
-// 데미지 계산 (Phase 3 밸런스 조정)
+// 데미지 계산 (Phase 4.3 밸런스 조정 - 10턴 내외 종료 목표)
 // ═══════════════════════════════════════════════════════════
 
-// 전투 밸런스 상수 (Phase 4.3: 20~30턴 전투를 위한 밸런스 조정)
+// 전투 밸런스 상수 (Phase 4.3: 8~12턴 전투를 위한 밸런스 조정)
+// HP: 100, 목표 종료 턴: 8~12턴, 턴당 평균 데미지: 8~12
 const BATTLE_BALANCE = {
-  // 기본 데미지 계수 (하향 조정 - 전투 지속시간 증가)
-  BASE_DAMAGE_MULTIPLIER: 0.8,
+  // 기본 데미지 계수 (ATK 기반)
+  ATK_COEFFICIENT: 0.4,
+  BASE_DAMAGE_BONUS: 5,
 
-  // ATK 스케일링
-  ATK_SCALING: 0.5,
+  // 방어력 감소율 (최대 30% 감소)
+  DEF_REDUCTION_RATE: 0.3,
+  MAX_DEF_REDUCTION_PERCENT: 30,
 
-  // DEF 감소율 (상향 조정 - 방어력 효과 증가)
-  DEF_REDUCTION_RATE: 0.4,
-
-  // 스킬 배율
-  SKILL_MULTIPLIER: 1.5,
-  ULTIMATE_MULTIPLIER: 2.5,
+  // 스킬/필살기 배율
+  SKILL_MULTIPLIER: 1.3,      // 스킬: 1.3배
+  ULTIMATE_MULTIPLIER: 2.0,   // 필살기: 2.0배
 
   // 크리티컬 배율
-  CRITICAL_MULTIPLIER: 1.4,
+  CRITICAL_MULTIPLIER: 1.5,   // 크리티컬: 1.5배
 
-  // 최소/최대 데미지 (Phase 4.3: 최대 데미지 제한으로 긴 전투 유도)
-  MIN_DAMAGE: 2,
-  MAX_DAMAGE_PERCENT: 0.08,  // 최대 HP의 8% (20~30턴 전투를 위해)
+  // 최소 데미지 보장
+  MIN_DAMAGE: 5,
 
   // 턴 제한
   MAX_TURNS: 30
@@ -130,63 +129,77 @@ export function calculateDamage(
 ): DamageResult {
   const atkChar = getCharacterById(attacker.odId);
 
-  // 기본 데미지 (공격력 기반 + 스케일링 상향)
+  // Phase 4.3: 새로운 데미지 계산 공식 (10턴 내외 종료 목표)
+  // 1. 기본 데미지 (ATK 기반) - ATK 20 기준 약 13 데미지
   const baseAtk = attacker.baseStats.atk;
   const baseDef = defender.baseStats.def;
+  let baseDamage = Math.round(baseAtk * BATTLE_BALANCE.ATK_COEFFICIENT + BATTLE_BALANCE.BASE_DAMAGE_BONUS);
 
-  // 주력(CE) 보너스
-  const ceBonus = 1 + (attacker.baseStats.ce / 200);
+  // 2. 방어력 적용 (최대 30% 감소)
+  const defenseReduction = Math.min(
+    baseDef * BATTLE_BALANCE.DEF_REDUCTION_RATE,
+    BATTLE_BALANCE.MAX_DEF_REDUCTION_PERCENT
+  );
+  baseDamage = Math.round(baseDamage * (1 - defenseReduction / 100));
 
-  // 기본 데미지 계산 (상향 조정)
-  let baseDamage = baseAtk * BATTLE_BALANCE.ATK_SCALING * BATTLE_BALANCE.BASE_DAMAGE_MULTIPLIER * ceBonus;
+  // 3. 최소 데미지 보장
+  baseDamage = Math.max(baseDamage, BATTLE_BALANCE.MIN_DAMAGE);
 
-  // 방어력 감소 (하향 조정)
-  const defReduction = baseDef * BATTLE_BALANCE.DEF_REDUCTION_RATE;
-  baseDamage = Math.max(baseDamage - defReduction, BATTLE_BALANCE.MIN_DAMAGE);
-
-  // 총합 차이에 따른 보정 (조정된 총합 사용)
+  // 4. 총합 차이에 따른 미세 보정 (±20% 범위)
   const statDiff = attacker.adjustedTotal - defender.adjustedTotal;
-  const statBonus = 1 + (statDiff / 500);
-  baseDamage *= Math.max(0.5, Math.min(1.5, statBonus));
+  const statBonus = 1 + (statDiff / 1000); // 더 약한 보정
+  baseDamage = Math.round(baseDamage * Math.max(0.8, Math.min(1.2, statBonus)));
 
-  // 크리티컬 체크
-  const critChance = attacker.baseStats.crt / 150; // crt 50이면 33%
-  const isCritical = Math.random() < critChance;
-  if (isCritical) {
-    baseDamage *= BATTLE_BALANCE.CRITICAL_MULTIPLIER;
-  }
+  // 5. 랜덤 변동 (±10%)
+  const variance = 0.9 + Math.random() * 0.2;
+  baseDamage = Math.round(baseDamage * variance);
 
-  // 랜덤 변동 (+-15%)
-  const variance = 0.85 + Math.random() * 0.3;
-  baseDamage *= variance;
-
-  // 액션 타입 결정 (확률 기반)
+  // 6. 액션 타입 결정 (확률 기반)
   // 일반: 60%, 스킬: 30%, 필살기: 10%
   let actionType: 'basic' | 'skill' | 'ultimate' = 'basic';
   let actionName = atkChar?.basicSkills?.[0]?.name || '기본 공격';
+  let multiplier = 1.0;
 
   const roll = Math.random() * 100;
 
-  // 5턴 이후 필살기 발동 가능
+  // 5턴 이후 필살기 발동 가능 (10% 확률)
   if (turnNumber >= 5 && roll < 10) {
     actionType = 'ultimate';
     actionName = atkChar?.ultimateSkill?.name || '필살기';
-    baseDamage *= BATTLE_BALANCE.ULTIMATE_MULTIPLIER;
+    multiplier = BATTLE_BALANCE.ULTIMATE_MULTIPLIER;
   }
   // 스킬 발동 (30% 확률)
   else if (roll < 40) {
     actionType = 'skill';
     const skillIndex = Math.floor(Math.random() * (atkChar?.basicSkills?.length || 1));
     actionName = atkChar?.basicSkills?.[skillIndex]?.name || '특수 기술';
-    baseDamage *= BATTLE_BALANCE.SKILL_MULTIPLIER;
+    multiplier = BATTLE_BALANCE.SKILL_MULTIPLIER;
   }
 
-  // 최대 데미지 제한 (HP의 40%)
-  const maxDamage = defender.maxHp * BATTLE_BALANCE.MAX_DAMAGE_PERCENT;
-  const finalDamage = Math.min(Math.round(baseDamage), maxDamage);
+  // 7. 크리티컬 체크 (crt 50 기준 ~33% 확률)
+  const critChance = attacker.baseStats.crt / 150;
+  const isCritical = Math.random() < critChance;
+
+  // 8. 최종 데미지 계산
+  let finalDamage = Math.round(baseDamage * multiplier);
+
+  // 크리티컬은 최종 데미지에 곱하기 (스킬/필살기와 중복)
+  if (isCritical) {
+    finalDamage = Math.round(finalDamage * BATTLE_BALANCE.CRITICAL_MULTIPLIER);
+  }
+
+  // 최소 데미지 보장
+  finalDamage = Math.max(BATTLE_BALANCE.MIN_DAMAGE, finalDamage);
+
+  // 예상 결과 (ATK 20, DEF 15 기준):
+  // - 일반 공격: (20*0.4+5) * (1-15*0.3/100) = 13 * 0.955 ≈ 12 데미지
+  // - 스킬: 12 * 1.3 ≈ 16 데미지
+  // - 크리티컬: 12 * 1.5 ≈ 18 데미지
+  // - 필살기: 12 * 2.0 ≈ 24 데미지
+  // - 10턴 내 종료 예상
 
   return {
-    damage: Math.max(BATTLE_BALANCE.MIN_DAMAGE, finalDamage),
+    damage: finalDamage,
     isCritical,
     actionType,
     actionName,

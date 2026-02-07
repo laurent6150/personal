@@ -511,15 +511,8 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
         <div className="max-w-4xl w-full">
           <div className="flex items-center justify-between gap-8">
 
-            {/* P1 (왼쪽) */}
-            <motion.div
-              animate={{
-                x: attackingPlayer === 'p1' ? 50 : 0,
-                scale: attackingPlayer === 'p1' ? 1.1 : 1,
-              }}
-              transition={{ duration: 0.15 }}
-              className="flex-1 text-center"
-            >
+            {/* P1 (왼쪽) - Phase 4.3: 카드 고정 (움직임 애니메이션 제거) */}
+            <div className="flex-1 text-center relative">
               {/* 캐릭터 이미지 */}
               <div className={`
                 w-40 h-40 mx-auto rounded-xl overflow-hidden mb-4
@@ -595,7 +588,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
 
             {/* VS + 턴 카운터 + 스킬 이펙트 */}
             <div className="relative flex flex-col items-center">
@@ -623,15 +616,8 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
               </AnimatePresence>
             </div>
 
-            {/* P2 (오른쪽) */}
-            <motion.div
-              animate={{
-                x: attackingPlayer === 'p2' ? -50 : 0,
-                scale: attackingPlayer === 'p2' ? 1.1 : 1,
-              }}
-              transition={{ duration: 0.15 }}
-              className="flex-1 text-center"
-            >
+            {/* P2 (오른쪽) - Phase 4.3: 카드 고정 (움직임 애니메이션 제거) */}
+            <div className="flex-1 text-center relative">
               {/* 캐릭터 이미지 */}
               <div className={`
                 w-40 h-40 mx-auto rounded-xl overflow-hidden mb-4
@@ -707,7 +693,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           </div>
 
           {/* 전투 로그 (Phase 4.2: TurnBattleModal 스타일) */}
