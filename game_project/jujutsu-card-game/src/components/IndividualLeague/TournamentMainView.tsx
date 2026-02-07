@@ -1,6 +1,7 @@
 // ========================================
 // 16강~결승 토너먼트 메인 뷰 (Phase 3)
 // 카드형 UI 적용
+// Phase 4 Task 4.10: 미니 레이더 차트 추가
 // ========================================
 
 import { useState } from 'react';
@@ -9,6 +10,60 @@ import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
 import type { IndividualMatch, LeagueParticipant, Stats } from '../../types';
 import { Button } from '../UI/Button';
+
+// Phase 4.2: 스탯별 최대값 상수 (레이더 차트 스케일링용)
+const STAT_MAX_VALUES: Record<string, number> = {
+  atk: 35,   // 공격력 최대 기준
+  def: 35,   // 방어력 최대 기준
+  spd: 35,   // 속도 최대 기준
+  hp: 120,   // 체력 최대 기준 (HP는 다른 스탯보다 높음)
+  ce: 35,    // 주술력 최대 기준
+  crt: 25,   // 치명타 최대 기준
+  tec: 25,   // 기술 최대 기준
+  mnt: 25,   // 정신 최대 기준
+};
+
+// Phase 4.2: 미니 레이더 차트 컴포넌트 (스탯별 최대값 적용)
+function MiniRadarChart({ stats, color, size = 80 }: { stats: Stats; color: string; size?: number }) {
+  const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'hp', 'ce', 'crt', 'tec', 'mnt'];
+
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = (size / 2) - 8;
+
+  // 각 스탯 포인트 계산 (스탯별 최대값 적용)
+  const points = statKeys.map((key, index) => {
+    const value = stats[key] || 0;
+    const maxStat = STAT_MAX_VALUES[key] || 35;
+    const normalizedValue = Math.min(value / maxStat, 1);
+    const angle = (Math.PI * 2 * index) / statKeys.length - Math.PI / 2;
+    const x = centerX + radius * normalizedValue * Math.cos(angle);
+    const y = centerY + radius * normalizedValue * Math.sin(angle);
+    return { x, y };
+  });
+
+  // 다각형 path 생성
+  const polygonPath = points.map((p, i) =>
+    `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+  ).join(' ') + ' Z';
+
+  // 배경 그리드
+  const gridPath = statKeys.map((_, index) => {
+    const angle = (Math.PI * 2 * index) / statKeys.length - Math.PI / 2;
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ') + ' Z';
+
+  return (
+    <svg width={size} height={size}>
+      {/* 배경 그리드 */}
+      <path d={gridPath} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+      {/* 스탯 영역 */}
+      <path d={polygonPath} fill={color} fillOpacity={0.4} stroke={color} strokeWidth="1.5" />
+    </svg>
+  );
+}
 
 interface TournamentMainViewProps {
   stage: 'ROUND_16' | 'QUARTER' | 'SEMI' | 'FINAL';
@@ -97,6 +152,25 @@ function TournamentMatchCard({
            ((stats as Stats).crt || 50) + ((stats as Stats).tec || 50) + ((stats as Stats).mnt || 50);
   };
 
+  // Phase 4 Task 4.10: 8스탯 전체 가져오기
+  const getFullStats = (card: typeof card1): Stats => {
+    if (!card) return { atk: 0, def: 0, spd: 0, hp: 0, ce: 0, crt: 0, tec: 0, mnt: 0 };
+    const stats = card.baseStats;
+    return {
+      atk: stats.atk || 0,
+      def: stats.def || 0,
+      spd: stats.spd || 0,
+      hp: stats.hp || 0,
+      ce: stats.ce || 0,
+      crt: (stats as Stats).crt || 50,
+      tec: (stats as Stats).tec || 50,
+      mnt: (stats as Stats).mnt || 50,
+    };
+  };
+
+  const stats1 = getFullStats(card1);
+  const stats2 = getFullStats(card2);
+
   // 접힌 상태
   if (!expanded && !isNext) {
     return (
@@ -182,14 +256,13 @@ function TournamentMatchCard({
           </div>
           <div className="text-xs text-text-secondary">{p1?.crewName || '???'}</div>
           <div className="text-xs text-accent">{card1?.grade || '???'}</div>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-            <div>ATK: <span className="text-red-400">{card1?.baseStats.atk || 0}</span></div>
-            <div>DEF: <span className="text-blue-400">{card1?.baseStats.def || 0}</span></div>
-            <div>SPD: <span className="text-yellow-400">{card1?.baseStats.spd || 0}</span></div>
-            <div>HP: <span className="text-green-400">{card1?.baseStats.hp || 0}</span></div>
-          </div>
-          <div className="mt-1 text-xs text-text-secondary">
-            총합: <span className="text-white font-bold">{getTotalStats(card1)}</span>
+          {/* Phase 4 Task 4.10: 미니 레이더 차트 */}
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <MiniRadarChart stats={stats1} color="#ef4444" size={70} />
+            <div className="text-xs">
+              <div className="text-text-secondary">총합</div>
+              <div className="text-white font-bold text-lg">{getTotalStats(card1)}</div>
+            </div>
           </div>
         </div>
 
@@ -240,14 +313,13 @@ function TournamentMatchCard({
           </div>
           <div className="text-xs text-text-secondary">{p2?.crewName || '???'}</div>
           <div className="text-xs text-accent">{card2?.grade || '???'}</div>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-            <div>ATK: <span className="text-red-400">{card2?.baseStats.atk || 0}</span></div>
-            <div>DEF: <span className="text-blue-400">{card2?.baseStats.def || 0}</span></div>
-            <div>SPD: <span className="text-yellow-400">{card2?.baseStats.spd || 0}</span></div>
-            <div>HP: <span className="text-green-400">{card2?.baseStats.hp || 0}</span></div>
-          </div>
-          <div className="mt-1 text-xs text-text-secondary">
-            총합: <span className="text-white font-bold">{getTotalStats(card2)}</span>
+          {/* Phase 4 Task 4.10: 미니 레이더 차트 */}
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <MiniRadarChart stats={stats2} color="#3b82f6" size={70} />
+            <div className="text-xs">
+              <div className="text-text-secondary">총합</div>
+              <div className="text-white font-bold text-lg">{getTotalStats(card2)}</div>
+            </div>
           </div>
         </div>
       </div>

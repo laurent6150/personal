@@ -20,6 +20,17 @@ import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCre
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 
+// Phase 4: 경험치 누적 타입
+interface PendingExpData {
+  teamLeagueExp: number;
+  individualLeagueExp: number;
+  details: {
+    source: 'TEAM_WIN' | 'TEAM_LOSE' | 'INDIVIDUAL_RANK';
+    amount: number;
+    description: string;
+  }[];
+}
+
 interface SeasonState {
   // 게임 상태
   isInitialized: boolean;
@@ -35,6 +46,13 @@ interface SeasonState {
 
   // 시즌 시작 시 캐릭터 레벨 스냅샷 (성장 추적용)
   seasonStartLevels: Record<string, number>;
+
+  // Phase 4: 경험치 누적 (시즌 종료 시 합산 지급)
+  pendingExp: Record<string, PendingExpData>;
+
+  // Phase 4: 리그 완료 상태
+  teamLeagueCompleted: boolean;
+  individualLeagueCompleted: boolean;
 
   // 액션
   initializeGame: (playerCrew: string[]) => void;
@@ -52,6 +70,15 @@ interface SeasonState {
   getHeadToHead: (opponentId: string) => HeadToHeadRecord | null;
   isRegularSeasonComplete: () => boolean;
   getSeasonSummary: () => SeasonSummary | null;
+
+  // Phase 4: 경험치 누적 및 시즌 동기화
+  addPendingExp: (cardId: string, source: 'TEAM_WIN' | 'TEAM_LOSE' | 'INDIVIDUAL_RANK', amount: number, description: string) => void;
+  isSeasonComplete: () => boolean;
+  markTeamLeagueComplete: () => void;
+  markIndividualLeagueComplete: () => void;
+  finalizeSeason: () => void;
+  isAllKillSeason: () => boolean;
+  getPendingExpSummary: () => Record<string, { teamLeagueExp: number; individualLeagueExp: number; totalExp: number }>;
 }
 
 // 리그 경기 일정 생성 (홈/어웨이 2회전)
@@ -254,6 +281,9 @@ export const useSeasonStore = create<SeasonState>()(
       seasonHistory: [],
       headToHeadRecords: {},
       seasonStartLevels: {},
+      pendingExp: {},
+      teamLeagueCompleted: false,
+      individualLeagueCompleted: false,
 
       // 첫 게임 시작 (플레이어 크루 선택)
       initializeGame: (playerCrew: string[]) => {
@@ -831,7 +861,10 @@ export const useSeasonStore = create<SeasonState>()(
           currentSeason: null,
           seasonHistory: [],
           headToHeadRecords: {},
-          seasonStartLevels: {}
+          seasonStartLevels: {},
+          pendingExp: {},
+          teamLeagueCompleted: false,
+          individualLeagueCompleted: false,
         });
       },
 
@@ -843,22 +876,146 @@ export const useSeasonStore = create<SeasonState>()(
       getHeadToHead: (opponentId: string) => {
         const { headToHeadRecords } = get();
         return headToHeadRecords[opponentId] || null;
+      },
+
+      // ========================================
+      // Phase 4: 경험치 누적 및 시즌 동기화
+      // ========================================
+
+      // 경험치 누적 (시즌 종료 시 합산 지급)
+      addPendingExp: (cardId: string, source: 'TEAM_WIN' | 'TEAM_LOSE' | 'INDIVIDUAL_RANK', amount: number, description: string) => {
+        const { pendingExp } = get();
+
+        const existing = pendingExp[cardId] || {
+          teamLeagueExp: 0,
+          individualLeagueExp: 0,
+          details: []
+        };
+
+        // 소스에 따라 적절한 필드에 추가
+        if (source === 'TEAM_WIN' || source === 'TEAM_LOSE') {
+          existing.teamLeagueExp += amount;
+        } else {
+          existing.individualLeagueExp += amount;
+        }
+
+        existing.details.push({ source, amount, description });
+
+        set({
+          pendingExp: {
+            ...pendingExp,
+            [cardId]: existing
+          }
+        });
+
+        console.log(`[addPendingExp] ${cardId}: +${amount} (${source}) - ${description}`);
+      },
+
+      // 시즌 완료 여부 확인 (두 리그 모두 완료)
+      isSeasonComplete: () => {
+        const { teamLeagueCompleted, individualLeagueCompleted } = get();
+        return teamLeagueCompleted && individualLeagueCompleted;
+      },
+
+      // 팀 리그 완료 마킹
+      markTeamLeagueComplete: () => {
+        set({ teamLeagueCompleted: true });
+        console.log('[markTeamLeagueComplete] 팀 리그 완료');
+      },
+
+      // 개인 리그 완료 마킹
+      markIndividualLeagueComplete: () => {
+        set({ individualLeagueCompleted: true });
+        console.log('[markIndividualLeagueComplete] 개인 리그 완료');
+      },
+
+      // 시즌 종료 처리 (경험치 확정 지급)
+      finalizeSeason: () => {
+        const { isSeasonComplete, pendingExp, currentSeason } = get();
+
+        if (!isSeasonComplete()) {
+          console.warn('[finalizeSeason] 두 리그 모두 완료되어야 시즌 종료 가능');
+          return;
+        }
+
+        // 1. 누적 경험치 확정 지급
+        // playerStore가 circular dependency 가능성 있으므로 dynamic import 사용
+        import('./playerStore').then(({ usePlayerStore }) => {
+          const { addExpToCard } = usePlayerStore.getState();
+
+          Object.entries(pendingExp).forEach(([cardId, data]) => {
+            const totalExp = data.teamLeagueExp + data.individualLeagueExp;
+            if (totalExp > 0) {
+              addExpToCard(cardId, totalExp);
+              console.log(`[finalizeSeason] ${cardId}에게 총 ${totalExp} EXP 지급 (팀:${data.teamLeagueExp}, 개인:${data.individualLeagueExp})`);
+            }
+          });
+
+          // Note: 컨디션 초기화는 캐릭터 성장 시스템에서 별도 처리
+          console.log('[finalizeSeason] 경험치 지급 완료');
+        });
+
+        // 3. 상태 초기화
+        set({
+          teamLeagueCompleted: false,
+          individualLeagueCompleted: false,
+          pendingExp: {},
+        });
+
+        console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
+      },
+
+      // 올킬 시즌 판정 (3의 배수 시즌)
+      isAllKillSeason: () => {
+        const { currentSeason } = get();
+        if (!currentSeason) return false;
+        return currentSeason.number % 3 === 0;
+      },
+
+      // 경험치 요약 조회
+      getPendingExpSummary: () => {
+        const { pendingExp } = get();
+        const summary: Record<string, { teamLeagueExp: number; individualLeagueExp: number; totalExp: number }> = {};
+
+        Object.entries(pendingExp).forEach(([cardId, data]) => {
+          summary[cardId] = {
+            teamLeagueExp: data.teamLeagueExp,
+            individualLeagueExp: data.individualLeagueExp,
+            totalExp: data.teamLeagueExp + data.individualLeagueExp
+          };
+        });
+
+        return summary;
       }
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 7, // v7: 14경기 2회전 체계
+      version: 8, // v8: Phase 4 경험치 누적 시스템
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 7);
+        console.log('[Season Store] 마이그레이션:', version, '->', 8);
+        const state = persistedState as SeasonState;
+
         if (version < 7) {
           console.log('[Season Store] v7 업그레이드: 14경기 2회전 체계 - 진행 중 시즌 리셋');
-          const state = persistedState as SeasonState;
-          // 시즌 히스토리는 유지하고, 진행 중인 시즌만 리셋
           return {
             ...state,
-            currentSeason: null // 새 시즌 시작 필요
+            currentSeason: null,
+            pendingExp: {},
+            teamLeagueCompleted: false,
+            individualLeagueCompleted: false,
           };
         }
+
+        if (version < 8) {
+          console.log('[Season Store] v8 업그레이드: Phase 4 경험치 누적 시스템 추가');
+          return {
+            ...state,
+            pendingExp: {},
+            teamLeagueCompleted: false,
+            individualLeagueCompleted: false,
+          };
+        }
+
         return persistedState as SeasonState;
       }
     }

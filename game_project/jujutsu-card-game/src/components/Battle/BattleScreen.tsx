@@ -15,7 +15,15 @@ import { BanResultModal } from '../BanPick/BanResultModal';
 import { CardPlacementScreen } from '../BanPick/CardPlacementScreen';
 import { WIN_SCORE } from '../../data/constants';
 import { CHARACTERS_BY_ID } from '../../data';
-import type { CharacterCard } from '../../types';
+import type { CharacterCard, AllKillState } from '../../types';
+import { AllKillIndicator } from '../Phase4/AllKillIndicator';
+import { useSeasonStore } from '../../stores/seasonStore';
+import { useShallow } from 'zustand/shallow';
+import {
+  INITIAL_ALLKILL_STATE,
+  updateAllKillStateOnWin,
+  resetAllKillStreak,
+} from '../../utils/allKillSystem';
 
 interface BattleEndResult {
   won: boolean;
@@ -63,6 +71,27 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     // 배치 모드에서 현재 라운드에 배치된 카드
     assignedCardForCurrentRound
   } = useBattle();
+
+  // Phase 4: 올킬 시즌 상태
+  const { isAllKillSeason } = useSeasonStore(
+    useShallow(state => ({
+      isAllKillSeason: state.isAllKillSeason,
+    }))
+  );
+  const isAllKill = isAllKillSeason();
+
+  const [allKillState, setAllKillState] = useState<AllKillState>({
+    ...INITIAL_ALLKILL_STATE,
+    isAllKillSeason: isAllKill,
+  });
+
+  // 올킬 시즌 변경 시 상태 업데이트
+  useEffect(() => {
+    setAllKillState(prev => ({
+      ...prev,
+      isAllKillSeason: isAllKill,
+    }));
+  }, [isAllKill]);
 
   const hasCalledBattleEnd = useRef(false);
   const [showExitModal, setShowExitModal] = useState(false);
@@ -215,9 +244,22 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   };
 
   // 턴제 전투 완료 - 실제 승자로 점수 업데이트
-  const handleTurnBattleComplete = (winner: 'PLAYER' | 'AI' | 'DRAW') => {
+  const handleTurnBattleComplete = (winner: 'PLAYER' | 'AI' | 'DRAW', finalHp?: number) => {
     // 실제 전투 결과로 점수 업데이트
     updateRoundWinner(winner);
+
+    // Phase 4: 올킬 상태 업데이트 (올킬 시즌인 경우에만)
+    if (allKillState.isAllKillSeason) {
+      if (winner === 'PLAYER' && selectedCardId) {
+        // 플레이어 승리 - 연승 업데이트
+        setAllKillState(prev =>
+          updateAllKillStateOnWin(prev, selectedCardId, finalHp || 50, [])
+        );
+      } else if (winner === 'AI') {
+        // AI 승리 - 플레이어 연승 끊김
+        setAllKillState(prev => resetAllKillStreak(prev));
+      }
+    }
 
     setShowTurnBattle(false);
     setRevealedAiCard(null);
@@ -789,6 +831,19 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
           </div>
         </div>
       </motion.div>
+
+      {/* Phase 4: 올킬 시즌 인디케이터 */}
+      {allKillState.isAllKillSeason && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full px-4 pt-2"
+        >
+          <div className="max-w-6xl mx-auto">
+            <AllKillIndicator state={allKillState} compact={false} />
+          </div>
+        </motion.div>
+      )}
 
       {/* 메인 3열 레이아웃 */}
       <div className="flex-1 flex p-4 gap-4 max-w-7xl mx-auto w-full">
