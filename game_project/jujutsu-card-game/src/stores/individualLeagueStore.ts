@@ -41,7 +41,9 @@ import {
   calculateFinalRankings,
   calculateAwards
 } from '../utils/individualLeagueSystem';
-import { usePlayerStore } from './playerStore';
+import { useCardRecordStore } from './cardRecordStore';
+import { useSeasonStore } from './seasonStore';
+import type { IndividualSeasonRecord } from '../types';
 import {
   simulateMatch as simulateBattle,
   getBestOfForRound
@@ -458,18 +460,45 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         // Step 2.5b-1: 최종 순위 계산
         const rankings = calculateFinalRankings(currentLeague);
 
-        // Step 2.5b-1: 경험치 지급 (playerStore 연동)
-        const { addExpToCard } = usePlayerStore.getState();
+        // Phase 4 Task 4.2: 경험치 누적 (시즌 종료 시 합산 지급)
+        const { addPendingExp } = useSeasonStore.getState();
         rankings.forEach(ranking => {
           if (ranking.isPlayerCrew) {
-            // 내 크루 카드에만 경험치 지급
-            addExpToCard(ranking.odId, ranking.exp);
-            console.log(`[finishLeague] ${ranking.odName}에게 ${ranking.exp} EXP 지급 (${ranking.rank}위)`);
+            // 내 크루 카드의 경험치를 누적 (시즌 종료 시 지급)
+            addPendingExp(
+              ranking.odId,
+              'INDIVIDUAL_RANK',
+              ranking.exp,
+              `개인리그 시즌 ${currentLeague.season} - ${ranking.rank}위`
+            );
+            console.log(`[finishLeague] ${ranking.odName} 경험치 ${ranking.exp} 누적 (시즌 종료 시 지급)`);
           }
         });
 
         // Step 2.5b-1: 개인상 계산
         const awards = calculateAwards(currentLeague, rankings);
+
+        // Phase 4 Task 4.1: 개인리그 성적 저장 (cardRecordStore 연동)
+        const { saveIndividualLeagueRecord } = useCardRecordStore.getState();
+        rankings.forEach(ranking => {
+          if (ranking.isPlayerCrew) {
+            // 내 크루 카드의 개인리그 시즌 기록 저장
+            const seasonRecord: IndividualSeasonRecord = {
+              season: currentLeague.season,
+              finalRank: ranking.rank,
+              wins: ranking.wins || 0,
+              losses: ranking.losses || 0,
+              expEarned: ranking.exp,
+              awards: awards
+                .filter(a => a.odId === ranking.odId)
+                .map(a => a.type),
+              matchHistory: [], // TODO: 매치 히스토리 연동
+            };
+
+            saveIndividualLeagueRecord(ranking.odId, seasonRecord);
+            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위)`);
+          }
+        });
 
         // 히스토리 추가 (Step 2.5b-1 확장)
         const historyEntry: IndividualLeagueHistory = {
@@ -509,6 +538,9 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           currentSeason: currentSeason + 1,
           currentLeague: null
         });
+
+        // Phase 4: 개인 리그 완료 마킹
+        useSeasonStore.getState().markIndividualLeagueComplete();
       },
 
       // 리그 초기화

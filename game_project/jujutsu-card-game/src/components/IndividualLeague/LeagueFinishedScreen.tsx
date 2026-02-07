@@ -3,7 +3,7 @@
 // Phase 3: RewardClaimScreen 통합
 // ========================================
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
@@ -13,6 +13,8 @@ import { getCharacterImage } from '../../utils/imageHelper';
 import { Button } from '../UI/Button';
 import { RewardClaimScreen } from './RewardClaimScreen';
 import { AwardsDisplay } from './AwardsDisplay';
+import { HallOfFameScreen } from '../Phase4/HallOfFameScreen';
+import type { HallOfFameData } from '../../types';
 
 interface LeagueFinishedScreenProps {
   onFinish?: () => void;
@@ -20,12 +22,56 @@ interface LeagueFinishedScreenProps {
 
 export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
   const [showRewardScreen, setShowRewardScreen] = useState(false);
-  const { currentLeague, finishLeague } = useIndividualLeagueStore(
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+
+  const { currentLeague, finishLeague, hallOfFame, history } = useIndividualLeagueStore(
     useShallow(state => ({
       currentLeague: state.currentLeague,
       finishLeague: state.finishLeague,
+      hallOfFame: state.hallOfFame,
+      history: state.history,
     }))
   );
+
+  // Phase 4: 명예의 전당 데이터 구성
+  const hallOfFameData: HallOfFameData = useMemo(() => {
+    // 개인 리그 챔피언 기록
+    const individualChampions = hallOfFame.map(entry => ({
+      season: entry.season,
+      championId: entry.championId,
+      cardId: entry.championId,
+      cardName: entry.championName,
+      crewName: entry.crewName,
+    }));
+
+    // 통산 기록 (히스토리에서 계산)
+    const winCounts: Record<string, { cardId: string; cardName: string; wins: number }> = {};
+
+    history.forEach(h => {
+      h.rankings?.forEach(r => {
+        if (!winCounts[r.odId]) {
+          winCounts[r.odId] = { cardId: r.odId, cardName: r.odName, wins: 0 };
+        }
+        winCounts[r.odId].wins += r.wins || 0;
+      });
+    });
+
+    const mostWins = Object.values(winCounts)
+      .sort((a, b) => b.wins - a.wins)
+      .slice(0, 10)
+      .map(w => ({ cardId: w.cardId, cardName: w.cardName, value: w.wins }));
+
+    return {
+      seasonChampions: [],
+      individualChampions,
+      seasonMvps: [],
+      allTimeRecords: {
+        mostWins,
+        highestWinRate: [],
+        longestStreak: [],
+      },
+    };
+  }, [hallOfFame, history]);
 
   if (!currentLeague || currentLeague.status !== 'FINISHED') return null;
 
@@ -235,10 +281,17 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
         </div>
       </div>
 
-      {/* 종료 버튼 */}
-      <div className="text-center">
+      {/* 버튼 영역 */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button variant="primary" onClick={handleClaimReward} className="px-8">
           🎁 보상 수령하기
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setShowHallOfFame(true)}
+          className="px-8"
+        >
+          👑 명예의 전당
         </Button>
       </div>
 
@@ -249,6 +302,16 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
           myCardRewards={getRewardData()}
           onConfirm={handleRewardConfirm}
         />
+      )}
+
+      {/* Phase 4: HallOfFameScreen 모달 */}
+      {showHallOfFame && (
+        <div className="fixed inset-0 z-50 bg-black/80 overflow-y-auto">
+          <HallOfFameScreen
+            data={hallOfFameData}
+            onBack={() => setShowHallOfFame(false)}
+          />
+        </div>
       )}
     </motion.div>
   );

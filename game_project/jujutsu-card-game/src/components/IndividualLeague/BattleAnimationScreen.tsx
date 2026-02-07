@@ -9,6 +9,12 @@ import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
 import { Button } from '../UI/Button';
 import type { SimMatchResult, SimBattleTurn } from '../../types/individualLeague';
+import {
+  getAttackComment,
+  getUltimateComment,
+  getHpStatusComment,
+  getReversalComment,
+} from '../../utils/battleCommentarySystem';
 
 interface BattleAnimationScreenProps {
   matchResult: SimMatchResult;
@@ -73,30 +79,99 @@ function SkillEffectDisplay({
   );
 }
 
-// 전투 로그 컴포넌트
-function BattleLog({ logs }: { logs: SimBattleTurn[] }) {
-  const recentLogs = logs.slice(-3);
+// 턴별 해설 생성 함수
+function generateCommentary(
+  turn: SimBattleTurn,
+  defenderHpPercent: number,
+  previousHpPercent: number
+): string | null {
+  // 필살기 발동
+  if (turn.actionType === 'ultimate') {
+    return getUltimateComment(turn.attackerName, turn.actionName, turn.damage);
+  }
+
+  // 크리티컬 히트
+  if (turn.isCritical) {
+    return getAttackComment(turn.attackerName, turn.defenderName, turn.damage, true);
+  }
+
+  // HP 위험 (50% 이상에서 25% 이하로 떨어진 경우)
+  if (previousHpPercent > 25 && defenderHpPercent <= 25 && defenderHpPercent > 0) {
+    return getHpStatusComment(turn.defenderName, defenderHpPercent);
+  }
+
+  // 역전 상황 (상대 HP가 높았는데 반격)
+  if (previousHpPercent <= 30 && turn.damage >= 20) {
+    return getReversalComment(turn.attackerName);
+  }
+
+  // 일반 공격 (50% 확률로 해설)
+  if (turn.damage >= 40 && Math.random() < 0.5) {
+    return getAttackComment(turn.attackerName, turn.defenderName, turn.damage, false);
+  }
+
+  return null;
+}
+
+// 전투 로그 컴포넌트 (Phase 4: 해설 시스템 통합)
+function BattleLog({
+  logs,
+  p1Hp,
+  p2Hp,
+  p1Id,
+}: {
+  logs: SimBattleTurn[];
+  p1Hp: number;
+  p2Hp: number;
+  p1Id: string;
+}) {
+  const recentLogs = logs.slice(-4);
 
   return (
-    <div className="bg-black/50 rounded-lg p-2 text-xs space-y-1 max-h-20 overflow-hidden">
-      {recentLogs.map((log, idx) => (
-        <motion.div
-          key={`${log.turnNumber}-${idx}`}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-text-secondary"
-        >
-          <span className="text-accent">▶</span>{' '}
-          <span className={log.isCritical ? 'text-yellow-400' : 'text-text-primary'}>
-            {log.attackerName}
-          </span>
-          {log.actionType === 'ultimate' && <span className="text-purple-400"> (필살기)</span>}
-          {log.actionType === 'skill' && <span className="text-blue-400"> (스킬)</span>}
-          {' → '}
-          <span className="text-red-400">{log.damage}</span> 데미지
-          {log.isCritical && <span className="text-yellow-400"> 크리티컬!</span>}
-        </motion.div>
-      ))}
+    <div className="bg-black/50 rounded-lg p-3 text-xs space-y-2 max-h-32 overflow-y-auto">
+      {recentLogs.map((log, idx) => {
+        // 방어자 HP 계산
+        const isP1Defender = log.attackerId !== p1Id;
+        const defenderHp = isP1Defender ? p1Hp : p2Hp;
+        const previousHp = defenderHp + log.damage; // 대략적인 이전 HP
+
+        // 해설 생성
+        const commentary = generateCommentary(log, defenderHp, previousHp);
+
+        return (
+          <motion.div
+            key={`${log.turnNumber}-${idx}`}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-1"
+          >
+            {/* 턴 정보 */}
+            <div className="text-text-secondary">
+              <span className="text-accent">▶</span>{' '}
+              <span className={log.isCritical ? 'text-yellow-400 font-bold' : 'text-text-primary'}>
+                {log.attackerName}
+              </span>
+              의 {log.actionName}
+              {log.actionType === 'ultimate' && <span className="text-purple-400"> (필살기)</span>}
+              {log.actionType === 'skill' && <span className="text-blue-400"> (스킬)</span>}
+              {' → '}
+              <span className="text-red-400 font-bold">-{log.damage}</span>
+              {log.isCritical && <span className="text-yellow-400"> 크리티컬!</span>}
+            </div>
+
+            {/* 해설 메시지 */}
+            {commentary && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-accent italic pl-3 border-l-2 border-accent/50 text-[11px]"
+              >
+                💬 {commentary}
+              </motion.div>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -494,10 +569,15 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
             </motion.div>
           </div>
 
-          {/* 전투 로그 */}
+          {/* 전투 로그 (Phase 4: 해설 시스템 통합) */}
           {phase === 'BATTLE' && battleLogs.length > 0 && (
             <div className="mt-4">
-              <BattleLog logs={battleLogs} />
+              <BattleLog
+                logs={battleLogs}
+                p1Hp={p1Hp}
+                p2Hp={p2Hp}
+                p1Id={p1.odId}
+              />
             </div>
           )}
 
