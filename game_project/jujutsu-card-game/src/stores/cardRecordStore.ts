@@ -53,6 +53,13 @@ interface CardRecordStore {
     seasonRecord: IndividualSeasonRecord
   ) => void;
 
+  // Phase 4.3: 상대전적 조회 (팀 리그 + 개인 리그 통합)
+  getHeadToHeadRecord: (myCardId: string, opponentCardId: string) => {
+    teamLeague: { wins: number; losses: number };
+    individualLeague: { wins: number; losses: number };
+    total: { wins: number; losses: number };
+  };
+
   // 리셋
   resetAllRecords: () => void;
 }
@@ -482,6 +489,42 @@ export const useCardRecordStore = create<CardRecordStore>()(
 
           return { records };
         });
+      },
+
+      // Phase 4.3: 상대전적 조회 (팀 리그 + 개인 리그 통합)
+      getHeadToHeadRecord: (myCardId: string, opponentCardId: string) => {
+        const { records } = get();
+        const myRecord = records[myCardId];
+
+        // 팀 리그 전적 (seasonRecords.vsRecords에서)
+        let teamWins = 0;
+        let teamLosses = 0;
+        Object.values(myRecord?.seasonRecords || {}).forEach(season => {
+          teamWins += season.vsRecords?.[opponentCardId]?.wins || 0;
+          teamLosses += season.vsRecords?.[opponentCardId]?.losses || 0;
+        });
+
+        // 개인 리그 전적 (individualLeague.seasons.matchHistory에서 계산)
+        let indivWins = 0;
+        let indivLosses = 0;
+        myRecord?.individualLeague?.seasons?.forEach(season => {
+          // matchHistory에서 상대방과의 대전 기록 추출
+          season.matchHistory?.forEach(match => {
+            if (match.opponentId === opponentCardId) {
+              if (match.result === 'WIN') {
+                indivWins++;
+              } else if (match.result === 'LOSE') {
+                indivLosses++;
+              }
+            }
+          });
+        });
+
+        return {
+          teamLeague: { wins: teamWins, losses: teamLosses },
+          individualLeague: { wins: indivWins, losses: indivLosses },
+          total: { wins: teamWins + indivWins, losses: teamLosses + indivLosses }
+        };
       },
 
       // 전체 리셋

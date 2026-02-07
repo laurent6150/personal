@@ -237,6 +237,9 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
   const [p1Effects, setP1Effects] = useState<AppliedStatusEffect[]>([]);
   const [p2Effects, setP2Effects] = useState<AppliedStatusEffect[]>([]);
 
+  // Phase 4.3: 세트 종료 시 사용자 입력 대기
+  const [waitingForContinue, setWaitingForContinue] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const p1 = matchResult.participant1;
@@ -386,9 +389,9 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
     animateTurns();
   }, [currentSet, p1.odId, getDelay]);
 
-  // 세트 종료 처리
+  // 세트 종료 처리 (Phase 4.3: 사용자 입력 대기로 변경)
   useEffect(() => {
-    if (phase === 'SET_END') {
+    if (phase === 'SET_END' && !waitingForContinue) {
       // 스코어 업데이트
       const winnerId = currentSet?.winnerId;
       if (winnerId === p1.odId) {
@@ -397,24 +400,36 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
         setP2Score(prev => prev + 1);
       }
 
+      // Phase 4.3: 자동 진행 대신 사용자 입력 대기
       timerRef.current = setTimeout(() => {
-        // 다음 세트 또는 경기 종료
-        if (currentSetIndex < matchResult.sets.length - 1) {
-          setCurrentSetIndex(prev => prev + 1);
-          setP1Hp(100);
-          setP2Hp(100);
-          setBattleLogs([]);  // 로그 초기화
-          setCurrentTurnIndex(0);  // 턴 인덱스 초기화
-          setPhase('SET_START');
-        } else {
-          setPhase('MATCH_END');
-        }
-      }, getDelay(1500));
+        setWaitingForContinue(true);
+      }, getDelay(1000));
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [phase, currentSetIndex, matchResult.sets.length, currentSet, p1.odId, getDelay]);
+  }, [phase, waitingForContinue, currentSet, p1.odId, getDelay]);
+
+  // Phase 4.3: 다음 세트로 진행 핸들러
+  const handleContinueToNextSet = useCallback(() => {
+    setWaitingForContinue(false);
+
+    // 경기 종료 체크 (마지막 세트 여부)
+    if (currentSetIndex < matchResult.sets.length - 1) {
+      // 다음 세트로 진행
+      setCurrentSetIndex(prev => prev + 1);
+      setP1Hp(100);
+      setP2Hp(100);
+      setP1Gauge(0);
+      setP2Gauge(0);
+      setBattleLogs([]);
+      setCurrentTurnIndex(0);
+      setPhase('SET_START');
+    } else {
+      // 경기 종료
+      setPhase('MATCH_END');
+    }
+  }, [currentSetIndex, matchResult.sets.length]);
 
   // 배속 변경
   const handleSpeedChange = () => {
@@ -707,7 +722,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
             </div>
           )}
 
-          {/* 세트 결과 표시 */}
+          {/* 세트 결과 표시 (Phase 4.3: 계속하기 버튼 추가) */}
           <AnimatePresence>
             {phase === 'SET_END' && currentSet && (
               <motion.div
@@ -730,6 +745,32 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                   <div className="text-sm text-text-secondary mt-2">
                     HP {currentSet.winnerHpPercent}% 남음
                   </div>
+
+                  {/* 현재 스코어 표시 */}
+                  <div className="mt-4 flex justify-center items-center gap-4 text-xl">
+                    <span className={p1.isPlayerCrew ? 'text-yellow-400' : 'text-accent'}>{p1Score}</span>
+                    <span className="text-text-secondary">:</span>
+                    <span className={p2.isPlayerCrew ? 'text-yellow-400' : 'text-red-400'}>{p2Score}</span>
+                  </div>
+
+                  {/* Phase 4.3: 계속하기 버튼 */}
+                  {waitingForContinue && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6"
+                    >
+                      <Button
+                        variant="primary"
+                        onClick={handleContinueToNextSet}
+                        className="px-8 py-3 text-lg"
+                      >
+                        {currentSetIndex < matchResult.sets.length - 1
+                          ? '다음 세트 시작'
+                          : '경기 결과 보기'}
+                      </Button>
+                    </motion.div>
+                  )}
                 </div>
               </motion.div>
             )}

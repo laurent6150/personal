@@ -90,27 +90,27 @@ export function applyArenaEffect(
 // 데미지 계산 (Phase 3 밸런스 조정)
 // ═══════════════════════════════════════════════════════════
 
-// 전투 밸런스 상수
+// 전투 밸런스 상수 (Phase 4.3: 20~30턴 전투를 위한 밸런스 조정)
 const BATTLE_BALANCE = {
-  // 기본 데미지 계수 (상향 조정)
-  BASE_DAMAGE_MULTIPLIER: 2.5,
+  // 기본 데미지 계수 (하향 조정 - 전투 지속시간 증가)
+  BASE_DAMAGE_MULTIPLIER: 0.8,
 
   // ATK 스케일링
-  ATK_SCALING: 0.8,
+  ATK_SCALING: 0.5,
 
-  // DEF 감소율 (하향 조정)
-  DEF_REDUCTION_RATE: 0.3,
+  // DEF 감소율 (상향 조정 - 방어력 효과 증가)
+  DEF_REDUCTION_RATE: 0.4,
 
   // 스킬 배율
-  SKILL_MULTIPLIER: 1.8,
-  ULTIMATE_MULTIPLIER: 3.0,
+  SKILL_MULTIPLIER: 1.5,
+  ULTIMATE_MULTIPLIER: 2.5,
 
   // 크리티컬 배율
-  CRITICAL_MULTIPLIER: 1.5,
+  CRITICAL_MULTIPLIER: 1.4,
 
-  // 최소/최대 데미지
-  MIN_DAMAGE: 5,
-  MAX_DAMAGE_PERCENT: 0.4,  // 최대 HP의 40%
+  // 최소/최대 데미지 (Phase 4.3: 최대 데미지 제한으로 긴 전투 유도)
+  MIN_DAMAGE: 2,
+  MAX_DAMAGE_PERCENT: 0.08,  // 최대 HP의 8% (20~30턴 전투를 위해)
 
   // 턴 제한
   MAX_TURNS: 30

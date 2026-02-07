@@ -211,33 +211,13 @@ export function MatchPreviewModal({
   const card1 = CHARACTERS_BY_ID[match.participant1];
   const card2 = CHARACTERS_BY_ID[match.participant2];
 
-  // Phase 4 Task 4.9: cardRecordStore에서 상대전적 조회
-  const records = useCardRecordStore(state => state.records);
+  // Phase 4.3: cardRecordStore에서 상대전적 조회
+  const getHeadToHeadRecord = useCardRecordStore(state => state.getHeadToHeadRecord);
 
-  // Phase 4 Task 4.9: 상대전적 계산 (팀 리그 + 개인 리그 통합)
+  // Phase 4.3: 상대전적 조회 (통합 함수 사용)
   const headToHeadRecord: HeadToHeadRecord = useMemo(() => {
-    const myCardId = match.participant1;
-    const opponentCardId = match.participant2;
-    const myRecord = records[myCardId];
-
-    // 팀 리그 전적 (seasonRecords.vsRecords)
-    let teamWins = 0, teamLosses = 0;
-    Object.values(myRecord?.seasonRecords || {}).forEach(season => {
-      teamWins += season.vsRecords?.[opponentCardId]?.wins || 0;
-      teamLosses += season.vsRecords?.[opponentCardId]?.losses || 0;
-    });
-
-    // 개인 리그 전적 (현재 시스템에서는 vsRecords 미구현)
-    // 추후 개인 리그에서도 상대전적 기록 시 확장 가능
-    const indivWins = 0;
-    const indivLosses = 0;
-
-    return {
-      teamLeague: { wins: teamWins, losses: teamLosses },
-      individualLeague: { wins: indivWins, losses: indivLosses },
-      total: { wins: teamWins + indivWins, losses: teamLosses + indivLosses }
-    };
-  }, [records, match.participant1, match.participant2]);
+    return getHeadToHeadRecord(match.participant1, match.participant2);
+  }, [getHeadToHeadRecord, match.participant1, match.participant2]);
 
   // 8스탯 가져오기 (마이그레이션된 경우 대비)
   const getFullStats = (card: typeof card1): Stats => {
@@ -350,38 +330,36 @@ export function MatchPreviewModal({
                 </div>
               )}
 
-              {/* Phase 4 Task 4.9: 통합 상대전적 표시 */}
-              {(headToHeadRecord.total.wins > 0 || headToHeadRecord.total.losses > 0) && (
-                <div className="bg-bg-secondary/50 rounded-lg p-3 w-full">
-                  <div className="text-sm font-bold text-center mb-2">통합 상대전적</div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div>
-                      <div className="text-text-secondary">팀 리그</div>
-                      <div className="font-bold">
-                        <span className="text-green-400">{headToHeadRecord.teamLeague.wins}승</span>
-                        {' '}
-                        <span className="text-red-400">{headToHeadRecord.teamLeague.losses}패</span>
-                      </div>
+              {/* Phase 4.3: 통합 상대전적 표시 (항상 표시) */}
+              <div className="bg-bg-secondary/50 rounded-lg p-3 w-full mt-2">
+                <div className="text-xs text-text-secondary mb-2">통합 상대전적</div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div>
+                    <div className="text-text-secondary">팀 리그</div>
+                    <div className="font-bold">
+                      <span className="text-green-400">{headToHeadRecord.teamLeague.wins}</span>
+                      <span className="text-text-secondary"> : </span>
+                      <span className="text-red-400">{headToHeadRecord.teamLeague.losses}</span>
                     </div>
-                    <div>
-                      <div className="text-text-secondary">개인 리그</div>
-                      <div className="font-bold">
-                        <span className="text-green-400">{headToHeadRecord.individualLeague.wins}승</span>
-                        {' '}
-                        <span className="text-red-400">{headToHeadRecord.individualLeague.losses}패</span>
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-text-secondary">개인 리그</div>
+                    <div className="font-bold">
+                      <span className="text-green-400">{headToHeadRecord.individualLeague.wins}</span>
+                      <span className="text-text-secondary"> : </span>
+                      <span className="text-red-400">{headToHeadRecord.individualLeague.losses}</span>
                     </div>
-                    <div className="bg-accent/20 rounded p-1">
-                      <div className="text-accent">통합</div>
-                      <div className="font-bold text-lg">
-                        <span className="text-green-400">{headToHeadRecord.total.wins}</span>
-                        {' : '}
-                        <span className="text-red-400">{headToHeadRecord.total.losses}</span>
-                      </div>
+                  </div>
+                  <div className="bg-accent/20 rounded p-1">
+                    <div className="text-accent">통합</div>
+                    <div className="font-bold text-base">
+                      <span className="text-green-400">{headToHeadRecord.total.wins}</span>
+                      <span className="text-text-secondary"> : </span>
+                      <span className="text-red-400">{headToHeadRecord.total.losses}</span>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* 오른쪽 선수 (P2) */}
