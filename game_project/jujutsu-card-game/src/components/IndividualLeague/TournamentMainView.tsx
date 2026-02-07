@@ -11,21 +11,30 @@ import { getCharacterImage } from '../../utils/imageHelper';
 import type { IndividualMatch, LeagueParticipant, Stats } from '../../types';
 import { Button } from '../UI/Button';
 
-// Phase 4 Task 4.10: 미니 레이더 차트 컴포넌트 (라벨 없는 간소화 버전)
+// Phase 4.2: 스탯별 최대값 상수 (레이더 차트 스케일링용)
+const STAT_MAX_VALUES: Record<string, number> = {
+  atk: 35,   // 공격력 최대 기준
+  def: 35,   // 방어력 최대 기준
+  spd: 35,   // 속도 최대 기준
+  hp: 120,   // 체력 최대 기준 (HP는 다른 스탯보다 높음)
+  ce: 35,    // 주술력 최대 기준
+  crt: 25,   // 치명타 최대 기준
+  tec: 25,   // 기술 최대 기준
+  mnt: 25,   // 정신 최대 기준
+};
+
+// Phase 4.2: 미니 레이더 차트 컴포넌트 (스탯별 최대값 적용)
 function MiniRadarChart({ stats, color, size = 80 }: { stats: Stats; color: string; size?: number }) {
   const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'hp', 'ce', 'crt', 'tec', 'mnt'];
-
-  // 동적 스케일링
-  const maxStatValue = Math.max(...statKeys.map(key => stats[key] || 0));
-  const maxStat = Math.max(Math.ceil(maxStatValue * 1.2 / 5) * 5, 30);
 
   const centerX = size / 2;
   const centerY = size / 2;
   const radius = (size / 2) - 8;
 
-  // 각 스탯 포인트 계산
+  // 각 스탯 포인트 계산 (스탯별 최대값 적용)
   const points = statKeys.map((key, index) => {
     const value = stats[key] || 0;
+    const maxStat = STAT_MAX_VALUES[key] || 35;
     const normalizedValue = Math.min(value / maxStat, 1);
     const angle = (Math.PI * 2 * index) / statKeys.length - Math.PI / 2;
     const x = centerX + radius * normalizedValue * Math.cos(angle);

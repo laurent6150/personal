@@ -1,20 +1,25 @@
 // ========================================
-// 전투 애니메이션 화면 컴포넌트 (Phase 3)
-// 스킬 이펙트, 배속 조절, 전투 로그 추가
+// 전투 애니메이션 화면 컴포넌트 (Phase 4.2)
+// TurnBattleModal 스타일 통합 + 필살기 게이지 + 상태이상 표시
 // ========================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
+import { getStatusEffect } from '../../data/statusEffects';
 import { Button } from '../UI/Button';
 import type { SimMatchResult, SimBattleTurn } from '../../types/individualLeague';
+import type { AppliedStatusEffect } from '../../types';
 import {
   getAttackComment,
   getUltimateComment,
   getHpStatusComment,
   getReversalComment,
 } from '../../utils/battleCommentarySystem';
+
+// 게이지 충전 상수
+const GAUGE_PER_TURN = { min: 25, max: 35 };
 
 interface BattleAnimationScreenProps {
   matchResult: SimMatchResult;
@@ -30,6 +35,40 @@ const ACTION_COLORS: Record<string, string> = {
   skill: 'text-blue-400',
   ultimate: 'text-purple-500'
 };
+
+// 게이지 충전 함수
+const chargeGauge = (currentGauge: number): number => {
+  const charge = GAUGE_PER_TURN.min + Math.random() * (GAUGE_PER_TURN.max - GAUGE_PER_TURN.min);
+  return Math.min(currentGauge + charge, 100);
+};
+
+// 상태이상 표시 컴포넌트
+function StatusEffectDisplay({ effects }: { effects: AppliedStatusEffect[] }) {
+  if (effects.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 justify-center mt-2">
+      {effects.map((effect, idx) => {
+        const statusDef = getStatusEffect(effect.statusId);
+        if (!statusDef) return null;
+        const isBuff = statusDef.type === 'BUFF';
+        return (
+          <motion.div
+            key={`${effect.statusId}-${idx}`}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className={`text-xs px-1.5 py-0.5 rounded ${
+              isBuff ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'
+            }`}
+            title={`${statusDef.name} (${effect.remainingDuration}턴)`}
+          >
+            {statusDef.icon} {effect.stacks > 1 && `x${effect.stacks}`}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
 
 // 스킬 이펙트 컴포넌트
 function SkillEffectDisplay({
@@ -113,7 +152,7 @@ function generateCommentary(
   return null;
 }
 
-// 전투 로그 컴포넌트 (Phase 4: 해설 시스템 통합)
+// 전투 로그 컴포넌트 (Phase 4.2: TurnBattleModal 스타일)
 function BattleLog({
   logs,
   p1Hp,
@@ -125,53 +164,48 @@ function BattleLog({
   p2Hp: number;
   p1Id: string;
 }) {
-  const recentLogs = logs.slice(-4);
-
   return (
-    <div className="bg-black/50 rounded-lg p-3 text-xs space-y-2 max-h-32 overflow-y-auto">
-      {recentLogs.map((log, idx) => {
-        // 방어자 HP 계산
-        const isP1Defender = log.attackerId !== p1Id;
-        const defenderHp = isP1Defender ? p1Hp : p2Hp;
-        const previousHp = defenderHp + log.damage; // 대략적인 이전 HP
+    <div className="bg-bg-card/50 rounded-xl p-4 h-48 overflow-y-auto border border-white/10">
+      <div className="space-y-2">
+        <AnimatePresence>
+          {logs.map((log, idx) => {
+            // 방어자 HP 계산
+            const isP1Attacker = log.attackerId === p1Id;
+            const defenderHp = isP1Attacker ? p2Hp : p1Hp;
+            const previousHp = defenderHp + log.damage;
 
-        // 해설 생성
-        const commentary = generateCommentary(log, defenderHp, previousHp);
+            // 해설 생성
+            const commentary = generateCommentary(log, defenderHp, previousHp);
 
-        return (
-          <motion.div
-            key={`${log.turnNumber}-${idx}`}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-1"
-          >
-            {/* 턴 정보 */}
-            <div className="text-text-secondary">
-              <span className="text-accent">▶</span>{' '}
-              <span className={log.isCritical ? 'text-yellow-400 font-bold' : 'text-text-primary'}>
-                {log.attackerName}
-              </span>
-              의 {log.actionName}
-              {log.actionType === 'ultimate' && <span className="text-purple-400"> (필살기)</span>}
-              {log.actionType === 'skill' && <span className="text-blue-400"> (스킬)</span>}
-              {' → '}
-              <span className="text-red-400 font-bold">-{log.damage}</span>
-              {log.isCritical && <span className="text-yellow-400"> 크리티컬!</span>}
-            </div>
-
-            {/* 해설 메시지 */}
-            {commentary && (
+            return (
               <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-accent italic pl-3 border-l-2 border-accent/50 text-[11px]"
+                key={`${log.turnNumber}-${idx}`}
+                initial={{ opacity: 0, x: isP1Attacker ? -20 : 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`text-sm p-2 rounded ${
+                  log.actionType === 'ultimate'
+                    ? 'bg-yellow-500/30 text-yellow-200 border border-yellow-500/50'
+                    : isP1Attacker
+                      ? 'bg-blue-500/20 text-blue-300'
+                      : 'bg-red-500/20 text-red-300'
+                } ${log.isCritical ? 'font-bold' : ''}`}
               >
-                💬 {commentary}
+                <span className="text-xs text-text-secondary mr-2">[턴 {log.turnNumber}]</span>
+                {log.attackerName}의 【{log.actionName}】!
+                {log.isCritical && <span className="text-yellow-400"> 크리티컬!</span>}
+                {' '}<span className="text-red-400">{log.damage}</span> 데미지!
+
+                {/* 해설 메시지 */}
+                {commentary && (
+                  <div className="text-xs text-accent/80 mt-1 italic">
+                    💬 {commentary}
+                  </div>
+                )}
               </motion.div>
-            )}
-          </motion.div>
-        );
-      })}
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -196,6 +230,12 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
     isCritical: boolean;
     target: 'p1' | 'p2';
   } | null>(null);
+
+  // Phase 4.2: 필살기 게이지 및 상태이상
+  const [p1Gauge, setP1Gauge] = useState(0);
+  const [p2Gauge, setP2Gauge] = useState(0);
+  const [p1Effects, setP1Effects] = useState<AppliedStatusEffect[]>([]);
+  const [p2Effects, setP2Effects] = useState<AppliedStatusEffect[]>([]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -246,6 +286,11 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
     setIsAnimating(true);
     setBattleLogs([]);
     setCurrentTurnIndex(0);
+    // 게이지 초기화
+    setP1Gauge(0);
+    setP2Gauge(0);
+    setP1Effects([]);
+    setP2Effects([]);
 
     const turns = currentSet.turns;
     const winnerId = currentSet.winnerId;
@@ -257,6 +302,8 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
       // HP 초기화
       let currentP1Hp = 100;
       let currentP2Hp = 100;
+      let currentP1Gauge = 0;
+      let currentP2Gauge = 0;
 
       for (let i = 0; i < turns.length; i++) {
         const turn = turns[i];
@@ -286,6 +333,24 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
           currentP2Hp = Math.max(0, currentP2Hp - turn.damage);
           setP2Hp(currentP2Hp);
           setShowDamage({ player: 'p2', amount: turn.damage });
+        }
+
+        // Phase 4.2: 게이지 충전/리셋 로직
+        if (turn.actionType === 'ultimate') {
+          // 필살기 사용 시 게이지 리셋
+          if (isP1Attacking) {
+            currentP1Gauge = 0;
+            setP1Gauge(0);
+          } else {
+            currentP2Gauge = 0;
+            setP2Gauge(0);
+          }
+        } else {
+          // 일반 공격/스킬 시 양측 게이지 충전
+          currentP1Gauge = chargeGauge(currentP1Gauge);
+          currentP2Gauge = chargeGauge(currentP2Gauge);
+          setP1Gauge(currentP1Gauge);
+          setP2Gauge(currentP2Gauge);
         }
 
         // 로그 추가
@@ -457,23 +522,50 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
 
               {/* 이름 */}
               <div className="text-lg font-bold text-white mb-2">
-                {p1.isPlayerCrew && '* '}
+                {p1.isPlayerCrew && '⭐ '}
                 {p1.odName}
               </div>
 
-              {/* HP 바 */}
-              <div className="relative w-full h-6 bg-gray-700 rounded-full overflow-hidden">
-                <motion.div
-                  animate={{ width: `${p1Hp}%` }}
-                  transition={{ duration: 0.3 }}
-                  className={`h-full ${
-                    p1Hp > 50 ? 'bg-green-500' : p1Hp > 25 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                />
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                  {p1Hp}%
+              {/* HP 바 (TurnBattleModal 스타일) */}
+              <div className="mb-2">
+                <div className="text-xs text-text-secondary mb-1">HP</div>
+                <div className="w-36 h-4 bg-black/50 rounded-full overflow-hidden border border-white/20 mx-auto">
+                  <motion.div
+                    className="h-full"
+                    style={{
+                      background: p1Hp > 50
+                        ? 'linear-gradient(to right, #22c55e, #4ade80)'
+                        : p1Hp > 25
+                          ? 'linear-gradient(to right, #eab308, #facc15)'
+                          : 'linear-gradient(to right, #ef4444, #f87171)'
+                    }}
+                    animate={{ width: `${p1Hp}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <div className="text-xs mt-1 text-text-secondary">{p1Hp}/100</div>
+              </div>
+
+              {/* 필살기 게이지 바 */}
+              <div className="mb-2">
+                <div className="text-xs text-accent mb-1">
+                  ⚡ 필살기 {p1Gauge >= 100 ? '준비완료!' : `${Math.round(p1Gauge)}%`}
+                </div>
+                <div className="w-32 h-2 bg-black/50 rounded-full overflow-hidden border border-white/20 mx-auto">
+                  <motion.div
+                    className={`h-full ${
+                      p1Gauge >= 100
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse'
+                        : 'bg-gradient-to-r from-purple-500 to-purple-400'
+                    }`}
+                    animate={{ width: `${Math.min(p1Gauge, 100)}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
                 </div>
               </div>
+
+              {/* 상태이상 표시 */}
+              <StatusEffectDisplay effects={p1Effects} />
 
               {/* 데미지 표시 */}
               <AnimatePresence>
@@ -482,7 +574,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                     initial={{ opacity: 0, y: 0 }}
                     animate={{ opacity: 1, y: -30 }}
                     exit={{ opacity: 0 }}
-                    className="text-2xl font-bold text-red-500"
+                    className="text-2xl font-bold text-red-500 mt-2"
                   >
                     -{showDamage.amount}
                   </motion.div>
@@ -490,14 +582,21 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
               </AnimatePresence>
             </motion.div>
 
-            {/* VS + 스킬 이펙트 */}
+            {/* VS + 턴 카운터 + 스킬 이펙트 */}
             <div className="relative flex flex-col items-center">
-              <div className="text-4xl font-bold text-white/50">VS</div>
+              <div className="flex flex-col items-center">
+                <div className="text-3xl font-bold text-accent mb-2">VS</div>
+                {phase === 'BATTLE' && currentSet && (
+                  <div className="text-sm text-text-secondary">
+                    턴 {currentTurnIndex} / {currentSet.turns.length}
+                  </div>
+                )}
+              </div>
 
               {/* 스킬 이펙트 표시 */}
               <AnimatePresence>
                 {currentSkillEffect && (
-                  <div className="absolute top-12 left-1/2 transform -translate-x-1/2">
+                  <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
                     <SkillEffectDisplay
                       actionName={currentSkillEffect.actionName}
                       actionType={currentSkillEffect.actionType}
@@ -535,23 +634,50 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
 
               {/* 이름 */}
               <div className="text-lg font-bold text-white mb-2">
-                {p2.isPlayerCrew && '* '}
+                {p2.isPlayerCrew && '⭐ '}
                 {p2.odName}
               </div>
 
-              {/* HP 바 */}
-              <div className="relative w-full h-6 bg-gray-700 rounded-full overflow-hidden">
-                <motion.div
-                  animate={{ width: `${p2Hp}%` }}
-                  transition={{ duration: 0.3 }}
-                  className={`h-full ${
-                    p2Hp > 50 ? 'bg-green-500' : p2Hp > 25 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                />
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">
-                  {p2Hp}%
+              {/* HP 바 (TurnBattleModal 스타일) */}
+              <div className="mb-2">
+                <div className="text-xs text-text-secondary mb-1">HP</div>
+                <div className="w-36 h-4 bg-black/50 rounded-full overflow-hidden border border-white/20 mx-auto">
+                  <motion.div
+                    className="h-full"
+                    style={{
+                      background: p2Hp > 50
+                        ? 'linear-gradient(to right, #22c55e, #4ade80)'
+                        : p2Hp > 25
+                          ? 'linear-gradient(to right, #eab308, #facc15)'
+                          : 'linear-gradient(to right, #ef4444, #f87171)'
+                    }}
+                    animate={{ width: `${p2Hp}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <div className="text-xs mt-1 text-text-secondary">{p2Hp}/100</div>
+              </div>
+
+              {/* 필살기 게이지 바 */}
+              <div className="mb-2">
+                <div className="text-xs text-accent mb-1">
+                  ⚡ 필살기 {p2Gauge >= 100 ? '준비완료!' : `${Math.round(p2Gauge)}%`}
+                </div>
+                <div className="w-32 h-2 bg-black/50 rounded-full overflow-hidden border border-white/20 mx-auto">
+                  <motion.div
+                    className={`h-full ${
+                      p2Gauge >= 100
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse'
+                        : 'bg-gradient-to-r from-purple-500 to-purple-400'
+                    }`}
+                    animate={{ width: `${Math.min(p2Gauge, 100)}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
                 </div>
               </div>
+
+              {/* 상태이상 표시 */}
+              <StatusEffectDisplay effects={p2Effects} />
 
               {/* 데미지 표시 */}
               <AnimatePresence>
@@ -560,7 +686,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                     initial={{ opacity: 0, y: 0 }}
                     animate={{ opacity: 1, y: -30 }}
                     exit={{ opacity: 0 }}
-                    className="text-2xl font-bold text-red-500"
+                    className="text-2xl font-bold text-red-500 mt-2"
                   >
                     -{showDamage.amount}
                   </motion.div>
@@ -569,7 +695,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
             </motion.div>
           </div>
 
-          {/* 전투 로그 (Phase 4: 해설 시스템 통합) */}
+          {/* 전투 로그 (Phase 4.2: TurnBattleModal 스타일) */}
           {phase === 'BATTLE' && battleLogs.length > 0 && (
             <div className="mt-4">
               <BattleLog
