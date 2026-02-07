@@ -3,11 +3,20 @@
 // 8각형 레이더 차트 + 필살기 표시 + 이미지 확대
 // ========================================
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
 import type { IndividualMatch, LeagueParticipant, Stats } from '../../types';
 import { Button } from '../UI/Button';
+import { useCardRecordStore } from '../../stores/cardRecordStore';
+
+// Phase 4 Task 4.9: 상대전적 타입
+interface HeadToHeadRecord {
+  teamLeague: { wins: number; losses: number };
+  individualLeague: { wins: number; losses: number };
+  total: { wins: number; losses: number };
+}
 
 interface MatchPreviewModalProps {
   match: IndividualMatch;
@@ -23,13 +32,16 @@ interface MatchPreviewModalProps {
 }
 
 // 8각형 레이더 차트 컴포넌트 (확대 + 라벨 표시)
+// Phase 4 Task 4.8: 동적 스케일링으로 수정 - 실제 스탯에 맞게 차트 크기 조정
 function RadarChart({ stats, color, size = 180, showLabels = true }: { stats: Stats; color: string; size?: number; showLabels?: boolean }) {
   const statKeys: (keyof Stats)[] = ['atk', 'def', 'spd', 'hp', 'ce', 'crt', 'tec', 'mnt'];
   const statLabels: Record<string, string> = {
     atk: 'ATK', def: 'DEF', spd: 'SPD', hp: 'HP',
     ce: 'CE', crt: 'CRT', tec: 'TEC', mnt: 'MNT'
   };
-  const maxStat = 100; // 최대 스탯값 (스케일링용)
+  // Phase 4 Task 4.8: 동적 최대값 계산 - 해당 카드의 최고 스탯 기준 + 여유
+  const maxStatValue = Math.max(...statKeys.map(key => stats[key] || 0));
+  const maxStat = Math.max(Math.ceil(maxStatValue * 1.2 / 5) * 5, 30); // 최소 30, 최고값의 120% (5단위 반올림)
   const labelOffset = showLabels ? 28 : 10; // 라벨 공간 확보
   const centerX = size / 2;
   const centerY = size / 2;
@@ -189,6 +201,34 @@ export function MatchPreviewModal({
   const card1 = CHARACTERS_BY_ID[match.participant1];
   const card2 = CHARACTERS_BY_ID[match.participant2];
 
+  // Phase 4 Task 4.9: cardRecordStore에서 상대전적 조회
+  const records = useCardRecordStore(state => state.records);
+
+  // Phase 4 Task 4.9: 상대전적 계산 (팀 리그 + 개인 리그 통합)
+  const headToHeadRecord: HeadToHeadRecord = useMemo(() => {
+    const myCardId = match.participant1;
+    const opponentCardId = match.participant2;
+    const myRecord = records[myCardId];
+
+    // 팀 리그 전적 (seasonRecords.vsRecords)
+    let teamWins = 0, teamLosses = 0;
+    Object.values(myRecord?.seasonRecords || {}).forEach(season => {
+      teamWins += season.vsRecords?.[opponentCardId]?.wins || 0;
+      teamLosses += season.vsRecords?.[opponentCardId]?.losses || 0;
+    });
+
+    // 개인 리그 전적 (현재 시스템에서는 vsRecords 미구현)
+    // 추후 개인 리그에서도 상대전적 기록 시 확장 가능
+    const indivWins = 0;
+    const indivLosses = 0;
+
+    return {
+      teamLeague: { wins: teamWins, losses: teamLosses },
+      individualLeague: { wins: indivWins, losses: indivLosses },
+      total: { wins: teamWins + indivWins, losses: teamLosses + indivLosses }
+    };
+  }, [records, match.participant1, match.participant2]);
+
   // 8스탯 가져오기 (마이그레이션된 경우 대비)
   const getFullStats = (card: typeof card1): Stats => {
     if (!card) return { atk: 0, def: 0, spd: 0, hp: 0, ce: 0, crt: 0, tec: 0, mnt: 0 };
@@ -294,9 +334,42 @@ export function MatchPreviewModal({
               <div className="text-lg text-text-secondary mb-4">0 : 0</div>
 
               {arenaName && (
-                <div className="bg-bg-secondary rounded-lg px-4 py-2 text-center">
+                <div className="bg-bg-secondary rounded-lg px-4 py-2 text-center mb-4">
                   <div className="text-xs text-text-secondary">경기장</div>
                   <div className="text-sm text-accent font-bold">{arenaName}</div>
+                </div>
+              )}
+
+              {/* Phase 4 Task 4.9: 통합 상대전적 표시 */}
+              {(headToHeadRecord.total.wins > 0 || headToHeadRecord.total.losses > 0) && (
+                <div className="bg-bg-secondary/50 rounded-lg p-3 w-full">
+                  <div className="text-sm font-bold text-center mb-2">통합 상대전적</div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div>
+                      <div className="text-text-secondary">팀 리그</div>
+                      <div className="font-bold">
+                        <span className="text-green-400">{headToHeadRecord.teamLeague.wins}승</span>
+                        {' '}
+                        <span className="text-red-400">{headToHeadRecord.teamLeague.losses}패</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-text-secondary">개인 리그</div>
+                      <div className="font-bold">
+                        <span className="text-green-400">{headToHeadRecord.individualLeague.wins}승</span>
+                        {' '}
+                        <span className="text-red-400">{headToHeadRecord.individualLeague.losses}패</span>
+                      </div>
+                    </div>
+                    <div className="bg-accent/20 rounded p-1">
+                      <div className="text-accent">통합</div>
+                      <div className="font-bold text-lg">
+                        <span className="text-green-400">{headToHeadRecord.total.wins}</span>
+                        {' : '}
+                        <span className="text-red-400">{headToHeadRecord.total.losses}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -349,8 +422,11 @@ export function MatchPreviewModal({
           </div>
         </div>
 
-        {/* 버튼 영역 */}
+        {/* 버튼 영역 - Phase 4 Task 4.9: 뒤로가기 버튼 추가 */}
         <div className="p-4 border-t border-white/10 flex justify-center gap-4">
+          <Button variant="ghost" onClick={onClose}>
+            ← 뒤로가기
+          </Button>
           <Button variant="primary" onClick={onStartMatch} className="px-8">
             ⚔️ 경기 시작
           </Button>
