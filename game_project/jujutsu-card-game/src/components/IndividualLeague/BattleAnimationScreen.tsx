@@ -241,6 +241,8 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
   const [waitingForContinue, setWaitingForContinue] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Phase 4.3: 배틀 애니메이션 중단 플래그
+  const shouldStopRef = useRef(false);
 
   const p1 = matchResult.participant1;
   const p2 = matchResult.participant2;
@@ -286,6 +288,9 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
   const startBattleAnimation = useCallback(() => {
     if (!currentSet) return;
 
+    // Phase 4.3: 애니메이션 시작 시 중단 플래그 초기화
+    shouldStopRef.current = false;
+
     setIsAnimating(true);
     setBattleLogs([]);
     setCurrentTurnIndex(0);
@@ -309,6 +314,11 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
       let currentP2Gauge = 0;
 
       for (let i = 0; i < turns.length; i++) {
+        // Phase 4.3: 중단 플래그 확인 (스킵/세트 종료 시 루프 중단)
+        if (shouldStopRef.current) {
+          break;
+        }
+
         const turn = turns[i];
         const isP1Attacking = turn.attackerId === p1.odId;
         const attacker = isP1Attacking ? 'p1' : 'p2';
@@ -317,6 +327,9 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
         // 공격자 애니메이션
         setAttackingPlayer(attacker);
         await new Promise(r => setTimeout(r, getDelay(200)));
+
+        // Phase 4.3: 중단 플래그 재확인
+        if (shouldStopRef.current) break;
 
         // 스킬 이펙트 표시
         setCurrentSkillEffect({
@@ -362,12 +375,24 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
 
         await new Promise(r => setTimeout(r, getDelay(400)));
 
+        // Phase 4.3: 중단 플래그 재확인
+        if (shouldStopRef.current) break;
+
         // 이펙트 제거
         setAttackingPlayer(null);
         setShowDamage(null);
         setCurrentSkillEffect(null);
 
         await new Promise(r => setTimeout(r, getDelay(200)));
+      }
+
+      // Phase 4.3: 중단된 경우 이펙트 정리
+      if (shouldStopRef.current) {
+        setAttackingPlayer(null);
+        setShowDamage(null);
+        setCurrentSkillEffect(null);
+        setIsAnimating(false);
+        return;
       }
 
       // 최종 HP 설정 (시뮬레이션 결과와 맞춤)
@@ -383,7 +408,9 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
 
       // 세트 종료로 전환
       await new Promise(r => setTimeout(r, getDelay(500)));
-      setPhase('SET_END');
+      if (!shouldStopRef.current) {
+        setPhase('SET_END');
+      }
     };
 
     animateTurns();
@@ -442,6 +469,13 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
 
   // 스킵
   const handleSkip = () => {
+    // Phase 4.3: 진행 중인 애니메이션 중단
+    shouldStopRef.current = true;
+    setIsAnimating(false);
+    setAttackingPlayer(null);
+    setShowDamage(null);
+    setCurrentSkillEffect(null);
+
     // 최종 결과로 바로 이동
     setP1Score(matchResult.score[0]);
     setP2Score(matchResult.score[1]);
@@ -466,7 +500,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
             </span>
             {phase === 'BATTLE' && currentSet && (
               <span className="text-sm text-yellow-400">
-                Turn {currentTurnIndex}/{currentSet.turns.length}
+                Turn {currentTurnIndex}
               </span>
             )}
           </div>
@@ -596,7 +630,7 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                 <div className="text-3xl font-bold text-accent mb-2">VS</div>
                 {phase === 'BATTLE' && currentSet && (
                   <div className="text-sm text-text-secondary">
-                    턴 {currentTurnIndex} / {currentSet.turns.length}
+                    턴 {currentTurnIndex}
                   </div>
                 )}
               </div>
