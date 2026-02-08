@@ -26,10 +26,10 @@ export const GRADE_GAUGE_BONUS: Record<LegacyGrade, number> = {
 // ========================================
 
 export function getCeCostChargeBonus(ceCost: number): number {
-  if (ceCost === 0) return 0.30;      // +30% (물리 캐릭터)
-  if (ceCost <= 3) return 0.20;       // +20%
-  if (ceCost <= 6) return 0.10;       // +10%
-  return 0.00;                         // +0% (고CE 캐릭터)
+  if (ceCost === 0) return 0.10;      // +10% (물리 캐릭터 - 확률 발동 리스크 보상)
+  if (ceCost <= 3) return 0.10;       // +10%
+  if (ceCost <= 6) return 0.05;       // +5%
+  return 0.00;                         // +0% (고CE 캐릭터 - 확정 발동)
 }
 
 // ========================================
