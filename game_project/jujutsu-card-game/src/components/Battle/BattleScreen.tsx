@@ -18,6 +18,7 @@ import { CHARACTERS_BY_ID } from '../../data';
 import type { CharacterCard, AllKillState } from '../../types';
 import { AllKillIndicator } from '../Phase4/AllKillIndicator';
 import { useSeasonStore } from '../../stores/seasonStore';
+import { useGameStore } from '../../stores/gameStore';
 import { useShallow } from 'zustand/shallow';
 import {
   INITIAL_ALLKILL_STATE,
@@ -630,7 +631,8 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => {
-                        selectCard(card.id);
+                        // 에이스 결정전에서는 isAnimating 체크 없이 직접 선택
+                        useGameStore.getState().selectCard(card.id);
                         setShowAceSelection(false);
                       }}
                       className={`
@@ -881,9 +883,12 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   }`}
                   onClick={() => {
                     if (isAvailable) {
-                      selectCard(card.id);
+                      // 에이스 결정전에서는 isAnimating 체크 없이 직접 선택
                       if (isAceMatch) {
+                        useGameStore.getState().selectCard(card.id);
                         setShowAceSelection(false);
+                      } else {
+                        selectCard(card.id);
                       }
                     }
                   }}
