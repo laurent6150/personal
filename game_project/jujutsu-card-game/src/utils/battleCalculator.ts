@@ -16,7 +16,10 @@ import type {
   AppliedStatusEffect,
   TurnResult,
   CrewPolicy,
-  CoachingStrategy
+  CoachingStrategy,
+  GaugeChargeResult,
+  UltimateActivationResult,
+  LegacyGrade
 } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
@@ -33,6 +36,16 @@ import { getStatusEffect } from '../data/statusEffects';
 import { getUltimateSkillEffects, type UltimateSkillData } from '../data/ultimateSkillEffects';
 import { getStyleMultiplier, getCharacterBattleStyle } from '../data/battleStyles';
 import { checkFavoredStatBonus } from '../data/arenas';
+import {
+  calculateGaugeCharge,
+  calculateDamageTakenGaugeCharge,
+  calculateActivationResult,
+  addGauge,
+  initializeGaugeState,
+  GAUGE_REQUIRED,
+  MAX_GAUGE,
+  type GaugeState,
+} from '../data/gaugeSystem';
 
 /**
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
@@ -1588,5 +1601,200 @@ export function calculatePhase5Damage(
     favoredStatMod,
     rivalBonus,
     breakdown,
+  };
+}
+
+// ========================================
+// Phase 6: 게이지 충전 시스템 통합
+// ========================================
+
+export {
+  calculateGaugeCharge,
+  calculateDamageTakenGaugeCharge,
+  addGauge,
+  initializeGaugeState,
+  GAUGE_REQUIRED,
+  MAX_GAUGE,
+};
+
+/**
+ * 공격 시 게이지 충전 처리 (공격자: 입힌 데미지, 방어자: 받은 데미지)
+ */
+export function processGaugeChargeOnAttack(
+  damage: number,
+  attackerGauge: number,
+  defenderGauge: number,
+  attackerGrade: LegacyGrade,
+  defenderGrade: LegacyGrade,
+  attackerCeCost: number,
+  _defenderCeCost: number  // 향후 확장용
+): {
+  attackerResult: GaugeChargeResult;
+  defenderResult: GaugeChargeResult;
+} {
+  // 공격자: 입힌 데미지 기반 충전
+  const attackerCharge = calculateGaugeCharge({
+    damage,
+    grade: attackerGrade,
+    ceCost: attackerCeCost,
+  });
+  const newAttackerGauge = addGauge(attackerGauge, attackerCharge);
+
+  // 방어자: 받은 데미지 기반 충전
+  const defenderCharge = calculateDamageTakenGaugeCharge(damage, defenderGrade);
+  const newDefenderGauge = addGauge(defenderGauge, defenderCharge);
+
+  return {
+    attackerResult: {
+      previousGauge: attackerGauge,
+      chargeAmount: attackerCharge,
+      newGauge: newAttackerGauge,
+      isMaxed: newAttackerGauge >= MAX_GAUGE,
+      source: 'DAMAGE_DEALT',
+    },
+    defenderResult: {
+      previousGauge: defenderGauge,
+      chargeAmount: defenderCharge,
+      newGauge: newDefenderGauge,
+      isMaxed: newDefenderGauge >= MAX_GAUGE,
+      source: 'DAMAGE_TAKEN',
+    },
+  };
+}
+
+/**
+ * 필살기 발동 시도 및 결과 처리
+ */
+export function attemptUltimateActivation(
+  currentGauge: number,
+  currentCe: number,
+  ceCost: number,
+  crtStat: number,
+  isSealed: boolean = false
+): UltimateActivationResult {
+  // 봉인 상태면 발동 불가
+  if (isSealed) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: false,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'SEALED',
+    };
+  }
+
+  // 게이지 부족
+  if (currentGauge < GAUGE_REQUIRED) {
+    return {
+      attempted: false,
+      success: false,
+      isGuaranteed: false,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'GAUGE_INSUFFICIENT',
+    };
+  }
+
+  // 발동 확률 계산
+  const result = calculateActivationResult({
+    ceCost,
+    currentCe,
+    crtStat,
+    currentGauge,
+  });
+
+  // CE 기반 캐릭터: CE 부족 확인
+  if (ceCost > 0 && currentCe < ceCost) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: true,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'CE_INSUFFICIENT',
+    };
+  }
+
+  // 확률 기반 캐릭터: 확률 판정 실패
+  if (!result.success && ceCost === 0) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: false,
+      activationChance: result.activationChance,
+      previousGauge: currentGauge,
+      newGauge: result.newGauge, // 50% 유지
+      ceCost: 0,
+      reason: 'PROBABILITY_FAILED',
+    };
+  }
+
+  // 발동 성공
+  return {
+    attempted: true,
+    success: true,
+    isGuaranteed: result.isGuaranteed,
+    activationChance: result.activationChance,
+    previousGauge: currentGauge,
+    newGauge: 0,
+    ceCost: result.isGuaranteed ? ceCost : 0,
+    reason: 'SUCCESS',
+  };
+}
+
+/**
+ * 캐릭터 게이지 설정 초기화 (전투 시작 시)
+ */
+export function initializeCharacterGaugeConfig(
+  cardId: string,
+  grade: LegacyGrade,
+  crtStat: number
+): GaugeState {
+  const ultimateData = getUltimateSkillEffects(cardId);
+  const ceCost = ultimateData?.ceCost ?? 0;
+
+  return initializeGaugeState(grade, ceCost, crtStat);
+}
+
+/**
+ * 게이지 충전량 미리보기 (UI용)
+ */
+export function previewGaugeCharge(
+  cardId: string,
+  grade: LegacyGrade,
+  expectedDamage: number
+): {
+  chargeAmount: number;
+  turnsToFull: number;
+  activationChance: number;
+  isPhysical: boolean;
+} {
+  const ultimateData = getUltimateSkillEffects(cardId);
+  const ceCost = ultimateData?.ceCost ?? 0;
+
+  const chargeAmount = calculateGaugeCharge({
+    damage: expectedDamage,
+    grade,
+    ceCost,
+  });
+
+  const turnsToFull = chargeAmount > 0 ? Math.ceil(MAX_GAUGE / chargeAmount) : Infinity;
+
+  // 기본 crt 값으로 발동 확률 계산
+  const baseCrt = 10;
+  const state = initializeGaugeState(grade, ceCost, baseCrt);
+
+  return {
+    chargeAmount,
+    turnsToFull,
+    activationChance: state.activationChance,
+    isPhysical: state.isPhysical,
   };
 }

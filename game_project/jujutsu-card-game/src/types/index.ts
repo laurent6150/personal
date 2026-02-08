@@ -1752,3 +1752,50 @@ export interface RivalInfo {
   isRival?: boolean;            // 라이벌 여부
   establishedSeason?: number;   // 라이벌 성립 시즌
 }
+
+// ========================================
+// Phase 6: 게이지 충전 시스템 타입
+// ========================================
+
+// 게이지 충전 결과
+export interface GaugeChargeResult {
+  previousGauge: number;        // 충전 전 게이지
+  chargeAmount: number;         // 충전량
+  newGauge: number;             // 충전 후 게이지
+  isMaxed: boolean;             // 100 도달 여부
+  source: 'DAMAGE_DEALT' | 'DAMAGE_TAKEN' | 'TURN_START' | 'SKILL_EFFECT';
+}
+
+// 필살기 발동 결과
+export interface UltimateActivationResult {
+  attempted: boolean;           // 발동 시도 여부
+  success: boolean;             // 발동 성공 여부
+  isGuaranteed: boolean;        // 확정 발동 여부 (CE 기반)
+  activationChance: number;     // 발동 확률 (%)
+  previousGauge: number;        // 발동 전 게이지
+  newGauge: number;             // 발동 후 게이지 (실패 시 50% 유지)
+  ceCost: number;               // 소모된 CE (CE 기반의 경우)
+  reason?: 'SUCCESS' | 'CE_INSUFFICIENT' | 'GAUGE_INSUFFICIENT' | 'PROBABILITY_FAILED' | 'SEALED';
+}
+
+// 게이지 시스템 설정 (캐릭터별)
+export interface GaugeSystemConfig {
+  grade: LegacyGrade;           // 캐릭터 등급
+  ceCost: number;               // 필살기 ceCost
+  crtStat: number;              // 치명 스탯
+  // 계산된 값
+  chargeMultiplier: number;     // 총 충전 배율
+  isPhysical: boolean;          // 물리 특화 여부 (ceCost = 0)
+  activationChance: number;     // 발동 확률 (물리: 70~90%, CE: 100%)
+}
+
+// 턴 결과에 게이지 정보 추가
+export interface TurnGaugeInfo {
+  attackerGaugeBefore: number;
+  attackerGaugeAfter: number;
+  attackerChargeAmount: number;
+  defenderGaugeBefore: number;
+  defenderGaugeAfter: number;
+  defenderChargeAmount: number;
+  ultimateAttempted?: UltimateActivationResult;
+}
