@@ -35,11 +35,12 @@ export function getCeCostChargeBonus(ceCost: number): number {
 // 게이지 충전량 상수
 // ========================================
 
-// 기본 충전률: 입힌 데미지의 20%
-export const BASE_CHARGE_RATE = 0.20;
+// 기본 충전률: 입힌 데미지의 80%
+// (기존 25~35 랜덤 충전 → 데미지 30 기준 약 24 충전으로 비슷하게 맞춤)
+export const BASE_CHARGE_RATE = 0.80;
 
-// 받은 데미지 충전률: 받은 데미지의 15%
-export const DAMAGE_TAKEN_CHARGE_RATE = 0.15;
+// 받은 데미지 충전률: 받은 데미지의 50%
+export const DAMAGE_TAKEN_CHARGE_RATE = 0.50;
 
 // 최대 게이지
 export const MAX_GAUGE = 100;
