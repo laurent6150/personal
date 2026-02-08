@@ -1,6 +1,7 @@
 // ========================================
-// 드래프트 시스템 스토어 (Phase 5)
+// 드래프트 시스템 스토어 (Phase 5.1)
 // NBA 스타일 드래프트 + 픽 트레이드
+// playerStore 연동: 드래프트로 획득한 카드가 ownedCards에 추가됨
 // ========================================
 
 import { create } from 'zustand';
@@ -20,6 +21,15 @@ import type {
   LegacyGrade,
   DraftSource
 } from '../types';
+
+// playerStore와의 연동을 위한 lazy import (circular dependency 방지)
+let playerStorePromise: Promise<typeof import('./playerStore')> | null = null;
+function getPlayerStore() {
+  if (!playerStorePromise) {
+    playerStorePromise = import('./playerStore');
+  }
+  return playerStorePromise;
+}
 
 // ========================================
 // 드래프트 스토어 인터페이스
@@ -274,6 +284,19 @@ export const useDraftStore = create<DraftState>()(
 
         const charName = CHARACTERS_BY_ID[cardId]?.name.ko || cardId;
         console.log(`[Draft] ${crewId}가 ${charName} 선택 (${currentPickIndex + 1}순위)`);
+
+        // Phase 5.1: 플레이어 크루인 경우 ownedCards에 카드 추가
+        if (crewId === PLAYER_CREW_ID) {
+          getPlayerStore().then(({ usePlayerStore }) => {
+            const { addOwnedCard } = usePlayerStore.getState();
+            const success = addOwnedCard(cardId);
+            if (success) {
+              console.log(`[Draft] 플레이어 ownedCards에 ${charName} 추가 완료`);
+            } else {
+              console.error(`[Draft] 플레이어 ownedCards에 ${charName} 추가 실패`);
+            }
+          });
+        }
       },
 
       // 드래프트 종료

@@ -153,12 +153,13 @@ function distributeCharactersWithGradeLimits(
 }
 
 // 시즌용 AI 크루 생성 (등급 제한 적용)
-// 전체 카드 풀에서 플레이어 카드 제외 후 등급 밸런스 유지하며 분배
-export function generateAICrewsForSeason(playerCrew: string[] = []): AICrew[] {
-  // 플레이어 카드 제외한 가용 카드
+// 전체 카드 풀에서 플레이어 소유 카드 제외 후 등급 밸런스 유지하며 분배
+// Phase 5.1: playerOwnedCards를 명시적으로 받아서 중복 방지
+export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICrew[] {
+  // 플레이어 소유 카드 제외한 가용 카드
   const availableCards = ALL_CHARACTERS
     .map(c => c.id)
-    .filter(id => !playerCrew.includes(id));
+    .filter(id => !playerOwnedCards.includes(id));
 
   // AI 크루 수 (총 크루 수 - 플레이어 1팀)
   const aiCrewCount = Math.min(CREW_COUNT - 1, AI_CREW_TEMPLATES.length);
@@ -167,7 +168,7 @@ export function generateAICrewsForSeason(playerCrew: string[] = []): AICrew[] {
   const totalCardsNeeded = aiCrewCount * CREW_SIZE;
 
   console.log(`[AI Crews] 총 캐릭터: ${ALL_CHARACTERS.length}장`);
-  console.log(`[AI Crews] 플레이어 크루: ${playerCrew.length}장`);
+  console.log(`[AI Crews] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
   console.log(`[AI Crews] 가용 캐릭터: ${availableCards.length}장`);
   console.log(`[AI Crews] AI 크루 수: ${aiCrewCount}팀, 필요 카드: ${totalCardsNeeded}장`);
 

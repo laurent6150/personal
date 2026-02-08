@@ -21,6 +21,7 @@ import type {
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
+import { usePlayerStore } from './playerStore';
 import {
   REGULAR_SEASON_GAMES,
   TRADE_DEADLINE_GAME
@@ -315,12 +316,21 @@ export const useSeasonStore = create<SeasonState>()(
       crewPolicy: 'BALANCED',
 
       // 첫 게임 시작 (플레이어 크루 선택)
+      // Phase 5.1: playerStore의 currentCrew를 사용하도록 변경
       initializeGame: (playerCrew: string[]) => {
         // 크루 유효성 검사 (크루 사이즈 + 등급 제한)
         const validation = validatePlayerCrew(playerCrew);
         if (!validation.valid) {
           console.error('[initializeGame]', validation.error);
           return;
+        }
+
+        // playerStore와 동기화 (playerCrew가 전달된 경우)
+        const { player, setCurrentCrew } = usePlayerStore.getState();
+
+        // playerStore의 currentCrew가 다른 경우 동기화
+        if (JSON.stringify(player.currentCrew) !== JSON.stringify(playerCrew)) {
+          setCurrentCrew(playerCrew);
         }
 
         set({
@@ -333,7 +343,7 @@ export const useSeasonStore = create<SeasonState>()(
 
       // 시즌 시작 (첫 시즌 또는 다음 시즌)
       startNewSeason: () => {
-        const { isInitialized, seasonHistory, playerCrew, teamLeagueCompleted, individualLeagueCompleted } = get();
+        const { isInitialized, seasonHistory, teamLeagueCompleted, individualLeagueCompleted } = get();
 
         if (!isInitialized) {
           console.error('먼저 initializeGame을 호출하세요');
@@ -349,8 +359,12 @@ export const useSeasonStore = create<SeasonState>()(
           return;
         }
 
-        // AI 크루 랜덤 재배정 (플레이어 크루 제외하여 중복 방지)
-        const aiCrews = generateAICrewsForSeason(playerCrew);
+        // Phase 5.1: 플레이어 소유 카드 조회 (크루간 카드 중복 방지)
+        const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
+        console.log(`[Season] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
+
+        // AI 크루 랜덤 재배정 (플레이어 소유 카드 제외하여 중복 방지)
+        const aiCrews = generateAICrewsForSeason(playerOwnedCards);
         setAICrews(aiCrews);
 
         const newSeasonNumber = seasonHistory.length + 1;
