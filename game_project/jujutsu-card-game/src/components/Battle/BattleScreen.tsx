@@ -932,7 +932,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="w-full max-w-lg mb-4"
+              className="w-full mb-4"
             >
               <ArenaDisplay arena={currentArena} size="md" />
             </motion.div>
