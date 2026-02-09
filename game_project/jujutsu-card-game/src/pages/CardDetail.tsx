@@ -1102,16 +1102,26 @@ function RecordTab({
           vsRecords[opponentId].losses += record.losses;
         }
       }
-      // 개인 리그 상대별 (해당 시즌)
+      // 개인 리그 (해당 시즌) - 상대별 + 경기장별
       const individualSeasonRecord = cardRecord?.individualLeague?.seasons?.find(
         s => s.season === recordTab
       );
       individualSeasonRecord?.matchHistory?.forEach(match => {
+        // 상대별 전적
         if (!vsRecords[match.opponentId]) vsRecords[match.opponentId] = { wins: 0, losses: 0 };
         if (match.result === 'WIN') {
           vsRecords[match.opponentId].wins++;
         } else if (match.result === 'LOSE') {
           vsRecords[match.opponentId].losses++;
+        }
+        // 경기장별 전적
+        if (match.arenaId) {
+          if (!arenaRecords[match.arenaId]) arenaRecords[match.arenaId] = { wins: 0, losses: 0 };
+          if (match.result === 'WIN') {
+            arenaRecords[match.arenaId].wins++;
+          } else if (match.result === 'LOSE') {
+            arenaRecords[match.arenaId].losses++;
+          }
         }
       });
 
@@ -1139,14 +1149,24 @@ function RecordTab({
       }
     }
 
-    // 개인 리그 전체 시즌 합산 (상대별 전적)
+    // 개인 리그 전체 시즌 합산 (상대별 + 경기장별 전적)
     cardRecord.individualLeague?.seasons?.forEach(season => {
       season.matchHistory?.forEach(match => {
+        // 상대별 전적
         if (!vsRecords[match.opponentId]) vsRecords[match.opponentId] = { wins: 0, losses: 0 };
         if (match.result === 'WIN') {
           vsRecords[match.opponentId].wins++;
         } else if (match.result === 'LOSE') {
           vsRecords[match.opponentId].losses++;
+        }
+        // 경기장별 전적
+        if (match.arenaId) {
+          if (!arenaRecords[match.arenaId]) arenaRecords[match.arenaId] = { wins: 0, losses: 0 };
+          if (match.result === 'WIN') {
+            arenaRecords[match.arenaId].wins++;
+          } else if (match.result === 'LOSE') {
+            arenaRecords[match.arenaId].losses++;
+          }
         }
       });
     });

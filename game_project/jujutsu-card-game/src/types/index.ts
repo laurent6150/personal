@@ -871,6 +871,7 @@ export interface IndividualMatchRecord {
   opponentName: string;
   result: 'WIN' | 'LOSE';
   score: { my: number; opponent: number };
+  arenaId?: string;        // 경기장 ID (경기장별 전적 집계용)
   arenaName?: string;
 }
 
