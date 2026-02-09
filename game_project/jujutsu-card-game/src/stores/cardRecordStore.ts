@@ -338,7 +338,7 @@ export const useCardRecordStore = create<CardRecordStore>()(
         return records[cardId]?.seasonRecords[seasonNumber] || null;
       },
 
-      // 통산 스탯 계산
+      // 통산 스탯 계산 (팀 리그 + 개인 리그 통합)
       getCareerStats: (cardId: string) => {
         const { records } = get();
         const cardRecord = records[cardId];
@@ -356,9 +356,16 @@ export const useCardRecordStore = create<CardRecordStore>()(
         let wins = 0;
         let losses = 0;
 
+        // 팀 리그 성적 합산
         for (const seasonRecord of Object.values(cardRecord.seasonRecords)) {
           wins += seasonRecord.wins;
           losses += seasonRecord.losses;
+        }
+
+        // 개인 리그 성적 합산
+        if (cardRecord.individualLeague) {
+          wins += cardRecord.individualLeague.totalWins;
+          losses += cardRecord.individualLeague.totalLosses;
         }
 
         const totalGames = wins + losses;
@@ -371,28 +378,32 @@ export const useCardRecordStore = create<CardRecordStore>()(
         };
       },
 
-      // 시즌 스탯 계산
+      // 시즌 스탯 계산 (팀 리그 + 개인 리그 통합)
       getSeasonStats: (cardId: string, seasonNumber: number) => {
         const { records } = get();
-        const seasonRecord = records[cardId]?.seasonRecords[seasonNumber];
+        const cardRecord = records[cardId];
+        const seasonRecord = cardRecord?.seasonRecords[seasonNumber];
 
-        if (!seasonRecord) {
-          return {
-            cardId,
-            wins: 0,
-            losses: 0,
-            totalGames: 0,
-            winRate: 0
-          };
+        // 팀 리그 성적
+        let wins = seasonRecord?.wins || 0;
+        let losses = seasonRecord?.losses || 0;
+
+        // 개인 리그 성적 (해당 시즌)
+        const individualSeasonRecord = cardRecord?.individualLeague?.seasons?.find(
+          s => s.season === seasonNumber
+        );
+        if (individualSeasonRecord) {
+          wins += individualSeasonRecord.wins;
+          losses += individualSeasonRecord.losses;
         }
 
-        const totalGames = seasonRecord.wins + seasonRecord.losses;
+        const totalGames = wins + losses;
         return {
           cardId,
-          wins: seasonRecord.wins,
-          losses: seasonRecord.losses,
+          wins,
+          losses,
           totalGames,
-          winRate: totalGames > 0 ? (seasonRecord.wins / totalGames) * 100 : 0
+          winRate: totalGames > 0 ? (wins / totalGames) * 100 : 0
         };
       },
 

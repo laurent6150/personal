@@ -1083,17 +1083,47 @@ function RecordTab({
   const cardRecord = getCardRecord(cardId);
 
   const aggregatedRecords = useMemo(() => {
-    if (recordTab !== 'career' || !cardRecord) {
-      return currentSeasonRecord ? {
-        arenaRecords: currentSeasonRecord.arenaRecords,
-        vsRecords: currentSeasonRecord.vsRecords
-      } : null;
-    }
-
-    // 통산 기록 - 모든 시즌 합산
     const arenaRecords: Record<string, { wins: number; losses: number }> = {};
     const vsRecords: Record<string, { wins: number; losses: number }> = {};
 
+    if (recordTab !== 'career') {
+      // 시즌별 기록
+      if (currentSeasonRecord) {
+        // 팀 리그 경기장별
+        for (const [arenaId, record] of Object.entries(currentSeasonRecord.arenaRecords)) {
+          if (!arenaRecords[arenaId]) arenaRecords[arenaId] = { wins: 0, losses: 0 };
+          arenaRecords[arenaId].wins += record.wins;
+          arenaRecords[arenaId].losses += record.losses;
+        }
+        // 팀 리그 상대별
+        for (const [opponentId, record] of Object.entries(currentSeasonRecord.vsRecords)) {
+          if (!vsRecords[opponentId]) vsRecords[opponentId] = { wins: 0, losses: 0 };
+          vsRecords[opponentId].wins += record.wins;
+          vsRecords[opponentId].losses += record.losses;
+        }
+      }
+      // 개인 리그 상대별 (해당 시즌)
+      const individualSeasonRecord = cardRecord?.individualLeague?.seasons?.find(
+        s => s.season === recordTab
+      );
+      individualSeasonRecord?.matchHistory?.forEach(match => {
+        if (!vsRecords[match.opponentId]) vsRecords[match.opponentId] = { wins: 0, losses: 0 };
+        if (match.result === 'WIN') {
+          vsRecords[match.opponentId].wins++;
+        } else if (match.result === 'LOSE') {
+          vsRecords[match.opponentId].losses++;
+        }
+      });
+
+      return Object.keys(arenaRecords).length > 0 || Object.keys(vsRecords).length > 0
+        ? { arenaRecords, vsRecords }
+        : null;
+    }
+
+    // 통산 기록 - 모든 시즌 합산
+    if (!cardRecord) return null;
+
+    // 팀 리그 전체 시즌 합산
     for (const seasonRecord of Object.values(cardRecord.seasonRecords)) {
       // 경기장별
       for (const [arenaId, record] of Object.entries(seasonRecord.arenaRecords)) {
@@ -1108,6 +1138,18 @@ function RecordTab({
         vsRecords[opponentId].losses += record.losses;
       }
     }
+
+    // 개인 리그 전체 시즌 합산 (상대별 전적)
+    cardRecord.individualLeague?.seasons?.forEach(season => {
+      season.matchHistory?.forEach(match => {
+        if (!vsRecords[match.opponentId]) vsRecords[match.opponentId] = { wins: 0, losses: 0 };
+        if (match.result === 'WIN') {
+          vsRecords[match.opponentId].wins++;
+        } else if (match.result === 'LOSE') {
+          vsRecords[match.opponentId].losses++;
+        }
+      });
+    });
 
     return { arenaRecords, vsRecords };
   }, [recordTab, cardRecord, currentSeasonRecord]);
