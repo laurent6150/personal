@@ -79,7 +79,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     return tabs;
   }, [currentSeason, seasonHistory]);
 
-  if (!playerCard || !character) {
+  // 캐릭터 데이터가 없으면 오류
+  if (!character) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
         <div className="text-text-secondary">카드를 찾을 수 없습니다</div>
@@ -87,12 +88,18 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     );
   }
 
-  const levelProgress = getLevelProgress(playerCard.exp, playerCard.level);
-  const expToNext = getExpToNextLevel(playerCard.exp, playerCard.level);
-  const maxExp = playerCard.level < 10 ? EXP_TABLE[playerCard.level] : playerCard.exp;
+  // 미획득 카드 여부
+  const isUnowned = !playerCard;
+
+  // 미획득 카드는 기본값 사용
+  const displayLevel = playerCard?.level ?? 1;
+  const displayExp = playerCard?.exp ?? 0;
+  const levelProgress = getLevelProgress(displayExp, displayLevel);
+  const expToNext = getExpToNextLevel(displayExp, displayLevel);
+  const maxExp = displayLevel < 10 ? EXP_TABLE[displayLevel] : displayExp;
 
   // 레벨업 보너스가 적용된 스탯
-  const levelBonus = (playerCard.level - 1) * 2;
+  const levelBonus = (displayLevel - 1) * 2;
   const enhancedStats = {
     ...character.baseStats,
     [character.growthStats.primary]: character.baseStats[character.growthStats.primary] + levelBonus,
@@ -101,7 +108,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
 
   // 장비 보너스 계산 (8스탯 지원)
   const equipmentBonus = { atk: 0, def: 0, spd: 0, ce: 0, hp: 0, crt: 0, tec: 0, mnt: 0 };
-  for (const equipId of playerCard.equipment) {
+  const equipmentList = playerCard?.equipment ?? [];
+  for (const equipId of equipmentList) {
     if (equipId) {
       const item = ITEMS_BY_ID[equipId];
       if (item) {
@@ -115,15 +123,15 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
   }
 
   // 폼/컨디션 정보
-  const formState = playerCard.currentForm || 'STABLE';
-  const currentCondition = typeof playerCard.condition === 'object'
-    ? playerCard.condition.value
-    : (playerCard.condition ?? 75);
+  const formState = playerCard?.currentForm || 'STABLE';
+  const currentCondition = playerCard
+    ? (typeof playerCard.condition === 'object' ? playerCard.condition.value : (playerCard.condition ?? 75))
+    : 100;
   const formConfig = FORM_CONFIG[formState as FormState];
 
   // 장착 가능한 아이템 필터링
   const availableItems = ALL_ITEMS.filter(item => {
-    if (playerCard.equipment.includes(item.id)) return false;
+    if (equipmentList.includes(item.id)) return false;
     return player.unlockedItems.includes(item.id);
   });
 
@@ -234,6 +242,9 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
             <InfoTab
               character={character}
               playerCard={playerCard}
+              isUnowned={isUnowned}
+              displayLevel={displayLevel}
+              displayExp={displayExp}
               enhancedStats={enhancedStats}
               equipmentBonus={equipmentBonus}
               levelProgress={levelProgress}
@@ -260,6 +271,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
             <SeasonStatsTab
               character={character}
               playerCard={playerCard}
+              isUnowned={isUnowned}
+              displayLevel={displayLevel}
               cardRecord={cardRecord}
               currentSeason={currentSeason}
               seasonHistory={seasonHistory}
@@ -304,6 +317,9 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
 function InfoTab({
   character,
   playerCard,
+  isUnowned,
+  displayLevel,
+  displayExp,
   enhancedStats,
   equipmentBonus,
   levelProgress,
@@ -319,7 +335,10 @@ function InfoTab({
   formConfig
 }: {
   character: CharacterCard;
-  playerCard: PlayerCard;
+  playerCard: PlayerCard | undefined;
+  isUnowned: boolean;
+  displayLevel: number;
+  displayExp: number;
   enhancedStats: Record<string, number>;
   equipmentBonus: Record<string, number>;
   levelProgress: number;
@@ -336,7 +355,7 @@ function InfoTab({
 }) {
   const [imageError, setImageError] = useState(false);
 
-  if (!character || !playerCard) return null;
+  if (!character) return null;
 
   const attrInfo = ATTRIBUTES[character.attribute];
   const imageUrl = imageError
@@ -345,6 +364,17 @@ function InfoTab({
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 미획득 카드 배너 */}
+      {isUnowned && (
+        <div className="lg:col-span-2 bg-gradient-to-r from-gray-600/30 to-gray-500/30 border border-gray-500/50 rounded-xl p-4 text-center">
+          <div className="text-2xl mb-2">🔒</div>
+          <div className="text-lg font-bold text-gray-300">미획득 카드</div>
+          <div className="text-sm text-gray-400 mt-1">
+            드래프트나 이벤트를 통해 이 카드를 획득할 수 있습니다
+          </div>
+        </div>
+      )}
+
       {/* 카드 이미지 & 기본 정보 */}
       <div className="bg-bg-card rounded-xl p-6 border border-white/10">
         <div className={`
@@ -354,6 +384,7 @@ function InfoTab({
           ${character.grade === '1급' ? 'from-grade-a/30 to-grade-a/10' : ''}
           ${character.grade === '준1급' ? 'from-grade-b/30 to-grade-b/10' : ''}
           ${character.grade === '2급' ? 'from-grade-c/30 to-grade-c/10' : ''}
+          ${isUnowned ? 'grayscale opacity-70' : ''}
         `}>
           {/* 캐릭터 이미지 */}
           {imageError ? (
@@ -379,8 +410,8 @@ function InfoTab({
             <div className="text-lg font-bold">{character.name.ko}</div>
             <div className="text-sm text-text-secondary">{character.name.en}</div>
           </div>
-          <div className="absolute top-4 right-4 bg-accent px-3 py-1 rounded-full text-sm font-bold z-10">
-            Lv.{playerCard.level}
+          <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-bold z-10 ${isUnowned ? 'bg-gray-500' : 'bg-accent'}`}>
+            Lv.{displayLevel}
           </div>
         </div>
 
@@ -389,8 +420,8 @@ function InfoTab({
           <div className="flex justify-between text-sm mb-1">
             <span className="text-text-secondary">경험치</span>
             <span>
-              {playerCard.exp} / {maxExp}
-              {expToNext > 0 && <span className="text-text-secondary"> (다음 레벨까지 {expToNext})</span>}
+              {displayExp} / {maxExp}
+              {!isUnowned && expToNext > 0 && <span className="text-text-secondary"> (다음 레벨까지 {expToNext})</span>}
             </span>
           </div>
           <div className="h-3 bg-bg-secondary rounded-full overflow-hidden">
@@ -590,9 +621,15 @@ function InfoTab({
         {/* 장비 슬롯 */}
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">장비</h3>
+          {isUnowned ? (
+            <div className="text-center py-8 text-text-secondary">
+              <div className="text-2xl mb-2">🔒</div>
+              <div className="text-sm">카드를 획득하면 장비를 장착할 수 있습니다</div>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-4">
             {[0, 1].map(slot => {
-              const equipId = playerCard.equipment[slot as 0 | 1];
+              const equipId = playerCard?.equipment[slot as 0 | 1];
               const item = equipId ? ITEMS_BY_ID[equipId] : null;
 
               return (
@@ -640,9 +677,10 @@ function InfoTab({
               );
             })}
           </div>
+          )}
 
           <AnimatePresence>
-            {selectedSlot !== null && (
+            {selectedSlot !== null && !isUnowned && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -689,14 +727,18 @@ function InfoTab({
 // 시즌 성적 탭 컴포넌트
 function SeasonStatsTab({
   character,
-  playerCard,
+  playerCard: _playerCard,
+  isUnowned,
+  displayLevel,
   cardRecord,
   currentSeason,
   seasonHistory,
   awards
 }: {
   character: CharacterCard;
-  playerCard: PlayerCard;
+  playerCard: PlayerCard | undefined;
+  isUnowned: boolean;
+  displayLevel: number;
   cardRecord: CardRecord | null;
   currentSeason: { number: number } | null;
   seasonHistory: { seasonNumber: number }[];
@@ -808,7 +850,7 @@ function SeasonStatsTab({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-bold text-lg text-text-primary">{character.name.ko}</h3>
-              <span className="text-sm text-accent font-bold">Lv.{playerCard.level}</span>
+              <span className={`text-sm font-bold ${isUnowned ? 'text-gray-400' : 'text-accent'}`}>Lv.{displayLevel}</span>
             </div>
             <div className="flex items-center gap-2 mb-2">
               <GradeBadge grade={character.grade} size="sm" />
