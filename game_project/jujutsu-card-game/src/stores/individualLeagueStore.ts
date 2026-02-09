@@ -9,7 +9,8 @@ import type {
   IndividualLeagueStatus,
   IndividualLeagueHistory,
   IndividualMatch,
-  IndividualLeagueAward
+  IndividualLeagueAward,
+  IndividualMatchRecord
 } from '../types';
 import type {
   BattleState,
@@ -494,8 +495,74 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
         // Phase 4 Task 4.1: 개인리그 성적 저장 (cardRecordStore 연동)
         const { saveIndividualLeagueRecord } = useCardRecordStore.getState();
+
+        // 모든 경기 수집 (각 라운드별)
+        const allMatches: { match: IndividualMatch; round: string }[] = [];
+
+        // 32강 조별 리그
+        currentLeague.brackets.round32.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'ROUND_32' });
+          }
+        });
+
+        // 16강 토너먼트
+        currentLeague.brackets.round16Matches?.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'ROUND_16' });
+          }
+        });
+
+        // 8강
+        currentLeague.brackets.quarter.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'QUARTER' });
+          }
+        });
+
+        // 4강
+        currentLeague.brackets.semi.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'SEMI' });
+          }
+        });
+
+        // 결승
+        if (currentLeague.brackets.final?.played) {
+          allMatches.push({ match: currentLeague.brackets.final, round: 'FINAL' });
+        }
+
+        // 3/4위전
+        if (currentLeague.brackets.thirdPlace?.played) {
+          allMatches.push({ match: currentLeague.brackets.thirdPlace, round: 'THIRD_PLACE' });
+        }
+
         rankings.forEach(ranking => {
           if (ranking.isPlayerCrew) {
+            // 내 크루 카드의 경기 기록 수집
+            const matchHistory: IndividualMatchRecord[] = allMatches
+              .filter(({ match }) =>
+                match.participant1 === ranking.odId || match.participant2 === ranking.odId
+              )
+              .map(({ match, round }) => {
+                const isParticipant1 = match.participant1 === ranking.odId;
+                const opponentId = isParticipant1 ? match.participant2 : match.participant1;
+                const opponent = CHARACTERS_BY_ID[opponentId];
+                const isWinner = match.winner === ranking.odId;
+
+                return {
+                  season: currentLeague.season,
+                  round,
+                  opponentId,
+                  opponentName: opponent?.name.ko || '???',
+                  result: isWinner ? 'WIN' as const : 'LOSE' as const,
+                  score: {
+                    my: isParticipant1 ? match.score.p1 : match.score.p2,
+                    opponent: isParticipant1 ? match.score.p2 : match.score.p1
+                  }
+                };
+              });
+
             // 내 크루 카드의 개인리그 시즌 기록 저장
             const seasonRecord: IndividualSeasonRecord = {
               season: currentLeague.season,
@@ -506,11 +573,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
               awards: awards
                 .filter(a => a.odId === ranking.odId)
                 .map(a => a.type),
-              matchHistory: [], // TODO: 매치 히스토리 연동
+              matchHistory,
             };
 
             saveIndividualLeagueRecord(ranking.odId, seasonRecord);
-            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위)`);
+            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위, ${matchHistory.length}경기)`);
           }
         });
 
