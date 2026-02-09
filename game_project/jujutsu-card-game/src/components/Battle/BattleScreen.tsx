@@ -748,19 +748,26 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                 </div>
               )}
 
-              {/* 카드 비교 영역 - 3열 레이아웃 */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-4">
-                {/* 내 카드 정보 패널 */}
-                <CardRevealPanel
-                  character={revealedPlayerCard}
-                  arena={currentArena}
-                  isPlayer={true}
-                  seasonRecord={{ wins: 0, losses: 0 }}
-                  h2hRecord={{ wins: 0, losses: 0 }}
-                />
+              {/* 카드 비교 영역 - VS 중심 대칭 레이아웃 */}
+              <div className="flex flex-col md:flex-row items-start justify-center gap-6 mb-4">
+                {/* 좌측 패널 - 고정 너비, 내용 중앙 정렬 */}
+                <motion.div
+                  initial={{ x: -50, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="w-80 flex flex-col items-center"
+                >
+                  <CardRevealPanel
+                    character={revealedPlayerCard}
+                    arena={currentArena}
+                    isPlayer={true}
+                    seasonRecord={{ wins: 0, losses: 0 }}
+                    h2hRecord={{ wins: 0, losses: 0 }}
+                  />
+                </motion.div>
 
-                {/* VS + 속성 상성 */}
-                <div className="flex flex-col items-center justify-center px-4">
+                {/* VS - 중앙 고정 */}
+                <div className="flex flex-col items-center justify-center px-4 py-8 min-w-[120px]">
                   <div className="text-5xl text-accent font-bold mb-4">VS</div>
                   <div className="text-sm mb-4 space-y-2">
                     {getAttributeAdvantage(revealedPlayerCard.attribute, revealedAiCard.attribute) && (
@@ -778,11 +785,12 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   </Button>
                 </div>
 
-                {/* 상대 카드 정보 패널 */}
+                {/* 우측 패널 - 동일 너비, 내용 중앙 정렬 */}
                 <motion.div
                   initial={{ rotateY: 180, opacity: 0 }}
                   animate={{ rotateY: 0, opacity: 1 }}
                   transition={{ duration: 0.6 }}
+                  className="w-80 flex flex-col items-center"
                 >
                   <CardRevealPanel
                     character={revealedAiCard}
