@@ -540,54 +540,53 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           allMatches.push({ match: currentLeague.brackets.thirdPlace, round: 'THIRD_PLACE' });
         }
 
+        // 모든 참가자의 개인리그 성적 저장 (술사명부에서 조회 가능)
         rankings.forEach(ranking => {
-          if (ranking.isPlayerCrew) {
-            // 내 크루 카드의 경기 기록 수집
-            const matchHistory: IndividualMatchRecord[] = allMatches
-              .filter(({ match }) =>
-                match.participant1 === ranking.odId || match.participant2 === ranking.odId
-              )
-              .map(({ match, round }) => {
-                const isParticipant1 = match.participant1 === ranking.odId;
-                const opponentId = isParticipant1 ? match.participant2 : match.participant1;
-                const opponent = CHARACTERS_BY_ID[opponentId];
-                const isWinner = match.winner === ranking.odId;
+          // 경기 기록 수집
+          const matchHistory: IndividualMatchRecord[] = allMatches
+            .filter(({ match }) =>
+              match.participant1 === ranking.odId || match.participant2 === ranking.odId
+            )
+            .map(({ match, round }) => {
+              const isParticipant1 = match.participant1 === ranking.odId;
+              const opponentId = isParticipant1 ? match.participant2 : match.participant1;
+              const opponent = CHARACTERS_BY_ID[opponentId];
+              const isWinner = match.winner === ranking.odId;
 
-                // 경기장 정보 (첫 번째 경기장 사용, 다선제의 경우)
-                const arenaId = match.arenas?.[0];
-                const arena = arenaId ? ARENAS_BY_ID[arenaId] : undefined;
+              // 경기장 정보 (첫 번째 경기장 사용, 다선제의 경우)
+              const arenaId = match.arenas?.[0];
+              const arena = arenaId ? ARENAS_BY_ID[arenaId] : undefined;
 
-                return {
-                  season: currentLeague.season,
-                  round,
-                  opponentId,
-                  opponentName: opponent?.name.ko || '???',
-                  result: isWinner ? 'WIN' as const : 'LOSE' as const,
-                  score: {
-                    my: isParticipant1 ? match.score.p1 : match.score.p2,
-                    opponent: isParticipant1 ? match.score.p2 : match.score.p1
-                  },
-                  arenaId,
-                  arenaName: arena?.name.ko
-                };
-              });
+              return {
+                season: currentLeague.season,
+                round,
+                opponentId,
+                opponentName: opponent?.name.ko || '???',
+                result: isWinner ? 'WIN' as const : 'LOSE' as const,
+                score: {
+                  my: isParticipant1 ? match.score.p1 : match.score.p2,
+                  opponent: isParticipant1 ? match.score.p2 : match.score.p1
+                },
+                arenaId,
+                arenaName: arena?.name.ko
+              };
+            });
 
-            // 내 크루 카드의 개인리그 시즌 기록 저장
-            const seasonRecord: IndividualSeasonRecord = {
-              season: currentLeague.season,
-              finalRank: ranking.rank,
-              wins: ranking.wins || 0,
-              losses: ranking.losses || 0,
-              expEarned: ranking.exp,
-              awards: awards
-                .filter(a => a.odId === ranking.odId)
-                .map(a => a.type),
-              matchHistory,
-            };
+          // 개인리그 시즌 기록 저장
+          const seasonRecord: IndividualSeasonRecord = {
+            season: currentLeague.season,
+            finalRank: ranking.rank,
+            wins: ranking.wins || 0,
+            losses: ranking.losses || 0,
+            expEarned: ranking.exp,
+            awards: awards
+              .filter(a => a.odId === ranking.odId)
+              .map(a => a.type),
+            matchHistory,
+          };
 
-            saveIndividualLeagueRecord(ranking.odId, seasonRecord);
-            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위, ${matchHistory.length}경기)`);
-          }
+          saveIndividualLeagueRecord(ranking.odId, seasonRecord);
+          console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위, ${matchHistory.length}경기)${ranking.isPlayerCrew ? ' [내 크루]' : ''}`);
         });
 
         // 히스토리 추가 (Step 2.5b-1 확장)
