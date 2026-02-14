@@ -134,6 +134,9 @@ interface PlayerState {
     salary: number;
     isRookieScale: boolean;
   } | null;
+
+  // 크루 검증 및 정리 (앱 시작 시 호출)
+  validateAndFixCrew: () => { fixed: boolean; removedCards: string[] };
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -764,6 +767,86 @@ export const usePlayerStore = create<PlayerState>()(
         }
 
         return result;
+      },
+
+      // 크루 검증 및 정리 (앱 시작 시 호출)
+      validateAndFixCrew: () => {
+        const { player } = get();
+        const currentCrew = player.currentCrew;
+        const removedCards: string[] = [];
+
+        // 이미 6장 이하이고 등급 제한도 맞으면 수정 불필요
+        if (currentCrew.length <= CREW_SIZE) {
+          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+          for (const cardId of currentCrew) {
+            const char = CHARACTERS_BY_ID[cardId];
+            if (char?.grade === '특급') gradeCounts['특급']++;
+            if (char?.grade === '1급') gradeCounts['1급']++;
+          }
+          if (gradeCounts['특급'] <= 1 && gradeCounts['1급'] <= 2) {
+            return { fixed: false, removedCards: [] };
+          }
+        }
+
+        // 크루 정리 필요
+        console.log(`[validateAndFixCrew] 크루 정리 시작: ${currentCrew.length}장`);
+        const validatedCrew: string[] = [];
+        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+
+        for (const cardId of currentCrew) {
+          if (validatedCrew.length >= CREW_SIZE) {
+            removedCards.push(cardId);
+            continue;
+          }
+
+          const char = CHARACTERS_BY_ID[cardId];
+          if (!char) {
+            removedCards.push(cardId);
+            continue;
+          }
+
+          if (char.grade === '특급' && gradeCounts['특급'] >= 1) {
+            console.log(`[validateAndFixCrew] 특급 제한 초과로 제외: ${cardId}`);
+            removedCards.push(cardId);
+            continue;
+          }
+          if (char.grade === '1급' && gradeCounts['1급'] >= 2) {
+            console.log(`[validateAndFixCrew] 1급 제한 초과로 제외: ${cardId}`);
+            removedCards.push(cardId);
+            continue;
+          }
+
+          validatedCrew.push(cardId);
+          if (char.grade === '특급') gradeCounts['특급']++;
+          if (char.grade === '1급') gradeCounts['1급']++;
+        }
+
+        // ownedCards도 정리
+        const newOwnedCards: Record<string, PlayerCard> = {};
+        for (const cardId of validatedCrew) {
+          if (player.ownedCards[cardId]) {
+            newOwnedCards[cardId] = player.ownedCards[cardId];
+          } else {
+            newOwnedCards[cardId] = createPlayerCard(cardId);
+          }
+        }
+
+        console.log(`[validateAndFixCrew] 크루 정리 완료: ${currentCrew.length}장 → ${validatedCrew.length}장`);
+
+        set({
+          player: {
+            ...player,
+            currentCrew: validatedCrew,
+            ownedCards: newOwnedCards,
+          },
+        });
+
+        // seasonStore의 playerCrew도 동기화
+        import('./seasonStore').then(({ useSeasonStore }) => {
+          useSeasonStore.getState().updatePlayerCrew(validatedCrew);
+        });
+
+        return { fixed: true, removedCards };
       }
     }),
     {

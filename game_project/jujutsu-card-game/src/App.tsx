@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { SeasonHub } from './pages/SeasonHub';
@@ -60,6 +60,17 @@ function App() {
   const { startBattle: startIndividualBattle } = useIndividualLeagueStore(useShallow(state => ({
     startBattle: state.startBattle,
   })));
+
+  // 크루 검증 함수
+  const validateAndFixCrew = usePlayerStore(state => state.validateAndFixCrew);
+
+  // 앱 시작 시 크루 검증 및 정리
+  useEffect(() => {
+    const result = validateAndFixCrew();
+    if (result.fixed) {
+      console.log('[App] 크루가 자동 정리되었습니다. 제외된 카드:', result.removedCards);
+    }
+  }, [validateAndFixCrew]);
 
   // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
   const handleStartMatch = useCallback((opponentCrewId: string) => {
