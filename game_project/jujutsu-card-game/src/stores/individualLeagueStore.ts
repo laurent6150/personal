@@ -1028,6 +1028,22 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         // 경기 완료 처리 (기존 playMatch 사용) - 경기장 정보 포함
         playMatch(matchId, result.winnerId, { p1: result.score[0], p2: result.score[1] }, arenaIds);
 
+        // 세트별 전적을 cardRecordStore에 기록 (개인리그 기록 반영)
+        const { recordBattle } = useCardRecordStore.getState();
+        const seasonNumber = currentLeague.season;
+        for (const setResult of result.sets) {
+          recordBattle({
+            seasonNumber,
+            winnerCardId: setResult.winnerId,
+            loserCardId: setResult.loserId,
+            arenaId: setResult.arenaId,
+            winnerDamage: 0,
+            loserDamage: 0,
+            winnerSkillActivated: false,
+            loserSkillActivated: false,
+          });
+        }
+
         // 결과 저장
         set({ lastSimMatchResult: matchResult });
 

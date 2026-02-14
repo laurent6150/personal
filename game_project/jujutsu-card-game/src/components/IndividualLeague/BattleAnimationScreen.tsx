@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
+import { ATTRIBUTES } from '../../data/constants';
 import { getCharacterImage } from '../../utils/imageHelper';
 import { getStatusEffect } from '../../data/statusEffects';
 import { Button } from '../UI/Button';
@@ -496,14 +497,23 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
       <div className="bg-gradient-to-b from-bg-secondary to-transparent p-4">
         <div className="max-w-4xl mx-auto">
           {/* 경기장 정보 + 턴 카운터 */}
-          <div className="text-center mb-2 flex items-center justify-center gap-4">
-            <span className="text-sm text-purple-400">
-              {currentSet?.arenaName || '경기장'}
-            </span>
-            {phase === 'BATTLE' && currentSet && (
-              <span className="text-sm text-yellow-400">
-                Turn {currentTurnIndex}
+          <div className="text-center mb-3">
+            <div className="inline-flex items-center gap-2 bg-purple-900/40 px-4 py-2 rounded-lg border border-purple-500/30">
+              <span className="text-lg font-bold text-purple-300">
+                🏟️ {currentSet?.arenaName || '경기장'}
               </span>
+            </div>
+            {currentSet?.arenaEffect && (
+              <div className="text-xs text-text-secondary mt-1">
+                <span className="text-green-400">▲ {ATTRIBUTES[currentSet.arenaEffect.bonusAttribute as keyof typeof ATTRIBUTES]?.ko || currentSet.arenaEffect.bonusAttribute} +{currentSet.arenaEffect.bonusPercent}%</span>
+                {' / '}
+                <span className="text-red-400">▼ {ATTRIBUTES[currentSet.arenaEffect.penaltyAttribute as keyof typeof ATTRIBUTES]?.ko || currentSet.arenaEffect.penaltyAttribute} -{currentSet.arenaEffect.penaltyPercent}%</span>
+              </div>
+            )}
+            {phase === 'BATTLE' && currentSet && (
+              <div className="text-sm text-yellow-400 mt-1">
+                Turn {currentTurnIndex}
+              </div>
             )}
           </div>
 
@@ -881,18 +891,27 @@ export function BattleAnimationScreen({ matchResult, onComplete }: BattleAnimati
                 <div className="text-sm font-bold text-text-primary mb-2">세트별 결과</div>
                 <div className="space-y-2">
                   {matchResult.sets.map((set, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-text-secondary">
-                        세트 {set.setNumber} ({set.arenaName})
-                      </span>
-                      <span className={
-                        (set.winnerId === p1.odId && p1.isPlayerCrew) ||
-                        (set.winnerId === p2.odId && p2.isPlayerCrew)
-                          ? 'text-green-400'
-                          : 'text-red-400'
-                      }>
-                        {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
-                      </span>
+                    <div key={idx} className="text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-text-secondary">
+                          세트 {set.setNumber} ({set.arenaName})
+                        </span>
+                        <span className={
+                          (set.winnerId === p1.odId && p1.isPlayerCrew) ||
+                          (set.winnerId === p2.odId && p2.isPlayerCrew)
+                            ? 'text-green-400'
+                            : 'text-red-400'
+                        }>
+                          {set.winnerName} 승 (HP: {set.winnerHpPercent}%)
+                        </span>
+                      </div>
+                      {set.arenaEffect && (
+                        <div className="text-xs text-text-secondary ml-2">
+                          <span className="text-green-400/70">▲{ATTRIBUTES[set.arenaEffect.bonusAttribute as keyof typeof ATTRIBUTES]?.ko || set.arenaEffect.bonusAttribute}+{set.arenaEffect.bonusPercent}%</span>
+                          {' '}
+                          <span className="text-red-400/70">▼{ATTRIBUTES[set.arenaEffect.penaltyAttribute as keyof typeof ATTRIBUTES]?.ko || set.arenaEffect.penaltyAttribute}-{set.arenaEffect.penaltyPercent}%</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

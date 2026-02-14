@@ -125,7 +125,8 @@ interface DamageResult {
 export function calculateDamage(
   attacker: BattleStats,
   defender: BattleStats,
-  turnNumber: number
+  turnNumber: number,
+  forceUltimate: boolean = false
 ): DamageResult {
   const atkChar = getCharacterById(attacker.odId);
 
@@ -154,26 +155,25 @@ export function calculateDamage(
   const variance = 0.9 + Math.random() * 0.2;
   baseDamage = Math.round(baseDamage * variance);
 
-  // 6. 액션 타입 결정 (확률 기반)
-  // 일반: 60%, 스킬: 30%, 필살기: 10%
+  // 6. 액션 타입 결정 (게이지 기반 필살기 + 확률 기반 스킬)
   let actionType: 'basic' | 'skill' | 'ultimate' = 'basic';
   let actionName = atkChar?.basicSkills?.[0]?.name || '기본 공격';
   let multiplier = 1.0;
 
-  const roll = Math.random() * 100;
-
-  // 5턴 이후 필살기 발동 가능 (10% 확률)
-  if (turnNumber >= 5 && roll < 10) {
+  if (forceUltimate) {
+    // 게이지 100% → 필살기 확정 발동
     actionType = 'ultimate';
     actionName = atkChar?.ultimateSkill?.name || '필살기';
     multiplier = BATTLE_BALANCE.ULTIMATE_MULTIPLIER;
-  }
-  // 스킬 발동 (30% 확률)
-  else if (roll < 40) {
-    actionType = 'skill';
-    const skillIndex = Math.floor(Math.random() * (atkChar?.basicSkills?.length || 1));
-    actionName = atkChar?.basicSkills?.[skillIndex]?.name || '특수 기술';
-    multiplier = BATTLE_BALANCE.SKILL_MULTIPLIER;
+  } else {
+    const roll = Math.random() * 100;
+    // 스킬: 30%, 나머지: 일반 (필살기는 게이지로만 발동)
+    if (roll < 30) {
+      actionType = 'skill';
+      const skillIndex = Math.floor(Math.random() * (atkChar?.basicSkills?.length || 1));
+      actionName = atkChar?.basicSkills?.[skillIndex]?.name || '특수 기술';
+      multiplier = BATTLE_BALANCE.SKILL_MULTIPLIER;
+    }
   }
 
   // 7. 크리티컬 체크 (crt 50 기준 ~33% 확률)
@@ -190,13 +190,6 @@ export function calculateDamage(
 
   // 최소 데미지 보장
   finalDamage = Math.max(BATTLE_BALANCE.MIN_DAMAGE, finalDamage);
-
-  // 예상 결과 (ATK 20, DEF 15 기준):
-  // - 일반 공격: (20*0.4+5) * (1-15*0.3/100) = 13 * 0.955 ≈ 12 데미지
-  // - 스킬: 12 * 1.3 ≈ 16 데미지
-  // - 크리티컬: 12 * 1.5 ≈ 18 데미지
-  // - 필살기: 12 * 2.0 ≈ 24 데미지
-  // - 10턴 내 종료 예상
 
   return {
     damage: finalDamage,
@@ -231,16 +224,36 @@ export function simulateSet(
   let turnNumber = 1;
   const maxTurns = 30; // 무한루프 방지
 
+  // 필살기 게이지 추적 (매 턴 +25, 4턴째 100 도달)
+  const GAUGE_CHARGE = 25;
+  let f1Gauge = 0;
+  let f2Gauge = 0;
+
   // 선공 결정 (속도 비교)
   let currentAttacker = fighter1.baseStats.spd >= fighter2.baseStats.spd ? fighter1 : fighter2;
   let currentDefender = currentAttacker === fighter1 ? fighter2 : fighter1;
 
   // 전투 루프
   while (fighter1.currentHp > 0 && fighter2.currentHp > 0 && turnNumber <= maxTurns) {
-    const damageResult = calculateDamage(currentAttacker, currentDefender, turnNumber);
+    // 공격자의 게이지 확인 → 100 이상이면 필살기 강제 발동
+    const isAttackerF1 = currentAttacker === fighter1;
+    const attackerGauge = isAttackerF1 ? f1Gauge : f2Gauge;
+    const forceUltimate = attackerGauge >= 100;
+
+    const damageResult = calculateDamage(currentAttacker, currentDefender, turnNumber, forceUltimate);
 
     const defenderHpBefore = currentDefender.currentHp;
     currentDefender.currentHp = Math.max(0, currentDefender.currentHp - damageResult.damage);
+
+    // 게이지 업데이트
+    if (damageResult.actionType === 'ultimate') {
+      // 필살기 사용 시 공격자 게이지 리셋
+      if (isAttackerF1) { f1Gauge = 0; } else { f2Gauge = 0; }
+    } else {
+      // 일반/스킬 시 양측 게이지 충전
+      f1Gauge = Math.min(100, f1Gauge + GAUGE_CHARGE);
+      f2Gauge = Math.min(100, f2Gauge + GAUGE_CHARGE);
+    }
 
     // 턴 로그 생성
     const turn: SimBattleTurn = {

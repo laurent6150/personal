@@ -11,6 +11,7 @@ import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID, ALL_ITEMS } from '../data/items';
 import { ARENAS_BY_ID } from '../data/arenas';
+import { ARENA_EFFECTS } from '../data/arenaEffects';
 import { EXP_TABLE, STAT_ICONS } from '../data/constants';
 import { getLevelProgress, getExpToNextLevel } from '../utils/battleCalculator';
 import { Button } from '../components/UI/Button';
@@ -1245,14 +1246,13 @@ function RecordTab({
             {Object.entries(aggregatedRecords.arenaRecords)
               .sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
               .map(([arenaId, record]) => {
-                const arena = ARENAS_BY_ID[arenaId];
                 const total = record.wins + record.losses;
                 const winRate = total > 0 ? (record.wins / total) * 100 : 0;
 
                 return (
                   <div key={arenaId} className="flex items-center justify-between p-3 bg-bg-secondary/50 rounded-lg">
                     <div>
-                      <div className="font-medium">{arena?.name.ko || arenaId}</div>
+                      <div className="font-medium">{ARENAS_BY_ID[arenaId]?.name.ko || ARENA_EFFECTS[arenaId]?.name || arenaId}</div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold">

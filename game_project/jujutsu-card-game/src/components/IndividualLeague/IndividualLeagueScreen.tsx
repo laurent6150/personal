@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
 import { useSeasonStore } from '../../stores/seasonStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { Button } from '../UI/Button';
 import { TournamentBracket } from './TournamentBracket';
 import { GroupStageView } from './GroupStageView';
@@ -65,7 +66,7 @@ export function IndividualLeagueScreen({
     lastSimMatchResult: state.lastSimMatchResult
   })));
 
-  const playerCrew = useSeasonStore(state => state.playerCrew);
+  const playerCrew = usePlayerStore(state => state.player.currentCrew);
   const { individualLeagueCompleted, teamLeagueCompleted } = useSeasonStore(
     useShallow(state => ({
       individualLeagueCompleted: state.individualLeagueCompleted,
