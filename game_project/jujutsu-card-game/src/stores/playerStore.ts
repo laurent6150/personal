@@ -773,10 +773,13 @@ export const usePlayerStore = create<PlayerState>()(
       validateAndFixCrew: () => {
         const { player } = get();
         const currentCrew = player.currentCrew;
+        const ownedCardCount = Object.keys(player.ownedCards).length;
         const removedCards: string[] = [];
 
-        // 이미 6장 이하이고 등급 제한도 맞으면 수정 불필요
-        if (currentCrew.length <= CREW_SIZE) {
+        // 크루와 ownedCards가 동기화되어 있고 등급 제한도 맞으면 수정 불필요
+        const needsOwnedCardsSync = ownedCardCount !== currentCrew.length;
+
+        if (!needsOwnedCardsSync && currentCrew.length <= CREW_SIZE) {
           const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
           for (const cardId of currentCrew) {
             const char = CHARACTERS_BY_ID[cardId];
@@ -789,7 +792,7 @@ export const usePlayerStore = create<PlayerState>()(
         }
 
         // 크루 정리 필요
-        console.log(`[validateAndFixCrew] 크루 정리 시작: ${currentCrew.length}장`);
+        console.log(`[validateAndFixCrew] 정리 시작: currentCrew=${currentCrew.length}장, ownedCards=${ownedCardCount}장`);
         const validatedCrew: string[] = [];
         const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
 
@@ -821,7 +824,7 @@ export const usePlayerStore = create<PlayerState>()(
           if (char.grade === '1급') gradeCounts['1급']++;
         }
 
-        // ownedCards도 정리
+        // ownedCards를 validatedCrew에 맞게 정리 (크루에 있는 카드만 유지)
         const newOwnedCards: Record<string, PlayerCard> = {};
         for (const cardId of validatedCrew) {
           if (player.ownedCards[cardId]) {
@@ -831,7 +834,7 @@ export const usePlayerStore = create<PlayerState>()(
           }
         }
 
-        console.log(`[validateAndFixCrew] 크루 정리 완료: ${currentCrew.length}장 → ${validatedCrew.length}장`);
+        console.log(`[validateAndFixCrew] 정리 완료: currentCrew=${validatedCrew.length}장, ownedCards=${Object.keys(newOwnedCards).length}장`);
 
         set({
           player: {
