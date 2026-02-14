@@ -408,7 +408,7 @@ export const useTradeStore = create<TradeStore>()(
         const newBonus: ChampionshipBonus = {
           seasonNumber,
           specialGradeBonus: 1,  // 특급 +1
-          grade1Bonus: 1         // 1급 +1
+          grade1Bonus: 0         // 1급은 항상 2장 제한 (보너스 없음)
         };
 
         set(state => ({
@@ -421,7 +421,7 @@ export const useTradeStore = create<TradeStore>()(
           type: 'AWARD',
           seasonNumber,
           title: '👑 우승 보너스 획득!',
-          content: '특급 선수 1명, 1급 선수 1명을 추가로 영입할 수 있습니다.',
+          content: '특급 선수 1명을 추가로 영입할 수 있습니다.',
           highlight: true
         });
       },
