@@ -23,6 +23,7 @@ import { CHARACTERS_BY_ID } from '../data/characters';
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
+import { useEconomyStore, getMatchRewardCP } from './economyStore';
 import {
   REGULAR_SEASON_GAMES,
   TRADE_DEADLINE_GAME
@@ -512,6 +513,12 @@ export const useSeasonStore = create<SeasonState>()(
               result: h2hResult
             }]
           };
+
+          // CP 지급 (경기 결과에 따라)
+          const cpReward = getMatchRewardCP(result);
+          const { earnCP } = useEconomyStore.getState();
+          const resultText = result === 'WIN' ? '승리' : result === 'LOSE' ? '패배' : '무승부';
+          earnCP(cpReward, `MATCH_${result}` as any, `경기 ${resultText} 보상`, currentSeason.number);
 
           set({
             currentSeason: {
