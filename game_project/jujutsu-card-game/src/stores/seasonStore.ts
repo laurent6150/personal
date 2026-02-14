@@ -104,6 +104,9 @@ interface SeasonState {
   isBeforeTradeDeadline: () => boolean;
   setCrewPolicy: (policy: CrewPolicy) => void;
   getCrewPolicy: () => CrewPolicy;
+
+  // 크루 동기화
+  updatePlayerCrew: (crew: string[]) => void;
 }
 
 // 리그 경기 일정 생성 (홈/어웨이 2회전)
@@ -1164,6 +1167,11 @@ export const useSeasonStore = create<SeasonState>()(
       // 크루 정책 조회
       getCrewPolicy: () => {
         return get().crewPolicy;
+      },
+
+      // 크루 동기화 (playerStore에서 호출)
+      updatePlayerCrew: (crew: string[]) => {
+        set({ playerCrew: crew });
       }
     }),
     {

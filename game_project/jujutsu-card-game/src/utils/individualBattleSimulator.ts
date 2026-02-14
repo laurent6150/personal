@@ -125,7 +125,7 @@ interface DamageResult {
 export function calculateDamage(
   attacker: BattleStats,
   defender: BattleStats,
-  turnNumber: number,
+  _turnNumber: number,
   forceUltimate: boolean = false
 ): DamageResult {
   const atkChar = getCharacterById(attacker.odId);

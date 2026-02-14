@@ -170,6 +170,8 @@ export function SeasonHub({
   // 게임 시작 (크루 선택 완료)
   const handleStartGame = () => {
     if (selectedCards.length !== CREW_SIZE) return;
+    // playerStore 크루도 동기화
+    usePlayerStore.getState().setCurrentCrew(selectedCards);
     initializeGame(selectedCards);
     startNewSeason();
   };

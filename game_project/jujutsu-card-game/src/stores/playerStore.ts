@@ -168,6 +168,15 @@ export const usePlayerStore = create<PlayerState>()(
             currentCrew: crew
           }
         });
+
+        // seasonStore 동기화 (fire-and-forget)
+        import('./seasonStore').then(({ useSeasonStore }) => {
+          const { updatePlayerCrew } = useSeasonStore.getState();
+          if (updatePlayerCrew) updatePlayerCrew(crew);
+        }).catch(e => {
+          console.warn('[playerStore] seasonStore 동기화 실패:', e);
+        });
+
         return true;
       },
 
@@ -182,6 +191,16 @@ export const usePlayerStore = create<PlayerState>()(
             currentCrew: [...player.currentCrew, cardId]
           }
         });
+
+        // seasonStore 동기화 (fire-and-forget)
+        const newCrew = get().player.currentCrew;
+        import('./seasonStore').then(({ useSeasonStore }) => {
+          const { updatePlayerCrew } = useSeasonStore.getState();
+          if (updatePlayerCrew) updatePlayerCrew(newCrew);
+        }).catch(e => {
+          console.warn('[playerStore] seasonStore 동기화 실패:', e);
+        });
+
         return true;
       },
 
@@ -195,6 +214,16 @@ export const usePlayerStore = create<PlayerState>()(
             currentCrew: player.currentCrew.filter(id => id !== cardId)
           }
         });
+
+        // seasonStore 동기화 (fire-and-forget)
+        const newCrewAfterRemove = get().player.currentCrew;
+        import('./seasonStore').then(({ useSeasonStore }) => {
+          const { updatePlayerCrew } = useSeasonStore.getState();
+          if (updatePlayerCrew) updatePlayerCrew(newCrewAfterRemove);
+        }).catch(e => {
+          console.warn('[playerStore] seasonStore 동기화 실패:', e);
+        });
+
         return true;
       },
 
@@ -227,6 +256,16 @@ export const usePlayerStore = create<PlayerState>()(
             currentCrew: newCrew
           }
         });
+
+        // seasonStore 동기화 (fire-and-forget)
+        const updatedCrew = get().player.currentCrew;
+        import('./seasonStore').then(({ useSeasonStore }) => {
+          const { updatePlayerCrew } = useSeasonStore.getState();
+          if (updatePlayerCrew) updatePlayerCrew(updatedCrew);
+        }).catch(e => {
+          console.warn('[playerStore] seasonStore 동기화 실패:', e);
+        });
+
         return true;
       },
 
