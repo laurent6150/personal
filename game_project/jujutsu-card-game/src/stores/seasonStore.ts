@@ -19,6 +19,7 @@ import type {
   CrewPolicy
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
+import { CHARACTERS_BY_ID } from '../data/characters';
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
@@ -1176,9 +1177,9 @@ export const useSeasonStore = create<SeasonState>()(
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 9, // v9: Phase 5 전/후반기 시스템
+      version: 10, // v10: 등급 제한 통일 - 크루 6장, 1급 2장 제한
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 9);
+        console.log('[Season Store] 마이그레이션:', version, '->', 10);
         const state = persistedState as SeasonState;
 
         if (version < 7) {
@@ -1204,12 +1205,39 @@ export const useSeasonStore = create<SeasonState>()(
 
         if (version < 9) {
           console.log('[Season Store] v9 업그레이드: Phase 5 전/후반기 시스템 추가');
+          state.currentHalf = 'FIRST' as SeasonHalf;
+          state.firstHalfStandings = null;
+          state.isTransitionPeriod = false;
+          state.crewPolicy = 'BALANCED' as CrewPolicy;
+        }
+
+        if (version < 10) {
+          console.log('[Season Store] v10 업그레이드: 크루 크기 및 등급 제한 정리');
+          const playerCrew = state.playerCrew || [];
+
+          // 등급 제한에 맞게 크루 정리 (CREW_SIZE = 6)
+          const validatedCrew: string[] = [];
+          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+
+          for (const cardId of playerCrew) {
+            if (validatedCrew.length >= 6) break;
+
+            const char = CHARACTERS_BY_ID[cardId];
+            if (!char) continue;
+
+            if (char.grade === '특급' && gradeCounts['특급'] >= 1) continue;
+            if (char.grade === '1급' && gradeCounts['1급'] >= 2) continue;
+
+            validatedCrew.push(cardId);
+            if (char.grade === '특급') gradeCounts['특급']++;
+            if (char.grade === '1급') gradeCounts['1급']++;
+          }
+
+          console.log(`[Season Store] 크루 정리: ${playerCrew.length}장 → ${validatedCrew.length}장`);
+
           return {
             ...state,
-            currentHalf: 'FIRST' as SeasonHalf,
-            firstHalfStandings: null,
-            isTransitionPeriod: false,
-            crewPolicy: 'BALANCED' as CrewPolicy,
+            playerCrew: validatedCrew,
           };
         }
 

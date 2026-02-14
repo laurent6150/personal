@@ -768,15 +768,15 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'jujutsu-card-game-player',
-      version: 5, // Phase 5.1: 드래프트 연동 - ownedCards를 크루 카드만으로 제한
+      version: 6, // Phase 5.2: 등급 제한 통일 - 크루 6장, 1급 2장 제한
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Player Store] 마이그레이션:', version, '->', 5);
+        console.log('[Player Store] 마이그레이션:', version, '->', 6);
+        const state = persistedState as PlayerState;
 
         // 버전 4 이하: 새로운 카드 소유 시스템으로 마이그레이션
         // ownedCards를 currentCrew에 있는 카드만 남김
         if (version < 5) {
           console.log('[Player Store] 드래프트 연동 시스템으로 마이그레이션');
-          const state = persistedState as PlayerState;
           const currentCrew = state.player?.currentCrew || STARTER_CREW;
           const oldOwnedCards = state.player?.ownedCards || {};
 
@@ -799,15 +799,67 @@ export const usePlayerStore = create<PlayerState>()(
 
           console.log(`[Player Store] 마이그레이션 완료: ${Object.keys(oldOwnedCards).length}장 → ${Object.keys(newOwnedCards).length}장`);
 
+          state.player = {
+            ...state.player,
+            ownedCards: newOwnedCards,
+            currentCrew: currentCrew
+          };
+        }
+
+        // 버전 5 이하: 크루 크기 및 등급 제한 정리
+        if (version < 6) {
+          console.log('[Player Store] 크루 크기 및 등급 제한 정리');
+          const currentCrew = state.player?.currentCrew || [];
+          const ownedCards = state.player?.ownedCards || {};
+
+          // 등급 제한에 맞게 크루 정리
+          const validatedCrew: string[] = [];
+          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+
+          for (const cardId of currentCrew) {
+            // 이미 6장이면 중단
+            if (validatedCrew.length >= CREW_SIZE) break;
+
+            const char = CHARACTERS_BY_ID[cardId];
+            if (!char) continue;
+
+            // 등급 제한 체크
+            if (char.grade === '특급' && gradeCounts['특급'] >= 1) {
+              console.log(`[Player Store] 특급 제한 초과로 제외: ${cardId}`);
+              continue;
+            }
+            if (char.grade === '1급' && gradeCounts['1급'] >= 2) {
+              console.log(`[Player Store] 1급 제한 초과로 제외: ${cardId}`);
+              continue;
+            }
+
+            validatedCrew.push(cardId);
+            if (char.grade === '특급') gradeCounts['특급']++;
+            if (char.grade === '1급') gradeCounts['1급']++;
+          }
+
+          // ownedCards도 validatedCrew에 맞게 정리
+          const newOwnedCards: Record<string, PlayerCard> = {};
+          for (const cardId of validatedCrew) {
+            if (ownedCards[cardId]) {
+              newOwnedCards[cardId] = ownedCards[cardId];
+            } else {
+              newOwnedCards[cardId] = createPlayerCard(cardId);
+            }
+          }
+
+          console.log(`[Player Store] 크루 정리 완료: ${currentCrew.length}장 → ${validatedCrew.length}장`);
+
           return {
             ...state,
             player: {
               ...state.player,
               ownedCards: newOwnedCards,
-              currentCrew: currentCrew
+              currentCrew: validatedCrew
             }
           };
         }
+
         return persistedState as PlayerState;
       }
     }

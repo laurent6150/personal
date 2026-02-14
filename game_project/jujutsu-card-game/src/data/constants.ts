@@ -31,7 +31,7 @@ export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 // 등급 정보 (주술회전 등급 체계) - 기존 6등급 호환
 export const GRADES: Record<LegacyGrade, GradeInfo> = {
   '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
-  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 3 },
+  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 2 },
   '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 6 },
   '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 6 },
   '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 6 },
