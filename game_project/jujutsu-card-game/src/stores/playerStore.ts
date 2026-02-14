@@ -10,7 +10,7 @@ import { STARTER_CREW, CHARACTERS_BY_ID } from '../data/characters';
 import { CREW_SIZE, SALARY_CAP } from '../data/constants';
 import { calculateExpReward, checkLevelUp } from '../utils/battleCalculator';
 import { initializeGrowthData, addExpAndLevelUp } from '../data/growthSystem';
-import { calculateSalary } from '../utils/salarySystem';
+import { calculateSalary, validateCrewSalary } from '../utils/salarySystem';
 import { determineCareerPhase, applyDecline } from '../utils/agingSystem';
 
 // PlayerCard 생성 헬퍼 함수
@@ -184,9 +184,19 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addCardToCrew: (cardId: string) => {
-        const { player, canAddToCrew } = get();
+        const { player, canAddToCrew, getCardSalary } = get();
         if (player.currentCrew.length >= CREW_SIZE) return false;
         if (!canAddToCrew(cardId)) return false;
+
+        // 샐러리캡 검증
+        const currentSalaries = player.currentCrew.map(id => getCardSalary(id));
+        const addingSalary = getCardSalary(cardId);
+        const salaryValidation = validateCrewSalary(currentSalaries, addingSalary);
+
+        if (!salaryValidation.valid) {
+          console.warn(`[playerStore] 샐러리캡 초과로 카드 추가 불가: ${cardId}`, salaryValidation.message);
+          return false;
+        }
 
         set({
           player: {
@@ -231,7 +241,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       swapCrewCard: (oldCardId: string, newCardId: string) => {
-        const { player } = get();
+        const { player, getCardSalary } = get();
         const index = player.currentCrew.indexOf(oldCardId);
         if (index === -1) return false;
 
@@ -249,6 +259,16 @@ export const usePlayerStore = create<PlayerState>()(
         gradeCounts[char.grade]++;
 
         if (gradeCounts['특급'] > 1 || gradeCounts['1급'] > 2) return false;
+
+        // 샐러리캡 검증
+        const currentSalaries = tempCrew.map(id => getCardSalary(id));
+        const addingSalary = getCardSalary(newCardId);
+        const salaryValidation = validateCrewSalary(currentSalaries, addingSalary);
+
+        if (!salaryValidation.valid) {
+          console.warn(`[playerStore] 샐러리캡 초과로 카드 교체 불가: ${oldCardId} → ${newCardId}`, salaryValidation.message);
+          return false;
+        }
 
         const newCrew = [...player.currentCrew];
         newCrew[index] = newCardId;

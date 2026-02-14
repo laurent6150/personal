@@ -177,6 +177,39 @@ export const SALARY_CAP = 15000;
 export const SOFT_SALARY_CAP = 12000;
 
 // ========================================
+// Phase 5: 카드 CP 가치 (트레이드용)
+// ========================================
+
+// 등급별 기본 카드 가치 (CP)
+export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
+  '특급': 8000,   // 최상위 등급
+  '1급': 5000,
+  '준1급': 3000,
+  '2급': 2000,
+  '준2급': 1200,
+  '3급': 800,
+};
+
+// 레벨당 가치 증가 (CP)
+export const CARD_VALUE_PER_LEVEL: Record<LegacyGrade, number> = {
+  '특급': 500,
+  '1급': 300,
+  '준1급': 200,
+  '2급': 150,
+  '준2급': 100,
+  '3급': 60,
+};
+
+// 생애주기별 가치 배율
+export const CAREER_PHASE_VALUE_MULTIPLIER: Record<string, number> = {
+  'ROOKIE': 1.1,              // 잠재력 +10%
+  'GROWTH': 1.0,              // 기본
+  'PEAK': 1.2,                // 전성기 +20%
+  'DECLINE': 0.7,             // 쇠퇴기 -30%
+  'RETIREMENT_ELIGIBLE': 0.4, // 은퇴 권유 -60%
+};
+
+// ========================================
 // Phase 5: 활동 시스템 상수
 // ========================================
 

@@ -1006,7 +1006,7 @@ export const useSeasonStore = create<SeasonState>()(
         console.log('[markIndividualLeagueComplete] 개인 리그 완료');
       },
 
-      // 시즌 종료 처리 (경험치 확정 지급)
+      // 시즌 종료 처리 (경험치 확정 지급 + 노화/생애주기 처리)
       finalizeSeason: () => {
         const { isSeasonComplete, pendingExp, currentSeason } = get();
 
@@ -1018,7 +1018,7 @@ export const useSeasonStore = create<SeasonState>()(
         // 1. 누적 경험치 확정 지급
         // playerStore가 circular dependency 가능성 있으므로 dynamic import 사용
         import('./playerStore').then(({ usePlayerStore }) => {
-          const { addExpToCard } = usePlayerStore.getState();
+          const { addExpToCard, processSeasonEnd } = usePlayerStore.getState();
 
           Object.entries(pendingExp).forEach(([cardId, data]) => {
             const totalExp = data.teamLeagueExp + data.individualLeagueExp;
@@ -1028,8 +1028,11 @@ export const useSeasonStore = create<SeasonState>()(
             }
           });
 
-          // Note: 컨디션 초기화는 캐릭터 성장 시스템에서 별도 처리
           console.log('[finalizeSeason] 경험치 지급 완료');
+
+          // 2. 노화/생애주기 처리 (seasonsInCrew 증가, careerPhase 재계산, 쇠퇴 적용)
+          const agingResult = processSeasonEnd();
+          console.log(`[finalizeSeason] 노화 처리 완료 - 노화: ${agingResult.agedCards.length}명, 쇠퇴: ${agingResult.declinedCards.length}명`);
         });
 
         // 3. 상태 초기화
@@ -1037,6 +1040,10 @@ export const useSeasonStore = create<SeasonState>()(
           teamLeagueCompleted: false,
           individualLeagueCompleted: false,
           pendingExp: {},
+          // Phase 5: 다음 시즌을 위해 전반기로 리셋
+          currentHalf: 'FIRST',
+          firstHalfStandings: null,
+          isTransitionPeriod: false,
         });
 
         console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
