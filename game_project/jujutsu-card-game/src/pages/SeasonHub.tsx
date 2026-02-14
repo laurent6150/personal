@@ -34,6 +34,7 @@ interface SeasonHubProps {
   onSettings: () => void;
   onIndividualLeague?: () => void;
   onCardSelect?: (cardId: string) => void;
+  onDraft?: () => void;
 }
 
 export function SeasonHub({
@@ -47,7 +48,8 @@ export function SeasonHub({
   onProfile,
   onSettings,
   onIndividualLeague,
-  onCardSelect
+  onCardSelect,
+  onDraft
 }: SeasonHubProps) {
   const {
     isInitialized,
@@ -487,13 +489,17 @@ export function SeasonHub({
               <Button
                 onClick={() => {
                   finalizeSeason();
-                  startNewSeason();
+                  if (onDraft) {
+                    onDraft();
+                  } else {
+                    startNewSeason();
+                  }
                 }}
                 variant="primary"
                 size="lg"
                 className="w-full mb-3"
               >
-                🎁 시즌 종료 & 다음 시즌 시작
+                🎯 시즌 종료 & 드래프트
               </Button>
             </>
           ) : teamLeagueCompleted && !individualLeagueCompleted ? (
