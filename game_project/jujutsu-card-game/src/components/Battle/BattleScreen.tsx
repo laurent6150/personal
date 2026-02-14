@@ -181,6 +181,18 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
 
   // 에이스 결정전 진입 시 자동으로 선택 모달 표시
   useEffect(() => {
+    // 디버깅: 에이스 결정전 상태 확인
+    console.log('[AceMatch Debug]', {
+      currentRound,
+      currentScore,
+      isAceMatch,
+      battlePhase,
+      selectedCardId,
+      sessionStatus: session?.status,
+      showAceSelection,
+      usedCards: session?.player.usedCards,
+    });
+
     if (
       isAceMatch &&
       battlePhase === 'SELECT' &&
@@ -188,9 +200,10 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       session?.status === 'IN_PROGRESS' &&
       !showAceSelection
     ) {
+      console.log('[AceMatch] 에이스 결정전 모달 표시');
       setShowAceSelection(true);
     }
-  }, [isAceMatch, battlePhase, selectedCardId, session, showAceSelection]);
+  }, [isAceMatch, battlePhase, selectedCardId, session, showAceSelection, currentRound, currentScore]);
 
   // 라운드 결과 처리
   useEffect(() => {
