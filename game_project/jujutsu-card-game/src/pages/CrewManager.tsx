@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCrewManagement } from '../hooks/useBattle';
+import { usePlayerStore } from '../stores/playerStore';
 import { CardDisplayLarge } from '../components/Card/CardDisplayLarge';
 import { CardMini } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { GradeBadge } from '../components/UI/Badge';
+import { SalaryCapDisplay } from '../components/Phase5/SalaryCapDisplay';
 import { GRADES } from '../data/constants';
 
 interface CrewManagerProps {
@@ -21,6 +23,8 @@ export function CrewManager({ onBack }: CrewManagerProps) {
     addCardToCrew,
     removeCardFromCrew
   } = useCrewManagement();
+
+  const getTotalCrewSalary = usePlayerStore(state => state.getTotalCrewSalary);
 
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
@@ -73,6 +77,11 @@ export function CrewManager({ onBack }: CrewManagerProps) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Phase 5: 샐러리캡 표시 */}
+      <div className="max-w-4xl mx-auto mb-6">
+        <SalaryCapDisplay currentTotal={getTotalCrewSalary()} />
       </div>
 
       {/* 현재 크루 */}

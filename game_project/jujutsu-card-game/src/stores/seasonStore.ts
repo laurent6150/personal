@@ -1,5 +1,5 @@
 // ========================================
-// 시즌 & 리그 스토어 - MVP v5: 플레이오프 + 통산 전적
+// 시즌 & 리그 스토어 - Phase 5: 전/후반기 시즌 구조
 // ========================================
 
 import { create } from 'zustand';
@@ -14,11 +14,18 @@ import type {
   AICrew,
   HeadToHeadRecord,
   Playoff,
-  PlayoffMatch
+  PlayoffMatch,
+  SeasonHalf,
+  CrewPolicy
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
+import { usePlayerStore } from './playerStore';
+import {
+  REGULAR_SEASON_GAMES,
+  TRADE_DEADLINE_GAME
+} from '../data/constants';
 
 // Phase 4: 경험치 누적 타입
 interface PendingExpData {
@@ -54,6 +61,12 @@ interface SeasonState {
   teamLeagueCompleted: boolean;
   individualLeagueCompleted: boolean;
 
+  // Phase 5: 전/후반기 시스템
+  currentHalf: SeasonHalf;
+  firstHalfStandings: LeagueStanding[] | null;  // 전반기 최종 순위 (드래프트 순서용)
+  isTransitionPeriod: boolean;  // 전환기 여부
+  crewPolicy: CrewPolicy;  // 크루 정책 (팀 리그용)
+
   // 액션
   initializeGame: (playerCrew: string[]) => void;
   startNewSeason: () => void;
@@ -79,6 +92,18 @@ interface SeasonState {
   finalizeSeason: () => void;
   isAllKillSeason: () => boolean;
   getPendingExpSummary: () => Record<string, { teamLeagueExp: number; individualLeagueExp: number; totalExp: number }>;
+
+  // Phase 5: 전/후반기 시스템
+  getCurrentHalf: () => SeasonHalf;
+  getGamesPlayedInHalf: () => number;
+  isFirstHalfComplete: () => boolean;
+  endFirstHalf: () => void;
+  startSecondHalf: () => void;
+  isInTransitionPeriod: () => boolean;
+  getDraftOrder: () => string[];  // 전반기 순위 역순 (꼴찌가 1픽)
+  isBeforeTradeDeadline: () => boolean;
+  setCrewPolicy: (policy: CrewPolicy) => void;
+  getCrewPolicy: () => CrewPolicy;
 }
 
 // 리그 경기 일정 생성 (홈/어웨이 2회전)
@@ -284,14 +309,28 @@ export const useSeasonStore = create<SeasonState>()(
       pendingExp: {},
       teamLeagueCompleted: false,
       individualLeagueCompleted: false,
+      // Phase 5
+      currentHalf: 'FIRST',
+      firstHalfStandings: null,
+      isTransitionPeriod: false,
+      crewPolicy: 'BALANCED',
 
       // 첫 게임 시작 (플레이어 크루 선택)
+      // Phase 5.1: playerStore의 currentCrew를 사용하도록 변경
       initializeGame: (playerCrew: string[]) => {
         // 크루 유효성 검사 (크루 사이즈 + 등급 제한)
         const validation = validatePlayerCrew(playerCrew);
         if (!validation.valid) {
           console.error('[initializeGame]', validation.error);
           return;
+        }
+
+        // playerStore와 동기화 (playerCrew가 전달된 경우)
+        const { player, setCurrentCrew } = usePlayerStore.getState();
+
+        // playerStore의 currentCrew가 다른 경우 동기화
+        if (JSON.stringify(player.currentCrew) !== JSON.stringify(playerCrew)) {
+          setCurrentCrew(playerCrew);
         }
 
         set({
@@ -304,15 +343,28 @@ export const useSeasonStore = create<SeasonState>()(
 
       // 시즌 시작 (첫 시즌 또는 다음 시즌)
       startNewSeason: () => {
-        const { isInitialized, seasonHistory, playerCrew } = get();
+        const { isInitialized, seasonHistory, teamLeagueCompleted, individualLeagueCompleted } = get();
 
         if (!isInitialized) {
           console.error('먼저 initializeGame을 호출하세요');
           return;
         }
 
-        // AI 크루 랜덤 재배정 (플레이어 크루 제외하여 중복 방지)
-        const aiCrews = generateAICrewsForSeason(playerCrew);
+        // 시즌 2 이상부터: 이전 시즌의 양쪽 리그가 finalizeSeason으로 정산된 후에만 시작 가능
+        // finalizeSeason()이 completed 플래그를 false로 리셋하므로,
+        // 아직 true인 상태 = finalizeSeason 미호출 = 다음 시즌 시작 불가
+        // 단, 첫 시즌(seasonHistory.length === 0)은 체크 불필요
+        if (seasonHistory.length > 0 && (teamLeagueCompleted || individualLeagueCompleted)) {
+          console.warn('[startNewSeason] 이전 시즌의 finalizeSeason이 완료되지 않았습니다');
+          return;
+        }
+
+        // Phase 5.1: 플레이어 소유 카드 조회 (크루간 카드 중복 방지)
+        const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
+        console.log(`[Season] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
+
+        // AI 크루 랜덤 재배정 (플레이어 소유 카드 제외하여 중복 방지)
+        const aiCrews = generateAICrewsForSeason(playerOwnedCards);
         setAICrews(aiCrews);
 
         const newSeasonNumber = seasonHistory.length + 1;
@@ -601,6 +653,9 @@ export const useSeasonStore = create<SeasonState>()(
             },
             seasonHistory: [...get().seasonHistory, newHistory]
           });
+
+          // Phase 4: 팀 리그 완료 마킹
+          get().markTeamLeagueComplete();
           return;
         }
 
@@ -725,6 +780,9 @@ export const useSeasonStore = create<SeasonState>()(
                 },
                 seasonHistory: [...get().seasonHistory, newHistory]
               });
+
+              // Phase 4: 팀 리그 완료 마킹 (준결승 탈락)
+              get().markTeamLeagueComplete();
             }
           } else {
             set({
@@ -782,6 +840,9 @@ export const useSeasonStore = create<SeasonState>()(
               },
               seasonHistory: [...get().seasonHistory, newHistory]
             });
+
+            // Phase 4: 팀 리그 완료 마킹 (결승 종료)
+            get().markTeamLeagueComplete();
           } else {
             set({
               currentSeason: {
@@ -865,6 +926,11 @@ export const useSeasonStore = create<SeasonState>()(
           pendingExp: {},
           teamLeagueCompleted: false,
           individualLeagueCompleted: false,
+          // Phase 5
+          currentHalf: 'FIRST',
+          firstHalfStandings: null,
+          isTransitionPeriod: false,
+          crewPolicy: 'BALANCED',
         });
       },
 
@@ -986,13 +1052,125 @@ export const useSeasonStore = create<SeasonState>()(
         });
 
         return summary;
+      },
+
+      // ========================================
+      // Phase 5: 전/후반기 시스템
+      // ========================================
+
+      // 현재 반기 조회
+      getCurrentHalf: () => {
+        return get().currentHalf;
+      },
+
+      // 현재 반기에서 진행된 경기 수
+      getGamesPlayedInHalf: () => {
+        const { currentSeason, currentHalf } = get();
+        if (!currentSeason) return 0;
+
+        // 플레이어 경기만 카운트
+        const playerMatches = currentSeason.matches.filter(
+          m => (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID) && m.played
+        );
+
+        if (currentHalf === 'FIRST') {
+          // 전반기: 0~6경기 (인덱스 기준)
+          return Math.min(playerMatches.length, REGULAR_SEASON_GAMES);
+        } else {
+          // 후반기: 7경기 이후
+          return Math.max(0, playerMatches.length - REGULAR_SEASON_GAMES);
+        }
+      },
+
+      // 전반기 완료 여부
+      isFirstHalfComplete: () => {
+        const { currentSeason, currentHalf } = get();
+        if (!currentSeason || currentHalf !== 'FIRST') return false;
+
+        const playerMatches = currentSeason.matches.filter(
+          m => (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID) && m.played
+        );
+
+        return playerMatches.length >= REGULAR_SEASON_GAMES;
+      },
+
+      // 전반기 종료 처리 (전환기 시작)
+      endFirstHalf: () => {
+        const { currentSeason, isFirstHalfComplete } = get();
+        if (!currentSeason || !isFirstHalfComplete()) return;
+
+        // 전반기 순위 저장 (드래프트 순서용)
+        const sortedStandings = sortStandings([...currentSeason.standings]);
+
+        set({
+          firstHalfStandings: sortedStandings,
+          isTransitionPeriod: true,
+          currentHalf: 'FIRST'  // 아직 전반기 상태 유지
+        });
+
+        console.log('[Season] 전반기 종료 - 전환기 시작');
+        console.log('[Season] 전반기 순위:', sortedStandings.map(s => s.crewId).join(', '));
+      },
+
+      // 후반기 시작 (전환기 종료)
+      startSecondHalf: () => {
+        const { isTransitionPeriod } = get();
+        if (!isTransitionPeriod) return;
+
+        set({
+          currentHalf: 'SECOND',
+          isTransitionPeriod: false
+        });
+
+        console.log('[Season] 후반기 시작');
+      },
+
+      // 전환기 여부 조회
+      isInTransitionPeriod: () => {
+        return get().isTransitionPeriod;
+      },
+
+      // 드래프트 순서 조회 (전반기 순위 역순)
+      getDraftOrder: () => {
+        const { firstHalfStandings, currentAICrews } = get();
+
+        if (!firstHalfStandings) {
+          // 전반기 순위가 없으면 기본 순서 (AI 크루 ID 순)
+          return [PLAYER_CREW_ID, ...currentAICrews.map(c => c.id)];
+        }
+
+        // 전반기 순위 역순 (꼴찌가 1픽)
+        return [...firstHalfStandings].reverse().map(s => s.crewId);
+      },
+
+      // 트레이드 데드라인 전인지 확인
+      isBeforeTradeDeadline: () => {
+        const { currentSeason } = get();
+        if (!currentSeason) return false;
+
+        const playerMatches = currentSeason.matches.filter(
+          m => (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID) && m.played
+        );
+
+        return playerMatches.length < TRADE_DEADLINE_GAME;
+      },
+
+      // 크루 정책 설정
+      setCrewPolicy: (policy: CrewPolicy) => {
+        set({ crewPolicy: policy });
+        console.log('[Season] 크루 정책 변경:', policy);
+      },
+
+      // 크루 정책 조회
+      getCrewPolicy: () => {
+        return get().crewPolicy;
       }
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 8, // v8: Phase 4 경험치 누적 시스템
+      version: 9, // v9: Phase 5 전/후반기 시스템
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 8);
+        console.log('[Season Store] 마이그레이션:', version, '->', 9);
         const state = persistedState as SeasonState;
 
         if (version < 7) {
@@ -1013,6 +1191,17 @@ export const useSeasonStore = create<SeasonState>()(
             pendingExp: {},
             teamLeagueCompleted: false,
             individualLeagueCompleted: false,
+          };
+        }
+
+        if (version < 9) {
+          console.log('[Season Store] v9 업그레이드: Phase 5 전/후반기 시스템 추가');
+          return {
+            ...state,
+            currentHalf: 'FIRST' as SeasonHalf,
+            firstHalfStandings: null,
+            isTransitionPeriod: false,
+            crewPolicy: 'BALANCED' as CrewPolicy,
           };
         }
 

@@ -9,7 +9,8 @@ import type {
   IndividualLeagueStatus,
   IndividualLeagueHistory,
   IndividualMatch,
-  IndividualLeagueAward
+  IndividualLeagueAward,
+  IndividualMatchRecord
 } from '../types';
 import type {
   BattleState,
@@ -24,6 +25,7 @@ import { initialBattleState, getRequiredWins } from '../types/individualLeague';
 import type { LeagueMatchFormat } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { getRandomArena, applyArenaEffect, getRandomArenas } from '../data/arenaEffects';
+import { ARENAS_BY_ID } from '../data/arenas';
 import {
   generateParticipants,
   generateInitialBrackets,
@@ -66,7 +68,7 @@ interface IndividualLeagueState {
 
   // 액션
   startNewLeague: (playerCrewIds: string[], playerCrewName?: string) => void;
-  playMatch: (matchId: string, winner: string, score: { p1: number; p2: number }) => void;
+  playMatch: (matchId: string, winner: string, score: { p1: number; p2: number }, arenas?: string[]) => void;
   simulateAllRemainingMatches: () => void;
   advanceRound: () => void;
   getNextPlayerMatch: () => ReturnType<typeof findNextPlayerMatch>;
@@ -93,7 +95,7 @@ interface IndividualLeagueState {
 
   // Step 2: 시뮬레이션 기반 배틀
   lastSimMatchResult: SimMatchResult | null;
-  simulateIndividualMatch: (matchId: string) => SimMatchResult | null;
+  simulateIndividualMatch: (matchId: string, preAssignedArenaIds?: string[]) => SimMatchResult | null;
   skipToNextPlayerMatch: () => IndividualMatch | null;
   findNextMatch: () => IndividualMatch | null;
 }
@@ -113,13 +115,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 새 리그 시작
       startNewLeague: (playerCrewIds: string[], playerCrewName = '내 크루') => {
-        const { currentSeason, hallOfFame } = get();
+        // seasonStore에서 현재 시즌 번호 가져오기
+        const seasonStoreState = useSeasonStore.getState();
+        const seasonNumber = seasonStoreState.currentSeason?.number ||
+                             seasonStoreState.seasonHistory.length + 1;
+
+        // 개인 리그 완료 여부 체크 (이미 이번 시즌 개인리그를 완료했으면 시작 불가)
+        if (seasonStoreState.individualLeagueCompleted) {
+          console.warn('[startNewLeague] 이번 시즌 개인 리그가 이미 완료되었습니다. 시즌 종료를 먼저 처리하세요.');
+          return;
+        }
+
+        const { hallOfFame } = get();
 
         // 전 시즌 1~4위 시드 계산 (시즌 2부터)
         let seeds: string[] = [];
-        if (currentSeason > 1) {
+        if (seasonNumber > 1) {
           // 이전 시즌 결과에서 시드 추출
-          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === currentSeason - 1);
+          const prevSeasonHallOfFame = hallOfFame.filter(h => h.season === seasonNumber - 1);
           if (prevSeasonHallOfFame.length > 0) {
             seeds.push(prevSeasonHallOfFame[0].championId);  // 1위
           }
@@ -143,7 +156,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           }));
 
         const league: IndividualLeague = {
-          season: currentSeason,
+          season: seasonNumber,     // seasonStore 기반 시즌 번호 사용
           status: 'ROUND_32',
           participants,
           brackets,
@@ -155,11 +168,14 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           myCardResults
         };
 
-        set({ currentLeague: league });
+        set({
+          currentSeason: seasonNumber,
+          currentLeague: league
+        });
       },
 
       // 경기 결과 기록 (플레이어 직접 플레이 또는 시뮬레이션)
-      playMatch: (matchId: string, winner: string, score: { p1: number; p2: number }) => {
+      playMatch: (matchId: string, winner: string, score: { p1: number; p2: number }, arenas?: string[]) => {
         const { currentLeague } = get();
         if (!currentLeague) return;
 
@@ -172,7 +188,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           // round32 배열 업데이트
           updatedBrackets.round32 = updatedBrackets.round32.map(m =>
             m.id === matchId
-              ? { ...m, winner, score, played: true }
+              ? { ...m, winner, score, played: true, arenas: arenas || m.arenas }
               : m
           );
 
@@ -214,7 +230,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           if (updatedBrackets.round16Matches) {
             updatedBrackets.round16Matches = updatedBrackets.round16Matches.map(m =>
               m.id === matchId
-                ? { ...m, winner, score, played: true }
+                ? { ...m, winner, score, played: true, arenas: arenas || m.arenas }
                 : m
             );
 
@@ -238,7 +254,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         if (status === 'QUARTER') {
           updatedBrackets.quarter = updatedBrackets.quarter.map(m =>
             m.id === matchId
-              ? { ...m, winner, score, played: true }
+              ? { ...m, winner, score, played: true, arenas: arenas || m.arenas }
               : m
           );
         }
@@ -247,7 +263,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         if (status === 'SEMI') {
           updatedBrackets.semi = updatedBrackets.semi.map(m =>
             m.id === matchId
-              ? { ...m, winner, score, played: true }
+              ? { ...m, winner, score, played: true, arenas: arenas || m.arenas }
               : m
           );
         }
@@ -258,7 +274,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             ...updatedBrackets.final,
             winner,
             score,
-            played: true
+            played: true,
+            arenas: arenas || updatedBrackets.final.arenas
           };
         }
 
@@ -268,7 +285,8 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
             ...updatedBrackets.thirdPlace,
             winner,
             score,
-            played: true
+            played: true,
+            arenas: arenas || updatedBrackets.thirdPlace.arenas
           };
         }
 
@@ -445,7 +463,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
       // 리그 종료 및 히스토리 저장 (Step 2.5b-1: 경험치 지급 추가)
       finishLeague: () => {
-        const { currentLeague, history, hallOfFame, currentSeason } = get();
+        const { currentLeague, history, hallOfFame } = get();
         if (!currentLeague || currentLeague.status !== 'FINISHED') return;
 
         const champion = currentLeague.champion;
@@ -480,8 +498,80 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
         // Phase 4 Task 4.1: 개인리그 성적 저장 (cardRecordStore 연동)
         const { saveIndividualLeagueRecord } = useCardRecordStore.getState();
+
+        // 모든 경기 수집 (각 라운드별)
+        const allMatches: { match: IndividualMatch; round: string }[] = [];
+
+        // 32강 조별 리그
+        currentLeague.brackets.round32.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'ROUND_32' });
+          }
+        });
+
+        // 16강 토너먼트
+        currentLeague.brackets.round16Matches?.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'ROUND_16' });
+          }
+        });
+
+        // 8강
+        currentLeague.brackets.quarter.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'QUARTER' });
+          }
+        });
+
+        // 4강
+        currentLeague.brackets.semi.forEach(match => {
+          if (match.played) {
+            allMatches.push({ match, round: 'SEMI' });
+          }
+        });
+
+        // 결승
+        if (currentLeague.brackets.final?.played) {
+          allMatches.push({ match: currentLeague.brackets.final, round: 'FINAL' });
+        }
+
+        // 3/4위전
+        if (currentLeague.brackets.thirdPlace?.played) {
+          allMatches.push({ match: currentLeague.brackets.thirdPlace, round: 'THIRD_PLACE' });
+        }
+
         rankings.forEach(ranking => {
           if (ranking.isPlayerCrew) {
+            // 내 크루 카드의 경기 기록 수집
+            const matchHistory: IndividualMatchRecord[] = allMatches
+              .filter(({ match }) =>
+                match.participant1 === ranking.odId || match.participant2 === ranking.odId
+              )
+              .map(({ match, round }) => {
+                const isParticipant1 = match.participant1 === ranking.odId;
+                const opponentId = isParticipant1 ? match.participant2 : match.participant1;
+                const opponent = CHARACTERS_BY_ID[opponentId];
+                const isWinner = match.winner === ranking.odId;
+
+                // 경기장 정보 (첫 번째 경기장 사용, 다선제의 경우)
+                const arenaId = match.arenas?.[0];
+                const arena = arenaId ? ARENAS_BY_ID[arenaId] : undefined;
+
+                return {
+                  season: currentLeague.season,
+                  round,
+                  opponentId,
+                  opponentName: opponent?.name.ko || '???',
+                  result: isWinner ? 'WIN' as const : 'LOSE' as const,
+                  score: {
+                    my: isParticipant1 ? match.score.p1 : match.score.p2,
+                    opponent: isParticipant1 ? match.score.p2 : match.score.p1
+                  },
+                  arenaId,
+                  arenaName: arena?.name.ko
+                };
+              });
+
             // 내 크루 카드의 개인리그 시즌 기록 저장
             const seasonRecord: IndividualSeasonRecord = {
               season: currentLeague.season,
@@ -492,11 +582,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
               awards: awards
                 .filter(a => a.odId === ranking.odId)
                 .map(a => a.type),
-              matchHistory: [], // TODO: 매치 히스토리 연동
+              matchHistory,
             };
 
             saveIndividualLeagueRecord(ranking.odId, seasonRecord);
-            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위)`);
+            console.log(`[finishLeague] ${ranking.odName} 개인리그 성적 저장 (${ranking.rank}위, ${matchHistory.length}경기)`);
           }
         });
 
@@ -535,7 +625,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         set({
           history: [...history, historyEntry],
           hallOfFame: [...hallOfFame, hallEntry],
-          currentSeason: currentSeason + 1,
+          // currentSeason 증가는 finalizeSeason 이후 다음 시즌 시작 시 자동 반영
           currentLeague: null
         });
 
@@ -742,11 +832,12 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           winner: matchWinner,
         };
 
-        // 개인 리그 결과 기록
+        // 개인 리그 결과 기록 - 경기장 정보 포함
         playMatch(
           currentBattleState.matchId,
           winnerId,
-          { p1: currentBattleState.playerSetWins, p2: currentBattleState.opponentSetWins }
+          { p1: currentBattleState.playerSetWins, p2: currentBattleState.opponentSetWins },
+          currentBattleState.arena ? [currentBattleState.arena.id] : undefined
         );
 
         // 상태 리셋
@@ -811,7 +902,7 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
       // ========================================
 
       // 개인전 경기 시뮬레이션
-      simulateIndividualMatch: (matchId: string): SimMatchResult | null => {
+      simulateIndividualMatch: (matchId: string, preAssignedArenaIds?: string[]): SimMatchResult | null => {
         const { currentLeague, playMatch } = get();
         if (!currentLeague) return null;
 
@@ -905,8 +996,10 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
         // bestOf 값 결정 (3/4위전은 별도 처리)
         const bestOf = getBestOfForRound(effectiveMatchType);
 
-        // 경기장 랜덤 선택
-        const arenaIds = getRandomArenas(bestOf);
+        // 경기장 선택: 외부에서 전달된 arenaIds가 있으면 사용, 없으면 랜덤 생성
+        const arenaIds = preAssignedArenaIds && preAssignedArenaIds.length >= bestOf
+          ? preAssignedArenaIds
+          : getRandomArenas(bestOf);
 
         // 시뮬레이션 실행
         const result = simulateBattle(participant1, participant2, arenaIds, bestOf);
@@ -932,8 +1025,24 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           isCompleted: true,
         };
 
-        // 경기 완료 처리 (기존 playMatch 사용)
-        playMatch(matchId, result.winnerId, { p1: result.score[0], p2: result.score[1] });
+        // 경기 완료 처리 (기존 playMatch 사용) - 경기장 정보 포함
+        playMatch(matchId, result.winnerId, { p1: result.score[0], p2: result.score[1] }, arenaIds);
+
+        // 세트별 전적을 cardRecordStore에 기록 (개인리그 기록 반영)
+        const { recordBattle } = useCardRecordStore.getState();
+        const seasonNumber = currentLeague.season;
+        for (const setResult of result.sets) {
+          recordBattle({
+            seasonNumber,
+            winnerCardId: setResult.winnerId,
+            loserCardId: setResult.loserId,
+            arenaId: setResult.arenaId,
+            winnerDamage: 0,
+            loserDamage: 0,
+            winnerSkillActivated: false,
+            loserSkillActivated: false,
+          });
+        }
 
         // 결과 저장
         set({ lastSimMatchResult: matchResult });

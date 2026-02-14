@@ -16,7 +16,10 @@ import {
   tickStatusEffects,
   checkEvasion,
   getVulnerabilityMultiplier,
-  isSkillBlocked
+  isSkillBlocked,
+  calculateGaugeCharge,
+  calculateDamageTakenGaugeCharge,
+  MAX_GAUGE
 } from '../../utils/battleCalculator';
 
 interface TurnBattleModalProps {
@@ -50,7 +53,7 @@ interface BattleState {
 
 const MAX_TURNS = 20;  // 최대 20턴까지 진행 (HP 0 또는 20턴 도달 시 종료)
 const LOG_INTERVAL = 700; // 0.7초 간격
-const GAUGE_PER_TURN = { min: 25, max: 35 }; // 턴당 게이지 충전량
+// 게이지 충전은 이제 gaugeSystem에서 데미지 기반으로 계산됨
 
 // 상태이상 아이콘 표시 컴포넌트
 function StatusEffectDisplay({ effects }: { effects: AppliedStatusEffect[] }) {
@@ -401,10 +404,26 @@ export function TurnBattleModal({
         logMessages.push(`💨 ${defender.name.ko}가 회피!`);
       }
 
-      // 게이지 충전량 계산
-      const gaugeCharge = canUseUltimate ? -100 : Math.floor(
-        GAUGE_PER_TURN.min + Math.random() * (GAUGE_PER_TURN.max - GAUGE_PER_TURN.min)
-      );
+      // 게이지 충전량 계산 (새 시스템: 데미지 비례)
+      let attackerGaugeCharge = 0;
+      let defenderGaugeCharge = 0;
+
+      if (canUseUltimate) {
+        // 필살기 사용 시 게이지 소모
+        attackerGaugeCharge = -100;
+      } else if (damage > 0) {
+        // 공격자: 입힌 데미지 기반 충전
+        const attackerCeCost = ultimateData?.ceCost ?? 0;
+        attackerGaugeCharge = calculateGaugeCharge({
+          damage,
+          grade: attacker.grade,
+          ceCost: attackerCeCost,
+        });
+        logMessages.push(`⚡+${attackerGaugeCharge}`);
+
+        // 방어자: 받은 데미지 기반 충전
+        defenderGaugeCharge = calculateDamageTakenGaugeCharge(damage, defender.grade);
+      }
 
       // 5. HP 업데이트
       let defenderHp = Math.max(0, defenderState.hp - damage);
@@ -423,13 +442,14 @@ export function TurnBattleModal({
       setAttackerState(prev => ({
         ...prev,
         hp: Math.min(100, attackerHp),
-        gauge: Math.min(100, Math.max(0, prev.gauge + gaugeCharge)),
+        gauge: Math.min(MAX_GAUGE, Math.max(0, prev.gauge + attackerGaugeCharge)),
         effects: newAttackerEffects
       }));
 
       setDefenderState(prev => ({
         ...prev,
         hp: defenderHp,
+        gauge: Math.min(MAX_GAUGE, Math.max(0, prev.gauge + defenderGaugeCharge)),
         effects: newDefenderEffects
       }));
 

@@ -1,5 +1,6 @@
 // ========================================
 // 카드 기록 스토어 - 개인 전적 및 수상 시스템
+// Phase 5: 라이벌 시스템 통합
 // ========================================
 
 import { create } from 'zustand';
@@ -10,15 +11,19 @@ import type {
   Award,
   AwardType,
   CardStats,
-  IndividualSeasonRecord
+  IndividualSeasonRecord,
+  RivalInfo
 } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
+import { RIVAL_MIN_MATCHES, RIVAL_ATK_BONUS } from '../data/constants';
 
 interface CardRecordStore {
   // 카드별 기록
   records: Record<string, CardRecord>;
   // 시즌별 수상 목록
   seasonAwards: Record<number, Award[]>;
+  // Phase 5: 라이벌 관계 (cardId -> 라이벌 cardId 목록)
+  rivalRelations: Record<string, RivalInfo[]>;
 
   // 기록 업데이트 (라운드 종료 시 호출)
   recordBattle: (params: {
@@ -59,6 +64,13 @@ interface CardRecordStore {
     individualLeague: { wins: number; losses: number };
     total: { wins: number; losses: number };
   };
+
+  // Phase 5: 라이벌 시스템
+  checkAndRegisterRival: (cardId1: string, cardId2: string, seasonNumber: number) => boolean;
+  isRival: (cardId1: string, cardId2: string) => boolean;
+  getRivals: (cardId: string) => RivalInfo[];
+  getRivalMatchCount: (cardId1: string, cardId2: string) => number;
+  getRivalBonusMultiplier: (cardId1: string, cardId2: string) => number;
 
   // 리셋
   resetAllRecords: () => void;
@@ -140,6 +152,7 @@ export const useCardRecordStore = create<CardRecordStore>()(
     (set, get) => ({
       records: {},
       seasonAwards: {},
+      rivalRelations: {},
 
       // 전투 결과 기록
       recordBattle: ({
@@ -246,6 +259,9 @@ export const useCardRecordStore = create<CardRecordStore>()(
             }
           }
         });
+
+        // Phase 5: 라이벌 등록 체크
+        get().checkAndRegisterRival(winnerCardId, loserCardId, seasonNumber);
       },
 
       // 시즌 수상자 선정
@@ -322,7 +338,7 @@ export const useCardRecordStore = create<CardRecordStore>()(
         return records[cardId]?.seasonRecords[seasonNumber] || null;
       },
 
-      // 통산 스탯 계산
+      // 통산 스탯 계산 (팀 리그 + 개인 리그 통합)
       getCareerStats: (cardId: string) => {
         const { records } = get();
         const cardRecord = records[cardId];
@@ -340,9 +356,16 @@ export const useCardRecordStore = create<CardRecordStore>()(
         let wins = 0;
         let losses = 0;
 
+        // 팀 리그 성적 합산
         for (const seasonRecord of Object.values(cardRecord.seasonRecords)) {
           wins += seasonRecord.wins;
           losses += seasonRecord.losses;
+        }
+
+        // 개인 리그 성적 합산
+        if (cardRecord.individualLeague) {
+          wins += cardRecord.individualLeague.totalWins;
+          losses += cardRecord.individualLeague.totalLosses;
         }
 
         const totalGames = wins + losses;
@@ -355,28 +378,32 @@ export const useCardRecordStore = create<CardRecordStore>()(
         };
       },
 
-      // 시즌 스탯 계산
+      // 시즌 스탯 계산 (팀 리그 + 개인 리그 통합)
       getSeasonStats: (cardId: string, seasonNumber: number) => {
         const { records } = get();
-        const seasonRecord = records[cardId]?.seasonRecords[seasonNumber];
+        const cardRecord = records[cardId];
+        const seasonRecord = cardRecord?.seasonRecords[seasonNumber];
 
-        if (!seasonRecord) {
-          return {
-            cardId,
-            wins: 0,
-            losses: 0,
-            totalGames: 0,
-            winRate: 0
-          };
+        // 팀 리그 성적
+        let wins = seasonRecord?.wins || 0;
+        let losses = seasonRecord?.losses || 0;
+
+        // 개인 리그 성적 (해당 시즌)
+        const individualSeasonRecord = cardRecord?.individualLeague?.seasons?.find(
+          s => s.season === seasonNumber
+        );
+        if (individualSeasonRecord) {
+          wins += individualSeasonRecord.wins;
+          losses += individualSeasonRecord.losses;
         }
 
-        const totalGames = seasonRecord.wins + seasonRecord.losses;
+        const totalGames = wins + losses;
         return {
           cardId,
-          wins: seasonRecord.wins,
-          losses: seasonRecord.losses,
+          wins,
+          losses,
           totalGames,
-          winRate: totalGames > 0 ? (seasonRecord.wins / totalGames) * 100 : 0
+          winRate: totalGames > 0 ? (wins / totalGames) * 100 : 0
         };
       },
 
@@ -527,22 +554,142 @@ export const useCardRecordStore = create<CardRecordStore>()(
         };
       },
 
+      // ========================================
+      // Phase 5: 라이벌 시스템
+      // ========================================
+
+      // 라이벌 등록 체크 및 등록
+      checkAndRegisterRival: (cardId1: string, cardId2: string, seasonNumber: number) => {
+        const { rivalRelations, getRivalMatchCount, isRival } = get();
+
+        // 이미 라이벌이면 스킵
+        if (isRival(cardId1, cardId2)) return false;
+
+        // 대전 횟수 체크
+        const matchCount = getRivalMatchCount(cardId1, cardId2);
+        if (matchCount < RIVAL_MIN_MATCHES) return false;
+
+        // 라이벌 등록
+        const newRivalRelations = { ...rivalRelations };
+
+        // cardId1의 라이벌 목록에 추가
+        if (!newRivalRelations[cardId1]) {
+          newRivalRelations[cardId1] = [];
+        }
+        newRivalRelations[cardId1].push({
+          rivalCardId: cardId2,
+          establishedSeason: seasonNumber,
+          totalMatches: matchCount,
+          wins: 0,  // 라이벌 등록 후부터 카운트
+          losses: 0
+        });
+
+        // cardId2의 라이벌 목록에 추가
+        if (!newRivalRelations[cardId2]) {
+          newRivalRelations[cardId2] = [];
+        }
+        newRivalRelations[cardId2].push({
+          rivalCardId: cardId1,
+          establishedSeason: seasonNumber,
+          totalMatches: matchCount,
+          wins: 0,
+          losses: 0
+        });
+
+        set({ rivalRelations: newRivalRelations });
+
+        const char1 = CHARACTERS_BY_ID[cardId1];
+        const char2 = CHARACTERS_BY_ID[cardId2];
+        console.log(`[Rival] 라이벌 성립! ${char1?.name.ko || cardId1} vs ${char2?.name.ko || cardId2} (${matchCount}전)`);
+
+        return true;
+      },
+
+      // 라이벌 여부 확인
+      isRival: (cardId1: string, cardId2: string) => {
+        const { rivalRelations } = get();
+        const rivals1 = rivalRelations[cardId1] || [];
+        return rivals1.some(r => r.rivalCardId === cardId2);
+      },
+
+      // 카드의 라이벌 목록 조회
+      getRivals: (cardId: string) => {
+        const { rivalRelations } = get();
+        return rivalRelations[cardId] || [];
+      },
+
+      // 두 카드 간의 총 대전 횟수
+      getRivalMatchCount: (cardId1: string, cardId2: string) => {
+        const { records } = get();
+        const record1 = records[cardId1];
+
+        if (!record1) return 0;
+
+        let totalMatches = 0;
+
+        // 팀 리그 전적
+        Object.values(record1.seasonRecords).forEach(season => {
+          const vsRecord = season.vsRecords?.[cardId2];
+          if (vsRecord) {
+            totalMatches += vsRecord.wins + vsRecord.losses;
+          }
+        });
+
+        // 개인 리그 전적
+        record1.individualLeague?.seasons?.forEach(season => {
+          season.matchHistory?.forEach(match => {
+            if (match.opponentId === cardId2) {
+              totalMatches++;
+            }
+          });
+        });
+
+        return totalMatches;
+      },
+
+      // 라이벌 보너스 배율 (라이벌이면 +5% ATK)
+      getRivalBonusMultiplier: (cardId1: string, cardId2: string) => {
+        const { isRival } = get();
+        if (isRival(cardId1, cardId2)) {
+          return 1 + RIVAL_ATK_BONUS;  // 1.05 (+5%)
+        }
+        return 1.0;
+      },
+
       // 전체 리셋
       resetAllRecords: () => {
         set({
           records: {},
-          seasonAwards: {}
+          seasonAwards: {},
+          rivalRelations: {}
         });
       }
     }),
     {
       name: 'jujutsu-card-records',
-      version: 2,
+      version: 3, // v3: Phase 5 라이벌 시스템
+      migrate: (persistedState: unknown, version: number) => {
+        console.log('[Card Records] 마이그레이션:', version, '->', 3);
+        const state = persistedState as CardRecordStore;
+
+        if (version < 3) {
+          console.log('[Card Records] Phase 5 라이벌 시스템 추가');
+          return {
+            ...state,
+            rivalRelations: state.rivalRelations || {}
+          };
+        }
+        return state;
+      },
       // localStorage에서 데이터 로드 후 마이그레이션 실행
       onRehydrateStorage: () => (state) => {
         if (state && state.records) {
           // 기존 데이터에 확장 필드가 없을 수 있으므로 마이그레이션
           state.records = migrateRecords(state.records);
+        }
+        // Phase 5: rivalRelations 초기화
+        if (state && !state.rivalRelations) {
+          state.rivalRelations = {};
         }
       }
     }

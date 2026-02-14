@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
+import { ARENA_EFFECTS } from '../../data/arenaEffects';
 import type { IndividualMatch, LeagueParticipant, Stats } from '../../types';
 import { Button } from '../UI/Button';
 import { useCardRecordStore } from '../../stores/cardRecordStore';
@@ -26,6 +27,7 @@ interface MatchPreviewModalProps {
   arenaName?: string;
   matchContext?: string;       // "승자전", "패자전", "최종전" 등
   matchImplication?: string;   // "승자는 16강 진출 확정!" 등
+  arenaIds?: string[];         // 다전제 경기장 ID 배열
   onStartMatch: () => void;
   onSkip: () => void;
   onClose: () => void;
@@ -194,18 +196,68 @@ function RadarChart({ stats, color, size = 180, showLabels = true }: { stats: St
   );
 }
 
+// 단판용: 경기장 효과 행 (한 줄)
+function ArenaEffectRow({ name, attr, arena }: {
+  name: string;
+  attr: string;
+  arena: { bonusAttribute: string; bonusPercent: number; penaltyAttribute: string; penaltyPercent: number }
+}) {
+  const isBonus = attr === arena.bonusAttribute;
+  const isPenalty = attr === arena.penaltyAttribute;
+  const text = isBonus ? `+${arena.bonusPercent}%`
+             : isPenalty ? `-${arena.penaltyPercent}%`
+             : '±0%';
+  const colorClass = isBonus ? 'text-green-400 bg-green-500/10'
+                   : isPenalty ? 'text-red-400 bg-red-500/10'
+                   : 'text-gray-400 bg-gray-500/10';
+
+  return (
+    <div className={`flex items-center justify-between text-xs rounded px-2 py-1 ${colorClass}`}>
+      <span className="truncate max-w-[80px]">{name}</span>
+      <span className="font-bold">
+        {isBonus && '▲ '}{isPenalty && '▼ '}{text}
+      </span>
+    </div>
+  );
+}
+
+// 다전제용: 경기장 효과 배지 (컴팩트)
+function ArenaEffectBadge({ name, attr, arena }: {
+  name: string;
+  attr: string;
+  arena: { bonusAttribute: string; bonusPercent: number; penaltyAttribute: string; penaltyPercent: number }
+}) {
+  const isBonus = attr === arena.bonusAttribute;
+  const isPenalty = attr === arena.penaltyAttribute;
+  const text = isBonus ? `+${arena.bonusPercent}%`
+             : isPenalty ? `-${arena.penaltyPercent}%`
+             : '±0%';
+  const colorClass = isBonus ? 'text-green-400 bg-green-500/15'
+                   : isPenalty ? 'text-red-400 bg-red-500/15'
+                   : 'text-gray-400 bg-gray-500/10';
+
+  return (
+    <div className={`flex-1 text-center text-xs rounded px-1.5 py-0.5 ${colorClass}`}>
+      <span className="truncate">{name.slice(0, 4)}</span>
+      <span className="font-bold ml-1">{text}</span>
+    </div>
+  );
+}
+
 export function MatchPreviewModal({
   match,
   participants,
   roundName,
   formatText,
-  arenaName,
+  arenaName: _arenaName, // 하위 호환 유지 (unused)
   matchContext,
   matchImplication,
+  arenaIds,
   onStartMatch,
   onSkip,
   onClose
 }: MatchPreviewModalProps) {
+  // _arenaName은 하위 호환을 위해 유지되지만, arenaIds로 대체됨
   const p1 = participants.find(p => p.odId === match.participant1);
   const p2 = participants.find(p => p.odId === match.participant2);
   const card1 = CHARACTERS_BY_ID[match.participant1];
@@ -320,15 +372,84 @@ export function MatchPreviewModal({
 
             {/* 중앙 VS */}
             <div className="flex flex-col items-center justify-center px-4 py-4">
-              <div className="text-5xl font-bold text-white mb-4">VS</div>
-              <div className="text-lg text-text-secondary mb-4">0 : 0</div>
 
-              {arenaName && (
-                <div className="bg-bg-secondary rounded-lg px-4 py-2 text-center mb-4">
-                  <div className="text-xs text-text-secondary">경기장</div>
-                  <div className="text-sm text-accent font-bold">{arenaName}</div>
+              {/* ===== 경기장 정보 (VS 윗부분) ===== */}
+              {arenaIds && arenaIds.length > 0 && (
+                <div className="bg-gradient-to-b from-purple-900/30 to-bg-secondary/40
+                                border border-purple-500/20 rounded-xl p-3 mb-4 w-full max-w-[220px]">
+
+                  {/* 단판 (32강): 경기장 1개 */}
+                  {arenaIds.length === 1 && (() => {
+                    const arena = ARENA_EFFECTS[arenaIds[0]];
+                    if (!arena) return null;
+                    const p1Attr = card1?.attribute || '';
+                    const p2Attr = card2?.attribute || '';
+
+                    return (
+                      <div className="text-center">
+                        <div className="text-xs text-purple-300 mb-1">경기장</div>
+                        <div className="text-sm font-bold text-white mb-2">
+                          {arena.name}
+                        </div>
+                        <div className="text-xs text-text-secondary mb-2">
+                          {arena.description}
+                        </div>
+                        {/* 양 선수 효과 */}
+                        <div className="space-y-1">
+                          <ArenaEffectRow name={card1?.name.ko || '???'} attr={p1Attr} arena={arena} />
+                          <ArenaEffectRow name={card2?.name.ko || '???'} attr={p2Attr} arena={arena} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 다전제 (16강~): 세트별 경기장 */}
+                  {arenaIds.length > 1 && (
+                    <div>
+                      <div className="text-xs text-purple-300 text-center mb-2">
+                        세트별 경기장
+                      </div>
+                      <div className="space-y-2">
+                        {arenaIds.map((arenaId, idx) => {
+                          const arena = ARENA_EFFECTS[arenaId];
+                          if (!arena) return null;
+                          const p1Attr = card1?.attribute || '';
+                          const p2Attr = card2?.attribute || '';
+
+                          return (
+                            <div key={idx} className="bg-bg-primary/30 rounded-lg p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-yellow-400 font-bold">
+                                  Set {idx + 1}
+                                </span>
+                                <span className="text-xs font-bold text-white">
+                                  {arena.name}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                <ArenaEffectBadge
+                                  name={card1?.name.ko || '???'}
+                                  attr={p1Attr}
+                                  arena={arena}
+                                />
+                                <ArenaEffectBadge
+                                  name={card2?.name.ko || '???'}
+                                  attr={p2Attr}
+                                  arena={arena}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* VS */}
+              <div className="text-5xl font-bold text-white mb-4">VS</div>
+              <div className="text-lg text-text-secondary mb-4">0 : 0</div>
 
               {/* Phase 4.3: 통합 상대전적 표시 (항상 표시) */}
               <div className="bg-bg-secondary/50 rounded-lg p-3 w-full mt-2">

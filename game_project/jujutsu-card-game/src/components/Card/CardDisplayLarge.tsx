@@ -9,6 +9,7 @@ import type { CharacterCard, PlayerCard } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { RadarChart } from '../UI/RadarChart';
+import { CareerPhaseBadge } from '../Phase5/CareerPhaseIndicator';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
 import { FORM_CONFIG, getConditionIcon } from '../../data/growthSystem';
 
@@ -133,18 +134,24 @@ export function CardDisplayLarge({
 
         {/* 컨디션/폼/스탯 정보 */}
         <div className="flex-1 flex flex-col justify-center gap-1.5">
-          {/* 폼 상태 */}
-          <div
-            className="flex items-center gap-2 px-2 py-1 rounded-md"
-            style={{ backgroundColor: `${formConfig.color}20` }}
-          >
-            <span className="text-lg">{formConfig.icon}</span>
-            <span
-              className="text-xs font-bold"
-              style={{ color: formConfig.color }}
+          {/* 폼 상태 + 생애주기 */}
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md flex-1"
+              style={{ backgroundColor: `${formConfig.color}20` }}
             >
-              {formConfig.name}
-            </span>
+              <span className="text-sm">{formConfig.icon}</span>
+              <span
+                className="text-[10px] font-bold"
+                style={{ color: formConfig.color }}
+              >
+                {formConfig.name}
+              </span>
+            </div>
+            {/* Phase 5: 생애주기 배지 */}
+            {playerCard?.careerPhase && (
+              <CareerPhaseBadge phase={playerCard.careerPhase} size="sm" />
+            )}
           </div>
 
           {/* 컨디션 */}

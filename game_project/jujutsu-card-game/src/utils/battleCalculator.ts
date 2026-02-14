@@ -1,5 +1,6 @@
 // ========================================
 // 전투 계산 시스템
+// Phase 5: 전투 성향, 코칭, 경기장 스탯 유리 추가
 // ========================================
 
 import type {
@@ -13,11 +14,16 @@ import type {
   RoundResult,
   SkillEffect,
   AppliedStatusEffect,
-  TurnResult
+  TurnResult,
+  CrewPolicy,
+  CoachingStrategy,
+  GaugeChargeResult,
+  UltimateActivationResult,
+  LegacyGrade
 } from '../types';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
-import { EXP_TABLE, MAX_LEVEL } from '../data/constants';
+import { EXP_TABLE, MAX_LEVEL, RIVAL_ATK_BONUS } from '../data/constants';
 import {
   getAttributeMultiplier,
   getArenaAttributeBonus,
@@ -28,6 +34,18 @@ import {
 } from './attributeSystem';
 import { getStatusEffect } from '../data/statusEffects';
 import { getUltimateSkillEffects, type UltimateSkillData } from '../data/ultimateSkillEffects';
+import { getStyleMultiplier, getCharacterBattleStyle } from '../data/battleStyles';
+import { checkFavoredStatBonus } from '../data/arenas';
+import {
+  calculateGaugeCharge,
+  calculateDamageTakenGaugeCharge,
+  calculateActivationResult,
+  addGauge,
+  initializeGaugeState,
+  GAUGE_REQUIRED,
+  MAX_GAUGE,
+  type GaugeState,
+} from '../data/gaugeSystem';
 
 /**
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
@@ -1364,4 +1382,419 @@ export function getLevelProgress(currentExp: number, currentLevel: number): numb
   const expNeeded = nextLevelExp - prevLevelExp;
 
   return Math.floor((expInLevel / expNeeded) * 100);
+}
+
+// ========================================
+// Phase 5: 전투 성향 시스템
+// ========================================
+
+/**
+ * 전투 성향 상성에 따른 데미지 배율 계산
+ */
+export function getBattleStyleDamageMultiplier(
+  attackerCardId: string,
+  defenderCardId: string
+): number {
+  const attackerStyle = getCharacterBattleStyle(attackerCardId);
+  const defenderStyle = getCharacterBattleStyle(defenderCardId);
+  return getStyleMultiplier(attackerStyle, defenderStyle);
+}
+
+// ========================================
+// Phase 5: 코칭 시스템
+// ========================================
+
+import { CREW_POLICY_EFFECTS as CrewPolicyEffects, COACHING_EFFECTS as CoachingEffects } from '../types';
+
+/**
+ * 크루 방침 적용 (팀 리그용)
+ */
+export function applyCrewPolicyToStats(
+  stats: Stats,
+  policy: CrewPolicy
+): Stats {
+  const effects = CrewPolicyEffects[policy];
+  return {
+    ...stats,
+    atk: Math.floor(stats.atk * effects.atkMod),
+    def: Math.floor(stats.def * effects.defMod),
+  };
+}
+
+/**
+ * 코칭 전략 적용 (개인 리그용)
+ */
+export function applyCoachingStrategyToStats(
+  stats: Stats,
+  strategy: CoachingStrategy
+): { stats: Stats; gaugeStart: number } {
+  const effects = CoachingEffects[strategy];
+  const mods = effects.statMods;
+
+  const newStats = { ...stats };
+  let gaugeStart = 0;
+
+  // ATK 배율
+  if (mods.atk !== undefined) {
+    newStats.atk = Math.floor(stats.atk * mods.atk);
+  }
+
+  // DEF 배율
+  if (mods.def !== undefined) {
+    newStats.def = Math.floor(stats.def * mods.def);
+  }
+
+  // SPD 배율
+  if (mods.spd !== undefined) {
+    newStats.spd = Math.floor(stats.spd * mods.spd);
+  }
+
+  // CE 배율
+  if (mods.ce !== undefined) {
+    newStats.ce = Math.floor(stats.ce * mods.ce);
+  }
+
+  // HP 배율
+  if (mods.hpMod !== undefined) {
+    newStats.hp = Math.floor(stats.hp * mods.hpMod);
+  }
+
+  // 궁극기 게이지 시작값
+  if (mods.gaugeStart !== undefined) {
+    gaugeStart = mods.gaugeStart;
+  }
+
+  return { stats: newStats, gaugeStart };
+}
+
+// ========================================
+// Phase 5: 경기장 스탯 유리 시스템
+// ========================================
+
+export interface FavoredStatBonusResult {
+  hasBonus: boolean;
+  bonusType?: string;
+  bonusValue?: number;
+}
+
+/**
+ * 경기장 스탯 유리 보너스 적용
+ */
+export function applyFavoredStatBonus(
+  arenaId: string,
+  stats: Stats
+): FavoredStatBonusResult {
+  return checkFavoredStatBonus(arenaId, stats as unknown as Record<string, number>);
+}
+
+/**
+ * 경기장 스탯 유리 보너스에 따른 효과 적용
+ */
+export function getFavoredStatEffect(
+  bonusType: string,
+  bonusValue: number,
+  _baseDamage: number,
+  _baseHp: number
+): { damageModifier: number; evasionChance: number; hpRecovery: number } {
+  let damageModifier = 1.0;
+  let evasionChance = 0;
+  let hpRecovery = 0;
+
+  switch (bonusType) {
+    case 'DAMAGE_RESIST':
+      damageModifier = 1 - (bonusValue / 100);  // 받는 데미지 감소
+      break;
+    case 'EVASION':
+      evasionChance = bonusValue;  // 회피 확률
+      break;
+    case 'SKILL_DAMAGE':
+      damageModifier = 1 + (bonusValue / 100);  // 스킬 데미지 증가
+      break;
+    case 'HP_RECOVERY':
+      hpRecovery = bonusValue;  // 턴당 HP 회복
+      break;
+  }
+
+  return { damageModifier, evasionChance, hpRecovery };
+}
+
+// ========================================
+// Phase 5: 라이벌 시스템
+// ========================================
+
+/**
+ * 라이벌 보너스 적용
+ */
+export function applyRivalBonus(
+  baseAtk: number,
+  isRivalMatch: boolean
+): number {
+  if (isRivalMatch) {
+    return Math.floor(baseAtk * (1 + RIVAL_ATK_BONUS));
+  }
+  return baseAtk;
+}
+
+// ========================================
+// Phase 5: 종합 데미지 계산 (모든 Phase 5 요소 포함)
+// ========================================
+
+export interface Phase5DamageContext {
+  attackerCardId: string;
+  defenderCardId: string;
+  arenaId: string;
+  attackerStats: Stats;
+  defenderStats: Stats;
+  isRivalMatch?: boolean;
+  crewPolicy?: CrewPolicy;
+  coachingStrategy?: CoachingStrategy;
+}
+
+/**
+ * Phase 5 모든 요소를 포함한 최종 데미지 계산
+ */
+export function calculatePhase5Damage(
+  context: Phase5DamageContext,
+  _arena: Arena,
+  baseDamage: number
+): {
+  finalDamage: number;
+  battleStyleMod: number;
+  favoredStatMod: number;
+  rivalBonus: number;
+  breakdown: string[];
+} {
+  const breakdown: string[] = [];
+  let finalDamage = baseDamage;
+
+  // 1. 전투 성향 상성
+  const battleStyleMod = getBattleStyleDamageMultiplier(
+    context.attackerCardId,
+    context.defenderCardId
+  );
+  if (battleStyleMod !== 1.0) {
+    finalDamage = Math.floor(finalDamage * battleStyleMod);
+    const percent = Math.round((battleStyleMod - 1) * 100);
+    breakdown.push(`전투 성향 ${percent >= 0 ? '+' : ''}${percent}%`);
+  }
+
+  // 2. 경기장 스탯 유리
+  let favoredStatMod = 1.0;
+  const favoredBonus = applyFavoredStatBonus(context.arenaId, context.attackerStats);
+  if (favoredBonus.hasBonus && favoredBonus.bonusType === 'SKILL_DAMAGE') {
+    favoredStatMod = 1 + (favoredBonus.bonusValue! / 100);
+    finalDamage = Math.floor(finalDamage * favoredStatMod);
+    breakdown.push(`경기장 스킬 보너스 +${favoredBonus.bonusValue}%`);
+  }
+
+  // 3. 라이벌 보너스
+  let rivalBonus = 0;
+  if (context.isRivalMatch) {
+    rivalBonus = Math.floor(finalDamage * RIVAL_ATK_BONUS);
+    finalDamage += rivalBonus;
+    breakdown.push(`라이벌 보너스 +${Math.round(RIVAL_ATK_BONUS * 100)}%`);
+  }
+
+  return {
+    finalDamage: Math.max(1, finalDamage),
+    battleStyleMod,
+    favoredStatMod,
+    rivalBonus,
+    breakdown,
+  };
+}
+
+// ========================================
+// Phase 6: 게이지 충전 시스템 통합
+// ========================================
+
+export {
+  calculateGaugeCharge,
+  calculateDamageTakenGaugeCharge,
+  addGauge,
+  initializeGaugeState,
+  GAUGE_REQUIRED,
+  MAX_GAUGE,
+};
+
+/**
+ * 공격 시 게이지 충전 처리 (공격자: 입힌 데미지, 방어자: 받은 데미지)
+ */
+export function processGaugeChargeOnAttack(
+  damage: number,
+  attackerGauge: number,
+  defenderGauge: number,
+  attackerGrade: LegacyGrade,
+  defenderGrade: LegacyGrade,
+  attackerCeCost: number,
+  _defenderCeCost: number  // 향후 확장용
+): {
+  attackerResult: GaugeChargeResult;
+  defenderResult: GaugeChargeResult;
+} {
+  // 공격자: 입힌 데미지 기반 충전
+  const attackerCharge = calculateGaugeCharge({
+    damage,
+    grade: attackerGrade,
+    ceCost: attackerCeCost,
+  });
+  const newAttackerGauge = addGauge(attackerGauge, attackerCharge);
+
+  // 방어자: 받은 데미지 기반 충전
+  const defenderCharge = calculateDamageTakenGaugeCharge(damage, defenderGrade);
+  const newDefenderGauge = addGauge(defenderGauge, defenderCharge);
+
+  return {
+    attackerResult: {
+      previousGauge: attackerGauge,
+      chargeAmount: attackerCharge,
+      newGauge: newAttackerGauge,
+      isMaxed: newAttackerGauge >= MAX_GAUGE,
+      source: 'DAMAGE_DEALT',
+    },
+    defenderResult: {
+      previousGauge: defenderGauge,
+      chargeAmount: defenderCharge,
+      newGauge: newDefenderGauge,
+      isMaxed: newDefenderGauge >= MAX_GAUGE,
+      source: 'DAMAGE_TAKEN',
+    },
+  };
+}
+
+/**
+ * 필살기 발동 시도 및 결과 처리
+ */
+export function attemptUltimateActivation(
+  currentGauge: number,
+  currentCe: number,
+  ceCost: number,
+  crtStat: number,
+  isSealed: boolean = false
+): UltimateActivationResult {
+  // 봉인 상태면 발동 불가
+  if (isSealed) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: false,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'SEALED',
+    };
+  }
+
+  // 게이지 부족
+  if (currentGauge < GAUGE_REQUIRED) {
+    return {
+      attempted: false,
+      success: false,
+      isGuaranteed: false,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'GAUGE_INSUFFICIENT',
+    };
+  }
+
+  // 발동 확률 계산
+  const result = calculateActivationResult({
+    ceCost,
+    currentCe,
+    crtStat,
+    currentGauge,
+  });
+
+  // CE 기반 캐릭터: CE 부족 확인
+  if (ceCost > 0 && currentCe < ceCost) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: true,
+      activationChance: 0,
+      previousGauge: currentGauge,
+      newGauge: currentGauge,
+      ceCost: 0,
+      reason: 'CE_INSUFFICIENT',
+    };
+  }
+
+  // 확률 기반 캐릭터: 확률 판정 실패
+  if (!result.success && ceCost === 0) {
+    return {
+      attempted: true,
+      success: false,
+      isGuaranteed: false,
+      activationChance: result.activationChance,
+      previousGauge: currentGauge,
+      newGauge: result.newGauge, // 50% 유지
+      ceCost: 0,
+      reason: 'PROBABILITY_FAILED',
+    };
+  }
+
+  // 발동 성공
+  return {
+    attempted: true,
+    success: true,
+    isGuaranteed: result.isGuaranteed,
+    activationChance: result.activationChance,
+    previousGauge: currentGauge,
+    newGauge: 0,
+    ceCost: result.isGuaranteed ? ceCost : 0,
+    reason: 'SUCCESS',
+  };
+}
+
+/**
+ * 캐릭터 게이지 설정 초기화 (전투 시작 시)
+ */
+export function initializeCharacterGaugeConfig(
+  cardId: string,
+  grade: LegacyGrade,
+  crtStat: number
+): GaugeState {
+  const ultimateData = getUltimateSkillEffects(cardId);
+  const ceCost = ultimateData?.ceCost ?? 0;
+
+  return initializeGaugeState(grade, ceCost, crtStat);
+}
+
+/**
+ * 게이지 충전량 미리보기 (UI용)
+ */
+export function previewGaugeCharge(
+  cardId: string,
+  grade: LegacyGrade,
+  expectedDamage: number
+): {
+  chargeAmount: number;
+  turnsToFull: number;
+  activationChance: number;
+  isPhysical: boolean;
+} {
+  const ultimateData = getUltimateSkillEffects(cardId);
+  const ceCost = ultimateData?.ceCost ?? 0;
+
+  const chargeAmount = calculateGaugeCharge({
+    damage: expectedDamage,
+    grade,
+    ceCost,
+  });
+
+  const turnsToFull = chargeAmount > 0 ? Math.ceil(MAX_GAUGE / chargeAmount) : Infinity;
+
+  // 기본 crt 값으로 발동 확률 계산
+  const baseCrt = 10;
+  const state = initializeGaugeState(grade, ceCost, baseCrt);
+
+  return {
+    chargeAmount,
+    turnsToFull,
+    activationChance: state.activationChance,
+    isPhysical: state.isPhysical,
+  };
 }

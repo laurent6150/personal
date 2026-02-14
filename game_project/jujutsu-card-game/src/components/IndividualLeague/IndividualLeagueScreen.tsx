@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
 import { useSeasonStore } from '../../stores/seasonStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { Button } from '../UI/Button';
 import { TournamentBracket } from './TournamentBracket';
 import { GroupStageView } from './GroupStageView';
@@ -23,6 +24,8 @@ import { BattleAnimationScreen } from './BattleAnimationScreen';
 // import { AwardsDisplay } from './AwardsDisplay';
 // import { RewardClaimScreen } from './RewardClaimScreen';
 // import { calculateFinalRankings, calculateAwards } from '../../utils/individualLeagueSystem';
+import { getRandomArenas } from '../../data/arenaEffects';
+import { getBestOfForRound } from '../../utils/individualBattleSimulator';
 import type { IndividualMatch } from '../../types';
 
 interface IndividualLeagueScreenProps {
@@ -63,7 +66,13 @@ export function IndividualLeagueScreen({
     lastSimMatchResult: state.lastSimMatchResult
   })));
 
-  const playerCrew = useSeasonStore(state => state.playerCrew);
+  const playerCrew = usePlayerStore(state => state.player.currentCrew);
+  const { individualLeagueCompleted, teamLeagueCompleted } = useSeasonStore(
+    useShallow(state => ({
+      individualLeagueCompleted: state.individualLeagueCompleted,
+      teamLeagueCompleted: state.teamLeagueCompleted,
+    }))
+  );
 
   const [showBracket, setShowBracket] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
@@ -78,11 +87,21 @@ export function IndividualLeagueScreen({
     formatText: string;
     matchContext?: string;
     matchImplication?: string;
+    arenaIds?: string[];
   } | null>(null);
+
+  // 리그 시작 가능 여부 확인
+  const canStartNewLeague = (() => {
+    // 카드 5장 미만이면 불가
+    if (playerCrew.length < 5) return { allowed: false, reason: '크루에 5장 이상의 카드가 필요합니다.' };
+    // 이번 시즌 개인리그를 이미 완료했으면 불가
+    if (individualLeagueCompleted) return { allowed: false, reason: '이번 시즌 개인 리그가 완료되었습니다. 팀 리그를 완료하고 시즌을 종료해주세요.' };
+    return { allowed: true, reason: '' };
+  })();
 
   // 리그 시작
   const handleStartLeague = () => {
-    if (playerCrew.length >= 5) {
+    if (canStartNewLeague.allowed) {
       startNewLeague(playerCrew, '내 크루');
     }
   };
@@ -121,8 +140,8 @@ export function IndividualLeagueScreen({
 
     setShowMatchPreview(false);
 
-    // 시뮬레이션 실행
-    const result = simulateIndividualMatch(pendingMatch.match.id);
+    // 시뮬레이션 실행 (사전 배정된 경기장 전달)
+    const result = simulateIndividualMatch(pendingMatch.match.id, pendingMatch.arenaIds);
 
     if (result) {
       // 애니메이션 화면 표시
@@ -136,8 +155,8 @@ export function IndividualLeagueScreen({
 
     setShowMatchPreview(false);
 
-    // 시뮬레이션 실행
-    simulateIndividualMatch(pendingMatch.match.id);
+    // 시뮬레이션 실행 (사전 배정된 경기장 전달)
+    simulateIndividualMatch(pendingMatch.match.id, pendingMatch.arenaIds);
 
     setPendingMatch(null);
   };
@@ -246,12 +265,16 @@ export function IndividualLeagueScreen({
 
     const { context, implication } = getMatchContext(matchId, match.groupId);
 
+    // 32강: 단판이므로 경기장 1개
+    const arenaIds = getRandomArenas(1);
+
     setPendingMatch({
       match,
       roundName: `${match.groupId}조`,
       formatText: getFormatText('ROUND_32'),
       matchContext: context,
-      matchImplication: implication
+      matchImplication: implication,
+      arenaIds
     });
     setShowMatchPreview(true);
   };
@@ -262,6 +285,7 @@ export function IndividualLeagueScreen({
 
     let match: IndividualMatch | undefined;
     let roundName = '';
+    let roundStatus: string = currentLeague.status;
 
     if (currentLeague.status === 'ROUND_16') {
       match = currentLeague.brackets.round16Matches?.find(m => m.id === matchId);
@@ -279,15 +303,21 @@ export function IndividualLeagueScreen({
       } else if (currentLeague.brackets.thirdPlace?.id === matchId) {
         match = currentLeague.brackets.thirdPlace;
         roundName = '3/4위전';
+        roundStatus = 'THIRD_PLACE';
       }
     }
 
     if (!match) return;
 
+    // 다전제 경기장 사전 배정
+    const bestOf = getBestOfForRound(roundStatus);
+    const arenaIds = bestOf > 1 ? getRandomArenas(bestOf) : [];
+
     setPendingMatch({
       match,
       roundName,
       formatText: getFormatText(currentLeague.status),
+      arenaIds
     });
     setShowMatchPreview(true);
   };
@@ -350,16 +380,37 @@ export function IndividualLeagueScreen({
             <Button
               variant="primary"
               onClick={handleStartLeague}
-              disabled={playerCrew.length < 5}
+              disabled={!canStartNewLeague.allowed}
               className="px-8"
             >
               🚀 리그 시작
             </Button>
 
-            {playerCrew.length < 5 && (
+            {!canStartNewLeague.allowed && (
               <p className="text-sm text-red-400 mt-2">
-                크루에 5장 이상의 카드가 필요합니다.
+                {canStartNewLeague.reason}
               </p>
+            )}
+
+            {/* 개인리그 완료 후 안내 */}
+            {individualLeagueCompleted && (
+              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="text-4xl mb-2">✅</div>
+                <h3 className="text-lg font-bold text-green-400 mb-2">
+                  이번 시즌 개인 리그 완료!
+                </h3>
+                <p className="text-text-secondary text-sm mb-3">
+                  {teamLeagueCompleted
+                    ? '팀 리그도 완료되었습니다. 시즌 허브에서 시즌을 종료해주세요.'
+                    : '팀 리그를 완료하면 시즌을 종료할 수 있습니다.'
+                  }
+                </p>
+                {onBack && (
+                  <Button variant="secondary" onClick={onBack}>
+                    ← 시즌 허브로 돌아가기
+                  </Button>
+                )}
+              </div>
             )}
           </motion.div>
 
@@ -538,6 +589,7 @@ export function IndividualLeagueScreen({
             formatText={pendingMatch.formatText}
             matchContext={pendingMatch.matchContext}
             matchImplication={pendingMatch.matchImplication}
+            arenaIds={pendingMatch.arenaIds}
             onStartMatch={handleStartMatchWithAnimation}
             onSkip={handleSkipMatch}
             onClose={() => {

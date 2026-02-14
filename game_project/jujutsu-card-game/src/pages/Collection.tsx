@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../stores/playerStore';
-import { useSeasonStore } from '../stores/seasonStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { CardDisplay } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { GradeBadge, AttributeBadge } from '../components/UI/Badge';
 import { RadarChart } from '../components/UI/RadarChart';
-import { CREW_SIZE, ATTRIBUTES, ATTRIBUTE_ADVANTAGE } from '../data/constants';
+import { ATTRIBUTES, ATTRIBUTE_ADVANTAGE } from '../data/constants';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { FORM_CONFIG, getConditionIcon } from '../data/growthSystem';
 import type { CharacterCard, Attribute } from '../types';
@@ -19,11 +18,10 @@ interface CollectionProps {
 
 export function Collection({ onBack }: CollectionProps) {
   const player = usePlayerStore(state => state.player);
-  const playerCrew = useSeasonStore(state => state.playerCrew);
   const [selectedCard, setSelectedCard] = useState<CharacterCard | null>(null);
 
-  // 내 크루 카드만 표시 (시즌에서 선택한 크루)
-  const myCrewCards = playerCrew
+  // 내 크루 = 내가 보유한 모든 카드 (ownedCards)
+  const myCrewCards = Object.keys(player.ownedCards)
     .map(cardId => CHARACTERS_BY_ID[cardId])
     .filter(Boolean) as CharacterCard[];
 
@@ -41,7 +39,7 @@ export function Collection({ onBack }: CollectionProps) {
           </Button>
           <h1 className="text-2xl font-bold text-text-primary">내 크루</h1>
           <div className="text-sm text-text-secondary">
-            {myCrewCards.length}/{CREW_SIZE} 카드
+            {myCrewCards.length}장 보유
           </div>
         </div>
       </div>

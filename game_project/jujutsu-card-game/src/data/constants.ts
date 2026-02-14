@@ -126,3 +126,105 @@ export const DIFFICULTY_INFO = {
     winRate: '35%'
   }
 };
+
+// ========================================
+// Phase 5: 시즌 구조 상수
+// ========================================
+
+// 시즌 반기 수
+export const SEASON_HALVES = 2;
+
+// 총 정규시즌 경기 수 (전반기 7 + 후반기 7 = 14경기)
+export const TOTAL_SEASON_GAMES = REGULAR_SEASON_GAMES * SEASON_HALVES;
+
+// 트레이드 윈도우 오픈 시점 (전반기 종료 후)
+export const TRADE_WINDOW_OPEN_AT = 7;
+
+// 트레이드 마감 경기 (후반기 5경기째 = 전체 12경기째)
+export const TRADE_DEADLINE_GAME = 12;
+
+// ========================================
+// Phase 5: 드래프트 상수
+// ========================================
+
+// 드래프트 풀 최소 카드 수
+export const DRAFT_POOL_MIN = 3;
+
+// 드래프트 풀 최대 카드 수
+export const DRAFT_POOL_MAX = 6;
+
+// 드래프트 픽 트레이드 제한 (스테판 규칙: 연속 2시즌 픽 트레이드 불가)
+export const STEFAN_RULE_CONSECUTIVE_SEASONS = 2;
+
+// ========================================
+// Phase 5: 크루 사이즈 상수
+// ========================================
+
+// 크루 최소 카드 수
+export const MIN_CREW_SIZE = 5;
+
+// 크루 최대 카드 수
+export const MAX_CREW_SIZE = 8;
+
+// ========================================
+// Phase 5: 샐러리 캡 상수
+// ========================================
+
+// 샐러리 캡 (크루 총 연봉 한도)
+export const SALARY_CAP = 15000;
+
+// 소프트 캡 (경고 표시 기준)
+export const SOFT_SALARY_CAP = 12000;
+
+// ========================================
+// Phase 5: 활동 시스템 상수
+// ========================================
+
+// 경기당 활동 포인트 획득
+export const AP_PER_MATCH = 2;
+
+// 전환기 활동 포인트 보너스
+export const AP_HALF_TRANSITION_BONUS = 5;
+
+// 최대 활동 포인트
+export const MAX_AP = 20;
+
+// ========================================
+// Phase 5: 은퇴/노화 상수
+// ========================================
+
+// 은퇴 후 복귀 쿨다운 (특급)
+export const COOLDOWN_SPECIAL_GRADE = 3;
+
+// 은퇴 후 복귀 쿨다운 (1급 이하)
+export const COOLDOWN_NORMAL_GRADE = 2;
+
+// 후계자 효과 경험치 보너스 (같은 속성 +30%)
+export const SUCCESSOR_EXP_BONUS = 0.3;
+
+// ========================================
+// Phase 5: 전투 성향 상수
+// ========================================
+
+// 전투 성향 상성 보너스
+export const BATTLE_STYLE_ADVANTAGE_BONUS = 0.08;   // +8%
+
+// 전투 성향 상성 패널티
+export const BATTLE_STYLE_DISADVANTAGE_PENALTY = 0.08;  // -8%
+
+// ========================================
+// Phase 5: 라이벌 시스템 상수
+// ========================================
+
+// 라이벌 인정 최소 대전 횟수
+export const RIVAL_MIN_MATCHES = 3;
+
+// 라이벌전 공격력 보너스
+export const RIVAL_ATK_BONUS = 0.05;  // +5%
+
+// ========================================
+// Phase 5: 관전 모드 상수
+// ========================================
+
+// 관전 보상 CP
+export const SPECTATE_REWARD_CP = 50;
