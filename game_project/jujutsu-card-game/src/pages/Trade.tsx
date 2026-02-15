@@ -1,5 +1,6 @@
 // ========================================
 // 트레이드 화면
+// Phase 5: CP 기반 트레이드 시스템
 // ========================================
 
 import { useState, useMemo } from 'react';
@@ -16,7 +17,6 @@ import { GradeBadge } from '../components/UI/Badge';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data';
 import type { AICrew, CharacterCard, TradeOffer } from '../types';
-import { GRADE_POINTS } from '../types';
 
 interface TradeProps {
   onBack: () => void;
@@ -32,12 +32,14 @@ export function Trade({ onBack }: TradeProps) {
   const {
     proposeTrade,
     forceTrade,
-    getCardPoint,
+    getCardCPValue,
+    validateTradeBalance,
     getTradeHistory
   } = useTradeStore(useShallow(state => ({
     proposeTrade: state.proposeTrade,
     forceTrade: state.forceTrade,
-    getCardPoint: state.getCardPoint,
+    getCardCPValue: state.getCardCPValue,
+    validateTradeBalance: state.validateTradeBalance,
     getTradeHistory: state.getTradeHistory
   })));
 
@@ -60,15 +62,20 @@ export function Trade({ onBack }: TradeProps) {
     return getTradeHistory(currentSeason?.number).slice(0, 5);
   }, [getTradeHistory, currentSeason?.number]);
 
-  // 포인트 차이 계산
-  const pointDifference = useMemo(() => {
-    if (!selectedPlayerCard || !selectedTargetCard) return 0;
-    return getCardPoint(selectedPlayerCard) - getCardPoint(selectedTargetCard);
-  }, [selectedPlayerCard, selectedTargetCard, getCardPoint]);
+  // CP 가치 차이 계산
+  const tradeBalance = useMemo(() => {
+    if (!selectedPlayerCard || !selectedTargetCard) {
+      return { valid: true, proposerValue: 0, targetValue: 0, difference: 0, differencePercent: 0 };
+    }
+    return validateTradeBalance(
+      { cards: [selectedPlayerCard], cp: 0, items: [], draftPicks: [] },
+      { cards: [selectedTargetCard], cp: 0, items: [], draftPicks: [] }
+    );
+  }, [selectedPlayerCard, selectedTargetCard, validateTradeBalance]);
 
-  // 트레이드 가능 여부
+  // 트레이드 가능 여부 (±20% 이내)
   const canTrade = selectedPlayerCard && selectedTargetCrew && selectedTargetCard;
-  const isValidPointDiff = Math.abs(pointDifference) <= 1;
+  const isValidTrade = tradeBalance.differencePercent <= 20;
 
   // 트레이드 제안
   const handleProposeTrade = () => {
@@ -90,7 +97,7 @@ export function Trade({ onBack }: TradeProps) {
       });
     } else {
       const reasonMessages: Record<string, string> = {
-        'POINT_DIFF_TOO_HIGH': '포인트 차이가 너무 큽니다.',
+        'POINT_DIFF_TOO_HIGH': 'CP 가치 차이가 너무 큽니다.',
         'NEED_THIS_CARD': '상대가 해당 카드를 필요로 합니다.',
         'GRADE_LIMIT': '등급 제한을 초과합니다.',
         'NOT_INTERESTED': '상대가 관심이 없습니다.'
@@ -131,6 +138,14 @@ export function Trade({ onBack }: TradeProps) {
     setTradeResult(null);
   };
 
+  // CP 포맷팅
+  const formatCP = (value: number) => {
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toLocaleString();
+  };
+
   // 배경 이미지 스타일
   const bgStyle = {
     backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
@@ -152,7 +167,7 @@ export function Trade({ onBack }: TradeProps) {
         </div>
       </div>
 
-      {/* Phase 5.3: 트레이드 안내 (등급 제한 제거) */}
+      {/* Phase 5: 트레이드 안내 (CP 기반) */}
       <div className="max-w-5xl mx-auto mb-6">
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
           <h3 className="text-sm text-text-secondary mb-2">트레이드 규칙</h3>
@@ -164,7 +179,7 @@ export function Trade({ onBack }: TradeProps) {
               샐러리캡 준수 필요
             </span>
             <span className="px-2 py-1 rounded bg-white/10 text-text-secondary">
-              카드 + CP 복합 거래 가능
+              강제 트레이드 가능
             </span>
           </div>
         </div>
@@ -182,6 +197,7 @@ export function Trade({ onBack }: TradeProps) {
               <TradeCard
                 key={card.id}
                 card={card}
+                cpValue={getCardCPValue(card.id)}
                 isSelected={selectedPlayerCard === card.id}
                 onClick={() => setSelectedPlayerCard(
                   selectedPlayerCard === card.id ? null : card.id
@@ -194,7 +210,7 @@ export function Trade({ onBack }: TradeProps) {
               <div className="text-sm text-accent">
                 내보낼 카드: {CHARACTERS_BY_ID[selectedPlayerCard]?.name.ko}
                 <span className="ml-2 text-xs">
-                  ({getCardPoint(selectedPlayerCard)}pt)
+                  ({formatCP(getCardCPValue(selectedPlayerCard))} CP)
                 </span>
               </div>
             </div>
@@ -246,6 +262,7 @@ export function Trade({ onBack }: TradeProps) {
                     <TradeCard
                       key={cardId}
                       card={card}
+                      cpValue={getCardCPValue(cardId)}
                       isSelected={selectedTargetCard === cardId}
                       onClick={() => setSelectedTargetCard(
                         selectedTargetCard === cardId ? null : cardId
@@ -259,7 +276,7 @@ export function Trade({ onBack }: TradeProps) {
                   <div className="text-sm text-accent">
                     받을 카드: {CHARACTERS_BY_ID[selectedTargetCard]?.name.ko}
                     <span className="ml-2 text-xs">
-                      ({getCardPoint(selectedTargetCard)}pt)
+                      ({formatCP(getCardCPValue(selectedTargetCard))} CP)
                     </span>
                   </div>
                 </div>
@@ -286,7 +303,7 @@ export function Trade({ onBack }: TradeProps) {
                     {CHARACTERS_BY_ID[selectedPlayerCard]?.name.ko}
                   </div>
                   <div className="text-sm text-text-secondary">
-                    {getCardPoint(selectedPlayerCard)}pt
+                    {formatCP(tradeBalance.proposerValue)} CP
                   </div>
                 </div>
 
@@ -299,21 +316,21 @@ export function Trade({ onBack }: TradeProps) {
                     {CHARACTERS_BY_ID[selectedTargetCard]?.name.ko}
                   </div>
                   <div className="text-sm text-text-secondary">
-                    {getCardPoint(selectedTargetCard)}pt
+                    {formatCP(tradeBalance.targetValue)} CP
                   </div>
                 </div>
               </div>
 
-              {/* 포인트 차이 */}
+              {/* 가치 차이 */}
               <div className={`text-center px-4 py-2 rounded-lg ${
-                isValidPointDiff ? 'bg-win/20 text-win' : 'bg-lose/20 text-lose'
+                isValidTrade ? 'bg-win/20 text-win' : 'bg-lose/20 text-lose'
               }`}>
-                <div className="text-xs">포인트 차이</div>
+                <div className="text-xs">가치 차이</div>
                 <div className="text-xl font-bold">
-                  {pointDifference > 0 ? '+' : ''}{pointDifference}
+                  {tradeBalance.differencePercent.toFixed(1)}%
                 </div>
                 <div className="text-xs">
-                  {isValidPointDiff ? '적합' : '부적합'}
+                  {isValidTrade ? '적합 (±20%)' : '부적합'}
                 </div>
               </div>
             </div>
@@ -323,7 +340,7 @@ export function Trade({ onBack }: TradeProps) {
                 onClick={() => setShowConfirmModal(true)}
                 variant="primary"
                 className="flex-1"
-                disabled={!isValidPointDiff}
+                disabled={!isValidTrade}
               >
                 트레이드 제안
               </Button>
@@ -339,9 +356,9 @@ export function Trade({ onBack }: TradeProps) {
               </Button>
             </div>
 
-            {!isValidPointDiff && (
+            {!isValidTrade && (
               <div className="mt-3 text-sm text-lose text-center">
-                포인트 차이가 ±1을 초과하여 일반 트레이드가 불가능합니다.
+                가치 차이가 ±20%를 초과하여 일반 트레이드가 불가능합니다.
                 강제 트레이드를 사용해주세요.
               </div>
             )}
@@ -427,13 +444,22 @@ export function Trade({ onBack }: TradeProps) {
 // 트레이드 카드 컴포넌트
 interface TradeCardProps {
   card: CharacterCard;
+  cpValue: number;
   isSelected: boolean;
   onClick: () => void;
 }
 
-function TradeCard({ card, isSelected, onClick }: TradeCardProps) {
+function TradeCard({ card, cpValue, isSelected, onClick }: TradeCardProps) {
   const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[card.attribute];
+
+  // CP 포맷팅
+  const formatCP = (value: number) => {
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toLocaleString();
+  };
 
   // 이미지 URL (실제 이미지 또는 폴백)
   const imageUrl = imageError
@@ -472,7 +498,7 @@ function TradeCard({ card, isSelected, onClick }: TradeCardProps) {
         <GradeBadge grade={card.grade} size="sm" />
         <div className="text-xs font-bold mt-0.5 truncate">{card.name.ko}</div>
         <div className="text-[10px] text-text-secondary">
-          {GRADE_POINTS[card.grade]}pt
+          {formatCP(cpValue)} CP
         </div>
       </div>
     </div>
