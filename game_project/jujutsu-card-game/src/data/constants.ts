@@ -8,7 +8,7 @@ import type { Attribute, AttributeInfo, LegacyGrade, GradeInfo } from '../types'
 export const ATTRIBUTES: Record<Attribute, AttributeInfo> = {
   BARRIER: { ko: '결계', icon: '🔮', color: '#9B59B6' },
   BODY:    { ko: '신체', icon: '💪', color: '#E74C3C' },
-  CURSE:   { ko: '저주', icon: '👁️', color: '#2C3E50' },
+  CURSE:   { ko: '저주', icon: '👁️', color: '#A855F7' },
   SOUL:    { ko: '혼백', icon: '👻', color: '#1ABC9C' },
   CONVERT: { ko: '변환', icon: '🔥', color: '#F39C12' },
   RANGE:   { ko: '원거리', icon: '🎯', color: '#3498DB' }
