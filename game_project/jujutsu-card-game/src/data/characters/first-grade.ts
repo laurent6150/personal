@@ -30,12 +30,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("maki_zenin_awakened", "젠인 마키 (각성)", "BODY"),
-    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85 },
+    // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
+    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85, crt: 22, tec: 18, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천여함수 완성", description: "토지와 동등한 경지", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 } },
     basicSkills: [
       { id: "maki_aw_1", name: "혼폭도 (魂爆刀)", type: "ATTACK", description: "영혼을 베는 특급 저주도구", effect: { type: "DAMAGE", value: 130, ignoreBarrier: true } },
-      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 60 } },
+      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 55 } },
       { id: "maki_aw_3", name: "연속 참격", type: "ATTACK", description: "빠른 연속 베기", effect: { type: "MULTI_HIT", hits: 4, value: 40 } }
     ],
     ultimateSkill: { id: "maki_aw_ult", name: "천여함수 완성", description: "토지와 동등한 경지에 도달", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 }, gaugeRequired: 100 },
@@ -103,7 +104,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     skill: { name: "투사호법 - 극", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true } },
     basicSkills: [
       { id: "naobito_1", name: "투사호법", type: "ATTACK", description: "프레임 단위의 빠른 공격", effect: { type: "DAMAGE", value: 110, guaranteed_first: true } },
-      { id: "naobito_2", name: "프레임 이동", type: "DEFENSE", description: "프레임 사이로 회피", effect: { type: "DODGE", chance: 65 } },
+      { id: "naobito_2", name: "프레임 이동", type: "DEFENSE", description: "프레임 사이로 회피", effect: { type: "DODGE", chance: 55 } },
       { id: "naobito_3", name: "연속 타격", type: "ATTACK", description: "빠른 연속 공격", effect: { type: "MULTI_HIT", hits: 3, value: 45 } }
     ],
     ultimateSkill: { id: "naobito_ult", name: "투사호법 - 극 (極)", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true }, gaugeRequired: 100 },
@@ -427,12 +428,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("tsurugi_okkotsu", "옷코츠 츠루기", "BODY"),
-    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85 },
+    // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
+    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85, crt: 22, tec: 18, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [
       { id: "tsurugi_1", name: "검영류 발도", type: "ATTACK", description: "호노야기의 화염 발도술", effect: { type: "DAMAGE", value: 130, element: "FIRE" } },
-      { id: "tsurugi_2", name: "초인적 반사", type: "DEFENSE", description: "천여체의 초인적 동체시력", effect: { type: "DODGE", chance: 65 } },
+      { id: "tsurugi_2", name: "초인적 반사", type: "DEFENSE", description: "천여체의 초인적 동체시력", effect: { type: "DODGE", chance: 55 } },
       { id: "tsurugi_3", name: "연속 참격", type: "ATTACK", description: "고속 연속 베기", effect: { type: "MULTI_HIT", hits: 3, value: 50 } }
     ],
     ultimateSkill: { id: "tsurugi_ult", name: "리카 융합 (里香融合)", description: "할아버지의 반지를 통해 리카와 융합", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },

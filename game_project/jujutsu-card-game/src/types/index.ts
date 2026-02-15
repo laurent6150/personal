@@ -42,8 +42,8 @@ export type BaseStats = LegacyStats | Stats;
 export type StatKey = keyof Stats;
 export type LegacyStatKey = keyof LegacyStats;
 
-// 기존 6등급 호환용 (캐릭터 데이터 파일에서 사용)
-export type LegacyGrade = '특급' | '1급' | '준1급' | '2급' | '준2급' | '3급';
+// 기존 등급 호환용 (캐릭터 데이터 파일에서 사용) - 준특급 추가
+export type LegacyGrade = '특급' | '준특급' | '1급' | '준1급' | '2급' | '준2급' | '3급';
 
 // ========================================
 // 9단계 등급 시스템
@@ -968,7 +968,8 @@ export interface NewsFeedState {
 
 // 등급별 포인트 (기존 6등급 호환)
 export const GRADE_POINTS: Record<LegacyGrade, number> = {
-  '특급': 10,
+  '특급': 12,
+  '준특급': 8,
   '1급': 5,
   '준1급': 3,
   '2급': 2,
@@ -1713,6 +1714,7 @@ export interface RetirementResult {
 
 export const RETIREMENT_CP_REWARD: Record<LegacyGrade, number> = {
   '특급': 5000,
+  '준특급': 4000,
   '1급': 3000,
   '준1급': 2000,
   '2급': 1500,

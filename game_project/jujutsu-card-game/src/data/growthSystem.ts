@@ -22,14 +22,14 @@ import type {
 // ========================================
 
 export const GRADES: GradeDefinition[] = [
-  { id: 'S',  name: '특급',   minStat: 150, color: '#FFD700', textColor: '#000000', maxInDeck: 1 },
-  { id: 'S-', name: '준특급', minStat: 135, color: '#FFA500', textColor: '#000000', maxInDeck: 1 },
-  { id: 'A',  name: '1급',    minStat: 120, color: '#FF6B6B', textColor: '#FFFFFF', maxInDeck: 2 },
-  { id: 'A-', name: '준1급',  minStat: 105, color: '#FF8E8E', textColor: '#000000', maxInDeck: 2 },
-  { id: 'B',  name: '2급',    minStat: 90,  color: '#4ECDC4', textColor: '#000000', maxInDeck: 3 },
-  { id: 'B-', name: '준2급',  minStat: 75,  color: '#7ED4CD', textColor: '#000000', maxInDeck: 3 },
-  { id: 'C',  name: '3급',    minStat: 60,  color: '#95A5A6', textColor: '#FFFFFF', maxInDeck: 5 },
-  { id: 'C-', name: '준3급',  minStat: 45,  color: '#BDC3C7', textColor: '#000000', maxInDeck: 5 },
+  { id: 'S',  name: '특급',   minStat: 222, color: '#FFD700', textColor: '#000000', maxInDeck: 1 },
+  { id: 'S-', name: '준특급', minStat: 205, color: '#FFA500', textColor: '#000000', maxInDeck: 1 },
+  { id: 'A',  name: '1급',    minStat: 180, color: '#FF6B6B', textColor: '#FFFFFF', maxInDeck: 2 },
+  { id: 'A-', name: '준1급',  minStat: 165, color: '#FF8E8E', textColor: '#000000', maxInDeck: 2 },
+  { id: 'B',  name: '2급',    minStat: 150, color: '#4ECDC4', textColor: '#000000', maxInDeck: 3 },
+  { id: 'B-', name: '준2급',  minStat: 140, color: '#7ED4CD', textColor: '#000000', maxInDeck: 3 },
+  { id: 'C',  name: '3급',    minStat: 130, color: '#95A5A6', textColor: '#FFFFFF', maxInDeck: 5 },
+  { id: 'C-', name: '준3급',  minStat: 115, color: '#BDC3C7', textColor: '#000000', maxInDeck: 5 },
   { id: 'D',  name: '비술사', minStat: 0,   color: '#7F8C8D', textColor: '#FFFFFF', maxInDeck: 5 }
 ];
 
