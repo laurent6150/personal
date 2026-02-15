@@ -201,8 +201,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { session } = get();
     if (!session || session.status !== 'IN_PROGRESS') return;
 
-    // 이미 사용한 카드인지 확인
-    if (session.player.usedCards.includes(cardId)) return;
+    // 에이스 결정전 여부 (5라운드 + 2:2 동점)
+    const isAceMatch = session.currentRound === 5 &&
+      session.player.score === 2 &&
+      session.ai.score === 2;
+
+    // 이미 사용한 카드인지 확인 (에이스 결정전에서는 허용)
+    if (!isAceMatch && session.player.usedCards.includes(cardId)) return;
 
     // 플레이어 크루에 있는 카드인지 확인
     if (!session.player.crew.includes(cardId)) return;
