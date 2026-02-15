@@ -44,18 +44,12 @@ function createPlayerCard(cardId: string): PlayerCard {
 
 // 초기 플레이어 데이터 생성
 function createInitialPlayerData(): PlayerData {
-  // 스타터 크루만 초기 소유로 설정 (6장)
-  const ownedCards: Record<string, PlayerCard> = {};
-
-  for (const cardId of STARTER_CREW) {
-    ownedCards[cardId] = createPlayerCard(cardId);
-  }
-
+  // 초기에는 빈 상태로 시작 (게임 시작 시 사용자가 선택한 카드만 추가)
   return {
     id: `player_${Date.now()}`,
     name: '술사',
-    ownedCards,
-    currentCrew: STARTER_CREW,
+    ownedCards: {},
+    currentCrew: [],
     unlockedItems: [],
     totalStats: {
       totalWins: 0,
