@@ -137,6 +137,9 @@ interface PlayerState {
 
   // 크루 검증 및 정리 (앱 시작 시 호출)
   validateAndFixCrew: () => { fixed: boolean; removedCards: string[] };
+
+  // 플레이어 상태 초기화 (게임 리셋 시)
+  resetPlayer: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -843,6 +846,14 @@ export const usePlayerStore = create<PlayerState>()(
         });
 
         return { fixed: true, removedCards };
+      },
+
+      // 플레이어 상태 초기화 (게임 리셋 시)
+      resetPlayer: () => {
+        console.log('[Player Store] 플레이어 상태 초기화');
+        set({
+          player: createInitialPlayerData()
+        });
       }
     }),
     {

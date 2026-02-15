@@ -219,6 +219,8 @@ export function SeasonHub({
 
   // 새로 시작 확인
   const handleResetGame = () => {
+    // playerStore도 함께 리셋 (ownedCards, currentCrew 초기화)
+    usePlayerStore.getState().resetPlayer();
     resetGame();
     setSelectedCards([]);
     setShowResetConfirm(false);
