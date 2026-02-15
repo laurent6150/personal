@@ -164,7 +164,7 @@ export function CardDisplay({
         size === 'xs' ? 'p-1' : size === 'sm' ? 'p-1.5' : 'p-2'
       }`}>
         <GradeBadge grade={character.grade} size={size === 'lg' ? 'md' : 'sm'} />
-        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'md' : 'sm'} />
+        <AttributeBadge attribute={character.attribute} size={size === 'lg' ? 'md' : 'sm'} showLabel={true} />
       </div>
 
       {/* 이미지 영역 - 크기별 높이 적용 */}

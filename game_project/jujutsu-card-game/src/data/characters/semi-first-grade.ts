@@ -1,5 +1,6 @@
 // ========================================
-// 준1급 캐릭터 (14명)
+// 준1급 캐릭터 (17명)
+// 기존 11명 (마히토/메이메이 1급 승급) + 신규 5명 + 야가 이동
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -10,8 +11,8 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     id: "fushiguro_megumi",
     name: { ko: "후시구로 메구미", ja: "伏黒恵", en: "Fushiguro Megumi" },
     grade: "준1급",
-    attribute: "RANGE",
-    imageUrl: getCharacterImage("fushiguro_megumi", "후시구로 메구미", "RANGE"),
+    attribute: "SOUL",
+    imageUrl: getCharacterImage("fushiguro_megumi", "후시구로 메구미", "SOUL"),
     baseStats: { atk: 16, def: 15, spd: 17, ce: 19, hp: 82 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "질풍암영정", description: "그림자를 지배하는 영역전개", effect: { type: "DOMAIN", damage: 170, summonBoost: 50 } },
@@ -21,40 +22,6 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
       { id: "megumi_3", name: "눌", type: "DEFENSE", description: "올빼미로 시야 차단", effect: { type: "DODGE", chance: 50 } }
     ],
     ultimateSkill: { id: "megumi_ult", name: "질풍암영정", description: "그림자를 지배하는 영역전개", effect: { type: "DOMAIN", damage: 170, summonBoost: 50 }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
-    id: "mahito",
-    name: { ko: "마히토", ja: "真人", en: "Mahito" },
-    grade: "준1급",
-    attribute: "SOUL",
-    imageUrl: getCharacterImage("mahito", "마히토", "SOUL"),
-    baseStats: { atk: 17, def: 14, spd: 18, ce: 20, hp: 80 },
-    growthStats: { primary: "ce", secondary: "spd" },
-    skill: { name: "자폐원둔리득체기", description: "영역 내 모든 영혼을 만진다", effect: { type: "DOMAIN", damage: 200, ignoreDefense: true } },
-    basicSkills: [
-      { id: "mahito_1", name: "무위전변", type: "ATTACK", description: "영혼을 직접 건드려 공격", effect: { type: "TRUE_DAMAGE", value: 100 } },
-      { id: "mahito_2", name: "형태 변화", type: "DEFENSE", description: "자신의 영혼을 변형", effect: { type: "DODGE", chance: 55 } },
-      { id: "mahito_3", name: "분신", type: "UTILITY", description: "작은 분신들을 생성", effect: { type: "CLONE", damage: 45, count: 2 } }
-    ],
-    ultimateSkill: { id: "mahito_ult", name: "자폐원둔리득체기", description: "영역 내 모든 존재의 영혼을 만질 수 있다", effect: { type: "DOMAIN", damage: 200, ignoreDefense: true }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
-    id: "mei_mei",
-    name: { ko: "메이메이", ja: "冥冥", en: "Mei Mei" },
-    grade: "준1급",
-    attribute: "RANGE",
-    imageUrl: getCharacterImage("mei_mei", "메이메이", "RANGE"),
-    baseStats: { atk: 16, def: 15, spd: 16, ce: 18, hp: 80 },
-    growthStats: { primary: "atk", secondary: "ce" },
-    skill: { name: "조의 송장", description: "까마귀에 120% 저주력을 실어 돌격", effect: { type: "SACRIFICE_ATTACK", damage: 260 } },
-    basicSkills: [
-      { id: "meimei_1", name: "흑조 조작", type: "ATTACK", description: "까마귀들을 조종하여 공격", effect: { type: "SUMMON_DAMAGE", value: 85 } },
-      { id: "meimei_2", name: "도끼 공격", type: "ATTACK", description: "전투 도끼로 근접 공격", effect: { type: "DAMAGE", value: 105 } },
-      { id: "meimei_3", name: "정찰", type: "UTILITY", description: "까마귀로 적의 약점 파악", effect: { type: "WEAKNESS_FIND", critRate: 35 } }
-    ],
-    ultimateSkill: { id: "meimei_ult", name: "조의 송장", description: "까마귀에 120%의 저주력을 부여하여 돌격", effect: { type: "SACRIFICE_ATTACK", damage: 260 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -131,7 +98,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("fumihiko_takaba", "타카바 후미히코", "SOUL"),
-    baseStats: { atk: 14, def: 18, spd: 15, ce: 23, hp: 85 },
+    baseStats: { atk: 14, def: 18, spd: 15, ce: 20, hp: 82 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "코미디", description: "재밌으면 모든 것이 가능", effect: { type: "DAMAGE", value: 200 } },
     basicSkills: [
@@ -167,21 +134,21 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("ogi_zenin", "젠인 오기", "CONVERT"),
     baseStats: { atk: 18, def: 14, spd: 16, ce: 17, hp: 82 },
     growthStats: { primary: "atk", secondary: "ce" },
-    skill: { name: "비검 - 낙화", description: "젠인가 비전 화염검술", effect: { type: "DAMAGE", value: 220, element: "FIRE" } },
+    skill: { name: "화염 검술 오의", description: "젠인가 비전 화염검술의 극의", effect: { type: "DAMAGE", value: 220, element: "FIRE" } },
     basicSkills: [
       { id: "ogi_1", name: "화참", type: "ATTACK", description: "불꽃을 두른 참격", effect: { type: "DAMAGE", value: 105, element: "FIRE" } },
       { id: "ogi_2", name: "검술", type: "ATTACK", description: "기본 검술", effect: { type: "DAMAGE", value: 95 } },
       { id: "ogi_3", name: "방어 태세", type: "DEFENSE", description: "검으로 방어", effect: { type: "DAMAGE_REDUCE", value: 40 } }
     ],
-    ultimateSkill: { id: "ogi_ult", name: "비검 - 낙화", description: "젠인가 비전 화염검술", effect: { type: "DAMAGE", value: 220, element: "FIRE" }, gaugeRequired: 100 },
+    ultimateSkill: { id: "ogi_ult", name: "화염 검술 오의 (火焔剣)", description: "젠인가 비전 화염검술의 극의", effect: { type: "DAMAGE", value: 220, element: "FIRE" }, gaugeRequired: 100 },
     achievements: []
   },
   {
     id: "noritoshi_kamo",
     name: { ko: "카모 노리토시", ja: "加茂憲紀", en: "Noritoshi Kamo" },
     grade: "준1급",
-    attribute: "CURSE",
-    imageUrl: getCharacterImage("noritoshi_kamo", "카모 노리토시", "CURSE"),
+    attribute: "CONVERT",
+    imageUrl: getCharacterImage("noritoshi_kamo", "카모 노리토시", "CONVERT"),
     baseStats: { atk: 15, def: 14, spd: 17, ce: 18, hp: 78 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "유도 혈탄", description: "무한 분열 유도 공격", effect: { type: "MULTI_HIT", hits: 5, value: 40 } },
@@ -220,11 +187,119 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     growthStats: { primary: "def", secondary: "atk" },
     skill: { name: "신음류 오의", description: "간단한 영역 + 검술 결합", effect: { type: "DAMAGE", value: 200 } },
     basicSkills: [
-      { id: "kusakabe_1", name: "간단한 영역", type: "DEFENSE", description: "간이 영역으로 방어", effect: { type: "DAMAGE_REDUCE", value: 70 } },
+      { id: "kusakabe_1", name: "간단한 영역", type: "DEFENSE", description: "간이 영역으로 방어", effect: { type: "DAMAGE_REDUCE", value: 55 } },
       { id: "kusakabe_2", name: "검술", type: "ATTACK", description: "기본 검술", effect: { type: "DAMAGE", value: 95 } },
       { id: "kusakabe_3", name: "발도", type: "ATTACK", description: "빠른 발도술", effect: { type: "CRITICAL_ATTACK", value: 100, critRate: 35 } }
     ],
     ultimateSkill: { id: "kusakabe_ult", name: "신음류 오의", description: "간단한 영역 + 검술 결합", effect: { type: "DAMAGE", value: 200 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  // ========================================
+  // 신규 준1급 캐릭터
+  // ========================================
+  {
+    id: "ui_ui",
+    name: { ko: "우이우이", ja: "憂憂", en: "Ui Ui" },
+    grade: "준1급",
+    attribute: "BARRIER",
+    imageUrl: getCharacterImage("ui_ui", "우이우이", "BARRIER"),
+    baseStats: { atk: 10, def: 14, spd: 20, ce: 21, hp: 72 },
+    growthStats: { primary: "ce", secondary: "spd" },
+    skill: { name: "연속 공간 전송", description: "연속으로 순간이동을 발동하여 교란", effect: { type: "SWAP_ATTACK", damage: 180, guaranteed_first: true } },
+    basicSkills: [
+      { id: "uiui_1", name: "공간 전송", type: "UTILITY", description: "대상을 순간이동시킨다", effect: { type: "SWAP_ATTACK", damage: 80, guaranteed_first: true } },
+      { id: "uiui_2", name: "결계 보조", type: "DEFENSE", description: "보조 결계로 방어", effect: { type: "DAMAGE_REDUCE", value: 40 } },
+      { id: "uiui_3", name: "저주력 공격", type: "ATTACK", description: "순수한 저주력으로 공격", effect: { type: "DAMAGE", value: 70 } }
+    ],
+    ultimateSkill: { id: "uiui_ult", name: "연속 공간 전송 (空間転送)", description: "신주쿠 결전 핵심 전술, 연속 순간이동", effect: { type: "SWAP_ATTACK", damage: 180, guaranteed_first: true }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "yuka_okkotsu",
+    name: { ko: "옷코츠 유카", ja: "乙骨憂花", en: "Yuka Okkotsu" },
+    grade: "준1급",
+    attribute: "BODY",
+    imageUrl: getCharacterImage("yuka_okkotsu", "옷코츠 유카", "BODY"),
+    baseStats: { atk: 16, def: 13, spd: 18, ce: 17, hp: 76 },
+    growthStats: { primary: "spd", secondary: "atk" },
+    skill: { name: "광폭화", description: "생명의 마지막 불꽃, 한계를 초월", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 200 } },
+    basicSkills: [
+      { id: "yuka_1", name: "야수 발톱", type: "ATTACK", description: "주력으로 손톱을 발톱으로 변형", effect: { type: "DAMAGE", value: 95 } },
+      { id: "yuka_2", name: "물어뜯기", type: "ATTACK", description: "비틀어 물어뜯는 근접 공격", effect: { type: "DAMAGE", value: 100 } },
+      { id: "yuka_3", name: "회피", type: "DEFENSE", description: "민첩하게 회피", effect: { type: "DODGE", chance: 50 } }
+    ],
+    ultimateSkill: { id: "yuka_ult", name: "광폭화 (狂暴化)", description: "여명 6개월의 마지막 불꽃, 한계 초월", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 200 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "cross",
+    name: { ko: "크로스", ja: "クロス", en: "Cross Val Vol Yelvori" },
+    grade: "준1급",
+    attribute: "CONVERT",
+    imageUrl: getCharacterImage("cross", "크로스", "CONVERT"),
+    baseStats: { atk: 18, def: 15, spd: 17, ce: 19, hp: 80 },
+    growthStats: { primary: "atk", secondary: "ce" },
+    skill: { name: "공존의 결의", description: "평화를 위한 최후의 전투", effect: { type: "DAMAGE", value: 220 } },
+    basicSkills: [
+      { id: "cross_1", name: "시무리아 주술", type: "ATTACK", description: "외계 주력을 이용한 공격", effect: { type: "DAMAGE", value: 100 } },
+      { id: "cross_2", name: "전술 지휘", type: "UTILITY", description: "지휘 능력으로 아군 강화", effect: { type: "STAT_BOOST", atkBonus: 25 } },
+      { id: "cross_3", name: "방어 태세", type: "DEFENSE", description: "전투 경험으로 방어", effect: { type: "DAMAGE_REDUCE", value: 40 } }
+    ],
+    ultimateSkill: { id: "cross_ult", name: "공존의 결의 (共存決意)", description: "시무리아 파견 장교, 평화를 위한 최후의 전투", effect: { type: "DAMAGE", value: 220 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "marulu",
+    name: { ko: "마루", ja: "マル", en: "Marulu Val Vol Yelvori" },
+    grade: "준1급",
+    attribute: "BARRIER",
+    imageUrl: getCharacterImage("marulu", "마루", "BARRIER"),
+    baseStats: { atk: 15, def: 16, spd: 16, ce: 23, hp: 78 },
+    growthStats: { primary: "ce", secondary: "def" },
+    skill: { name: "혼돈과 조화", description: "혼돈과 조화를 동시에 발동하여 현실을 왜곡", effect: { type: "DOMAIN", damage: 200 } },
+    basicSkills: [
+      { id: "marulu_1", name: "혼돈 (Chaos)", type: "ATTACK", description: "물질의 상태를 변경하여 공격", effect: { type: "TRUE_DAMAGE", value: 90 } },
+      { id: "marulu_2", name: "조화 (Harmony)", type: "DEFENSE", description: "조화의 힘으로 방어", effect: { type: "DAMAGE_REDUCE", value: 55 } },
+      { id: "marulu_3", name: "중력 전환", type: "UTILITY", description: "중력의 방향을 바꾸어 교란", effect: { type: "SLOW", value: 35 } }
+    ],
+    ultimateSkill: { id: "marulu_ult", name: "혼돈과 조화 (混沌と調和)", description: "시무리아 주술사, 현실을 왜곡하는 영역", effect: { type: "DOMAIN", damage: 200 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "usami",
+    name: { ko: "우사미", ja: "宇佐美", en: "Usami" },
+    grade: "준1급",
+    attribute: "CURSE",
+    imageUrl: getCharacterImage("usami", "우사미", "CURSE"),
+    baseStats: { atk: 13, def: 14, spd: 16, ce: 22, hp: 75 },
+    growthStats: { primary: "ce", secondary: "spd" },
+    skill: { name: "대규모 주언", description: "다수의 대상을 동시에 주언으로 조종", effect: { type: "STUN", damage: 180, duration: 2 } },
+    basicSkills: [
+      { id: "usami_1", name: "주언 - 멈춰", type: "UTILITY", description: "주언으로 상대를 정지", effect: { type: "STUN", duration: 1 } },
+      { id: "usami_2", name: "주언 - 부서져", type: "ATTACK", description: "주언으로 내부 파괴", effect: { type: "TRUE_DAMAGE", value: 90 } },
+      { id: "usami_3", name: "주언 - 잠들어", type: "UTILITY", description: "주언으로 행동 봉쇄", effect: { type: "SLOW", value: 40 } }
+    ],
+    ultimateSkill: { id: "usami_ult", name: "대규모 주언 (呪言)", description: "다수의 대상을 동시에 주언으로 조종", effect: { type: "STUN", damage: 180, duration: 2 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  // ========================================
+  // 3급 → 준1급 승급 (자율 인형술이 특급 상당)
+  // ========================================
+  {
+    id: "masamichi_yaga",
+    name: { ko: "야가 마사미치", ja: "夜蛾正道", en: "Masamichi Yaga" },
+    grade: "준1급",
+    attribute: "SOUL",
+    imageUrl: getCharacterImage("masamichi_yaga", "야가 마사미치", "SOUL"),
+    baseStats: { atk: 14, def: 15, spd: 11, ce: 18, hp: 82 },
+    growthStats: { primary: "ce", secondary: "def" },
+    skill: { name: "자율 인형술", description: "자아를 가진 인형 군단, 특급 상당 술식", effect: { type: "MULTI_SUMMON", damage: 200 } },
+    basicSkills: [
+      { id: "yaga_1", name: "저주 인형 소환", type: "ATTACK", description: "인형을 소환하여 공격", effect: { type: "SUMMON_DAMAGE", value: 85 } },
+      { id: "yaga_2", name: "인형 방어", type: "DEFENSE", description: "인형으로 방어", effect: { type: "DAMAGE_REDUCE", value: 45 } },
+      { id: "yaga_3", name: "다중 소환", type: "ATTACK", description: "여러 인형 소환", effect: { type: "MULTI_HIT", hits: 3, value: 35 } }
+    ],
+    ultimateSkill: { id: "yaga_ult", name: "자율 인형술 (自立人形術)", description: "자아를 가진 인형 군단, 판다의 창조자", effect: { type: "MULTI_SUMMON", damage: 200 }, gaugeRequired: 100 },
     achievements: []
   }
 ];

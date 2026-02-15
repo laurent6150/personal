@@ -95,7 +95,7 @@ export function Collection({ onBack }: CollectionProps) {
                   />
                   {/* 레벨 표시 */}
                   {playerCard && (
-                    <div className="absolute top-2 right-2 bg-accent/80 text-white text-xs font-bold px-2 py-1 rounded">
+                    <div className="absolute bottom-1 right-1 bg-black/70 text-accent text-xs font-bold px-1.5 py-0.5 rounded">
                       Lv.{playerCard.level}
                     </div>
                   )}
