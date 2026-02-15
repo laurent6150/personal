@@ -105,7 +105,10 @@ function determineDraftOrder(
 
 // ========================================
 // AI 카드 선택 로직
+// Phase 5.3: CP 가치 기반으로 변경
 // ========================================
+
+import { calculateCardValue, determineCareerPhase } from '../utils/salarySystem';
 
 function selectBestCardForAI(
   availableCards: DraftPoolCard[],
@@ -113,25 +116,29 @@ function selectBestCardForAI(
 ): string | null {
   if (availableCards.length === 0) return null;
 
-  // 등급 우선순위
-  const gradeOrder: LegacyGrade[] = ['특급', '1급', '준1급', '2급', '준2급', '3급'];
+  // Phase 5.3: CP 가치 기반 선택
+  // 각 카드의 CP 가치 계산
+  const cardsWithValue = availableCards.map(card => {
+    const char = CHARACTERS_BY_ID[card.cardId];
+    if (!char) return { card, value: 0 };
 
-  // 가장 높은 등급 카드 찾기
-  for (const grade of gradeOrder) {
-    const candidates = availableCards.filter(card => {
-      const char = CHARACTERS_BY_ID[card.cardId];
-      return char && char.grade === grade;
-    });
+    const careerPhase = determineCareerPhase(char.grade as LegacyGrade, 0);  // 신규 카드는 시즌 0
+    const value = calculateCardValue(char.grade as LegacyGrade, 1, careerPhase);
+    return { card, value };
+  });
 
-    if (candidates.length > 0) {
-      // 같은 등급 중 랜덤 선택
-      const randomIndex = Math.floor(Math.random() * candidates.length);
-      return candidates[randomIndex].cardId;
-    }
-  }
+  // CP 가치 내림차순 정렬
+  cardsWithValue.sort((a, b) => b.value - a.value);
 
-  // 어떤 카드라도 선택
-  return availableCards[0].cardId;
+  // 가장 높은 가치 그룹 (상위 20% 이내 또는 최고 가치와 동등한 것들)
+  const maxValue = cardsWithValue[0].value;
+  const topCandidates = cardsWithValue.filter(
+    c => c.value >= maxValue * 0.9  // 최고 가치의 90% 이상
+  );
+
+  // 상위 그룹 중 랜덤 선택 (약간의 변동성)
+  const randomIndex = Math.floor(Math.random() * topCandidates.length);
+  return topCandidates[randomIndex].card.cardId;
 }
 
 // ========================================

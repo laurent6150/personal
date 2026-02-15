@@ -155,12 +155,17 @@ export function getAPStatus(): {
 
 /**
  * 경기 완료 후 AP 및 효과 처리
+ * @param currentMatch 현재 경기 번호
+ * @param result 경기 결과 (WIN/LOSE/DRAW)
  */
-export function processPostMatchActivity(currentMatch: number): void {
+export function processPostMatchActivity(
+  currentMatch: number,
+  result?: 'WIN' | 'LOSE' | 'DRAW'
+): void {
   const store = useActivityStore.getState();
 
-  // 경기 AP 지급
-  store.grantMatchAP();
+  // 경기 AP 지급 (승패별 차등)
+  store.grantMatchAP(result);
 
   // 만료된 효과 정리
   store.processMatchEnd(currentMatch);

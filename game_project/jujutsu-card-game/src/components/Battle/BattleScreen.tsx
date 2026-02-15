@@ -19,6 +19,7 @@ import type { CharacterCard, AllKillState } from '../../types';
 import { AllKillIndicator } from '../Phase4/AllKillIndicator';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { useGameStore } from '../../stores/gameStore';
+import { getMatchRewardCP } from '../../stores/economyStore';
 import { useShallow } from 'zustand/shallow';
 import {
   INITIAL_ALLKILL_STATE,
@@ -181,6 +182,18 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
 
   // 에이스 결정전 진입 시 자동으로 선택 모달 표시
   useEffect(() => {
+    // 디버깅: 에이스 결정전 상태 확인
+    console.log('[AceMatch Debug]', {
+      currentRound,
+      currentScore,
+      isAceMatch,
+      battlePhase,
+      selectedCardId,
+      sessionStatus: session?.status,
+      showAceSelection,
+      usedCards: session?.player.usedCards,
+    });
+
     if (
       isAceMatch &&
       battlePhase === 'SELECT' &&
@@ -188,9 +201,10 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
       session?.status === 'IN_PROGRESS' &&
       !showAceSelection
     ) {
+      console.log('[AceMatch] 에이스 결정전 모달 표시');
       setShowAceSelection(true);
     }
-  }, [isAceMatch, battlePhase, selectedCardId, session, showAceSelection]);
+  }, [isAceMatch, battlePhase, selectedCardId, session, showAceSelection, currentRound, currentScore]);
 
   // 라운드 결과 처리
   useEffect(() => {
@@ -548,6 +562,27 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             </motion.div>
           )}
 
+          {/* CP 획득 알림 */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4"
+          >
+            <h3 className="text-sm font-bold text-yellow-400 mb-2 flex items-center gap-2">
+              <span>💰</span> CP 획득
+            </h3>
+            <div className="flex items-center justify-between">
+              <span className="text-text-secondary">경기 결과 보상</span>
+              <span className="text-lg font-bold text-yellow-400">
+                +{getMatchRewardCP(isPlayerWin ? 'WIN' : 'LOSE').toLocaleString()} CP
+              </span>
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              {isPlayerWin ? '승리 보너스가 지급되었습니다!' : '참가 보상이 지급되었습니다.'}
+            </div>
+          </motion.div>
+
           {/* 버튼 */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -579,7 +614,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-60 p-4"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}

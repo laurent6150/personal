@@ -9,6 +9,9 @@ import type { ActivityType, Stats } from '../types';
 import { ACTIVITY_OPTIONS } from '../types';
 import {
   AP_PER_MATCH,
+  AP_WIN,
+  AP_LOSE,
+  AP_DRAW,
   AP_HALF_TRANSITION_BONUS,
   MAX_AP,
 } from '../data/constants';
@@ -67,8 +70,8 @@ interface ActivityState {
   useAP: (amount: number) => boolean;
   resetAP: () => void;
 
-  // 경기 후 AP 지급
-  grantMatchAP: () => void;
+  // 경기 후 AP 지급 (승패별 차등)
+  grantMatchAP: (result?: 'WIN' | 'LOSE' | 'DRAW') => void;
 
   // 전환기 AP 보너스
   grantHalfTransitionAP: () => void;
@@ -157,10 +160,27 @@ export const useActivityStore = create<ActivityState>()(
         console.log('[Activity] AP 초기화');
       },
 
-      // 경기 후 AP 지급
-      grantMatchAP: () => {
+      // 경기 후 AP 지급 (승패별 차등)
+      grantMatchAP: (result?: 'WIN' | 'LOSE' | 'DRAW') => {
         const { addAP } = get();
-        addAP(AP_PER_MATCH);
+        let apAmount: number;
+
+        switch (result) {
+          case 'WIN':
+            apAmount = AP_WIN;
+            break;
+          case 'LOSE':
+            apAmount = AP_LOSE;
+            break;
+          case 'DRAW':
+            apAmount = AP_DRAW;
+            break;
+          default:
+            apAmount = AP_PER_MATCH; // 레거시 호환
+        }
+
+        addAP(apAmount);
+        console.log(`[Activity] 경기 결과: ${result || '미지정'}, AP +${apAmount}`);
       },
 
       // 전환기 AP 보너스

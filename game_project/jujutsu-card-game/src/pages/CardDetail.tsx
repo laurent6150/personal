@@ -8,6 +8,7 @@ import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
+import { useEconomyStore } from '../stores/economyStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID, ALL_ITEMS } from '../data/items';
 import { ARENAS_BY_ID } from '../data/arenas';
@@ -49,6 +50,7 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     getSeasonStats: state.getSeasonStats,
     getCardAwards: state.getCardAwards
   })));
+  const inventory = useEconomyStore(state => state.inventory);
 
   const [mainTab, setMainTab] = useState<MainTab>('info');
   const [recordTab, setRecordTab] = useState<RecordTab>('career');
@@ -122,6 +124,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
       }
     }
   }
+  // 장비 보너스 총합
+  const equipmentBonusTotal = Object.values(equipmentBonus).reduce((sum, val) => sum + val, 0);
 
   // 폼/컨디션 정보
   const formState = playerCard?.currentForm || 'STABLE';
@@ -130,10 +134,10 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     : 100;
   const formConfig = FORM_CONFIG[formState as FormState];
 
-  // 장착 가능한 아이템 필터링
+  // 장착 가능한 아이템 필터링 (economyStore의 inventory와 playerStore의 unlockedItems 모두 확인)
   const availableItems = ALL_ITEMS.filter(item => {
     if (equipmentList.includes(item.id)) return false;
-    return player.unlockedItems.includes(item.id);
+    return inventory.includes(item.id) || player.unlockedItems.includes(item.id);
   });
 
   const handleEquip = (item: Item) => {
@@ -248,6 +252,7 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
               displayExp={displayExp}
               enhancedStats={enhancedStats}
               equipmentBonus={equipmentBonus}
+              equipmentBonusTotal={equipmentBonusTotal}
               levelProgress={levelProgress}
               expToNext={expToNext}
               maxExp={maxExp}
@@ -323,6 +328,7 @@ function InfoTab({
   displayExp,
   enhancedStats,
   equipmentBonus,
+  equipmentBonusTotal,
   levelProgress,
   expToNext,
   maxExp,
@@ -342,6 +348,7 @@ function InfoTab({
   displayExp: number;
   enhancedStats: Record<string, number>;
   equipmentBonus: Record<string, number>;
+  equipmentBonusTotal: number;
   levelProgress: number;
   expToNext: number;
   maxExp: number;
@@ -561,14 +568,24 @@ function InfoTab({
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">스탯</h3>
 
-          {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합) */}
+          {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합 + 장비 보너스) */}
           <div className="flex justify-center mb-6">
             <RadarChart
-              stats={character.baseStats}
+              stats={{
+                atk: character.baseStats.atk + (equipmentBonus.atk || 0),
+                def: character.baseStats.def + (equipmentBonus.def || 0),
+                spd: character.baseStats.spd + (equipmentBonus.spd || 0),
+                ce: character.baseStats.ce + (equipmentBonus.ce || 0),
+                hp: character.baseStats.hp + (equipmentBonus.hp || 0),
+                crt: ((character.baseStats as { crt?: number }).crt ?? 0) + (equipmentBonus.crt || 0),
+                tec: ((character.baseStats as { tec?: number }).tec ?? 0) + (equipmentBonus.tec || 0),
+                mnt: ((character.baseStats as { mnt?: number }).mnt ?? 0) + (equipmentBonus.mnt || 0),
+              }}
               size="lg"
               showLabels={true}
               showValues={true}
               showTotal={true}
+              bonusTotal={equipmentBonusTotal}
               fillColor={`${attrInfo.color}40`}
               strokeColor={attrInfo.color}
             />

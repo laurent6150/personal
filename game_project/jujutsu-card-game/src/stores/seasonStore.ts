@@ -19,9 +19,12 @@ import type {
   CrewPolicy
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
+import { CHARACTERS_BY_ID } from '../data/characters';
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
+import { useEconomyStore, getMatchRewardCP } from './economyStore';
+import { useActivityStore } from './activityStore';
 import {
   REGULAR_SEASON_GAMES,
   TRADE_DEADLINE_GAME
@@ -104,6 +107,9 @@ interface SeasonState {
   isBeforeTradeDeadline: () => boolean;
   setCrewPolicy: (policy: CrewPolicy) => void;
   getCrewPolicy: () => CrewPolicy;
+
+  // 크루 동기화
+  updatePlayerCrew: (crew: string[]) => void;
 }
 
 // 리그 경기 일정 생성 (홈/어웨이 2회전)
@@ -509,6 +515,15 @@ export const useSeasonStore = create<SeasonState>()(
             }]
           };
 
+          // CP 지급 (경기 결과에 따라)
+          const cpReward = getMatchRewardCP(result);
+          const { earnCP } = useEconomyStore.getState();
+          const resultText = result === 'WIN' ? '승리' : result === 'LOSE' ? '패배' : '무승부';
+          earnCP(cpReward, `MATCH_${result}` as any, `경기 ${resultText} 보상`, currentSeason.number);
+
+          // AP 지급 (경기 결과에 따라 차등 지급)
+          useActivityStore.getState().grantMatchAP(result);
+
           set({
             currentSeason: {
               ...currentSeason,
@@ -696,6 +711,10 @@ export const useSeasonStore = create<SeasonState>()(
           const newSemiFinals: [PlayoffMatch, PlayoffMatch] = [...playoff.semiFinals] as [PlayoffMatch, PlayoffMatch];
           newSemiFinals[semiIndex] = updatedSemi;
 
+          // AP 지급 (플레이오프 경기 결과에 따라)
+          const playoffResult: 'WIN' | 'LOSE' = playerScore > opponentScore ? 'WIN' : 'LOSE';
+          useActivityStore.getState().grantMatchAP(playoffResult);
+
           // 다른 준결승도 시뮬레이션
           const otherIndex = 1 - semiIndex;
           if (!newSemiFinals[otherIndex].result) {
@@ -803,6 +822,10 @@ export const useSeasonStore = create<SeasonState>()(
           const actualAwayScore = isHome ? opponentScore : playerScore;
 
           const updatedFinal = updatePlayoffMatch(final, actualHomeScore, actualAwayScore);
+
+          // AP 지급 (플레이오프 결승 경기 결과에 따라)
+          const finalResult: 'WIN' | 'LOSE' = playerScore > opponentScore ? 'WIN' : 'LOSE';
+          useActivityStore.getState().grantMatchAP(finalResult);
 
           if (updatedFinal.result) {
             // 시즌 종료
@@ -995,7 +1018,7 @@ export const useSeasonStore = create<SeasonState>()(
         console.log('[markIndividualLeagueComplete] 개인 리그 완료');
       },
 
-      // 시즌 종료 처리 (경험치 확정 지급)
+      // 시즌 종료 처리 (경험치 확정 지급 + 노화/생애주기 처리)
       finalizeSeason: () => {
         const { isSeasonComplete, pendingExp, currentSeason } = get();
 
@@ -1007,7 +1030,7 @@ export const useSeasonStore = create<SeasonState>()(
         // 1. 누적 경험치 확정 지급
         // playerStore가 circular dependency 가능성 있으므로 dynamic import 사용
         import('./playerStore').then(({ usePlayerStore }) => {
-          const { addExpToCard } = usePlayerStore.getState();
+          const { addExpToCard, processSeasonEnd } = usePlayerStore.getState();
 
           Object.entries(pendingExp).forEach(([cardId, data]) => {
             const totalExp = data.teamLeagueExp + data.individualLeagueExp;
@@ -1017,8 +1040,11 @@ export const useSeasonStore = create<SeasonState>()(
             }
           });
 
-          // Note: 컨디션 초기화는 캐릭터 성장 시스템에서 별도 처리
           console.log('[finalizeSeason] 경험치 지급 완료');
+
+          // 2. 노화/생애주기 처리 (seasonsInCrew 증가, careerPhase 재계산, 쇠퇴 적용)
+          const agingResult = processSeasonEnd();
+          console.log(`[finalizeSeason] 노화 처리 완료 - 노화: ${agingResult.agedCards.length}명, 쇠퇴: ${agingResult.declinedCards.length}명`);
         });
 
         // 3. 상태 초기화
@@ -1026,6 +1052,10 @@ export const useSeasonStore = create<SeasonState>()(
           teamLeagueCompleted: false,
           individualLeagueCompleted: false,
           pendingExp: {},
+          // Phase 5: 다음 시즌을 위해 전반기로 리셋
+          currentHalf: 'FIRST',
+          firstHalfStandings: null,
+          isTransitionPeriod: false,
         });
 
         console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
@@ -1164,13 +1194,18 @@ export const useSeasonStore = create<SeasonState>()(
       // 크루 정책 조회
       getCrewPolicy: () => {
         return get().crewPolicy;
+      },
+
+      // 크루 동기화 (playerStore에서 호출)
+      updatePlayerCrew: (crew: string[]) => {
+        set({ playerCrew: crew });
       }
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 9, // v9: Phase 5 전/후반기 시스템
+      version: 10, // v10: 등급 제한 통일 - 크루 6장, 1급 2장 제한
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 9);
+        console.log('[Season Store] 마이그레이션:', version, '->', 10);
         const state = persistedState as SeasonState;
 
         if (version < 7) {
@@ -1196,12 +1231,39 @@ export const useSeasonStore = create<SeasonState>()(
 
         if (version < 9) {
           console.log('[Season Store] v9 업그레이드: Phase 5 전/후반기 시스템 추가');
+          state.currentHalf = 'FIRST' as SeasonHalf;
+          state.firstHalfStandings = null;
+          state.isTransitionPeriod = false;
+          state.crewPolicy = 'BALANCED' as CrewPolicy;
+        }
+
+        if (version < 10) {
+          console.log('[Season Store] v10 업그레이드: 크루 크기 및 등급 제한 정리');
+          const playerCrew = state.playerCrew || [];
+
+          // 등급 제한에 맞게 크루 정리 (CREW_SIZE = 6)
+          const validatedCrew: string[] = [];
+          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+
+          for (const cardId of playerCrew) {
+            if (validatedCrew.length >= 6) break;
+
+            const char = CHARACTERS_BY_ID[cardId];
+            if (!char) continue;
+
+            if (char.grade === '특급' && gradeCounts['특급'] >= 1) continue;
+            if (char.grade === '1급' && gradeCounts['1급'] >= 2) continue;
+
+            validatedCrew.push(cardId);
+            if (char.grade === '특급') gradeCounts['특급']++;
+            if (char.grade === '1급') gradeCounts['1급']++;
+          }
+
+          console.log(`[Season Store] 크루 정리: ${playerCrew.length}장 → ${validatedCrew.length}장`);
+
           return {
             ...state,
-            currentHalf: 'FIRST' as SeasonHalf,
-            firstHalfStandings: null,
-            isTransitionPeriod: false,
-            crewPolicy: 'BALANCED' as CrewPolicy,
+            playerCrew: validatedCrew,
           };
         }
 

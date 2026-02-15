@@ -29,13 +29,14 @@ export const ADVANTAGE_MULTIPLIER = 1.5;   // 유리할 때
 export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 
 // 등급 정보 (주술회전 등급 체계) - 기존 6등급 호환
+// Phase 5.3: 등급 제한 제거 → CP 샐러리캡으로 대체 (maxInDeck은 레거시 호환용으로 유지, 실제 제한 없음)
 export const GRADES: Record<LegacyGrade, GradeInfo> = {
-  '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 1 },
-  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 3 },
-  '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 6 },
-  '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 6 },
-  '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 6 },
-  '3급': { bg: '#C4C4C4', text: '#000000', maxInDeck: 6 }
+  '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 8 },  // CP 샐러리캡으로 제한
+  '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 8 },   // CP 샐러리캡으로 제한
+  '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 8 },
+  '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 8 },
+  '준2급': { bg: '#9B9B9B', text: '#FFFFFF', maxInDeck: 8 },
+  '3급': { bg: '#C4C4C4', text: '#000000', maxInDeck: 8 }
 };
 
 // 레벨별 필요 경험치 (누적)
@@ -170,18 +171,71 @@ export const MAX_CREW_SIZE = 8;
 // Phase 5: 샐러리 캡 상수
 // ========================================
 
-// 샐러리 캡 (크루 총 연봉 한도)
+// 샐러리 캡 (크루 총 연봉 한도) - 하드캡
 export const SALARY_CAP = 15000;
 
 // 소프트 캡 (경고 표시 기준)
 export const SOFT_SALARY_CAP = 12000;
 
 // ========================================
+// Phase 5.3: 소프트캡 초과 페널티 (럭셔리 택스)
+// ========================================
+
+// 소프트캡 초과 시 럭셔리 택스율 (초과분의 퍼센트)
+export const LUXURY_TAX_RATE = 0.5;  // 50% - 초과분만큼 추가 CP 지출
+
+// 소프트캡 초과 시 경기 보상 감소율
+export const SOFT_CAP_REWARD_PENALTY = 0.2;  // 20% 감소
+
+// 소프트캡 초과 구간별 페널티 (심각도에 따라)
+export const LUXURY_TAX_BRACKETS = [
+  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~1000: 50%
+  { threshold: 1000, rate: 0.75 },  // 소프트캡 초과 1000~2000: 75%
+  { threshold: 2000, rate: 1.0 },   // 소프트캡 초과 2000~: 100%
+];
+
+// ========================================
+// Phase 5: 카드 CP 가치 (트레이드용)
+// ========================================
+
+// 등급별 기본 카드 가치 (CP)
+export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
+  '특급': 8000,   // 최상위 등급
+  '1급': 5000,
+  '준1급': 3000,
+  '2급': 2000,
+  '준2급': 1200,
+  '3급': 800,
+};
+
+// 레벨당 가치 증가 (CP)
+export const CARD_VALUE_PER_LEVEL: Record<LegacyGrade, number> = {
+  '특급': 500,
+  '1급': 300,
+  '준1급': 200,
+  '2급': 150,
+  '준2급': 100,
+  '3급': 60,
+};
+
+// 생애주기별 가치 배율
+export const CAREER_PHASE_VALUE_MULTIPLIER: Record<string, number> = {
+  'ROOKIE': 1.1,              // 잠재력 +10%
+  'GROWTH': 1.0,              // 기본
+  'PEAK': 1.2,                // 전성기 +20%
+  'DECLINE': 0.7,             // 쇠퇴기 -30%
+  'RETIREMENT_ELIGIBLE': 0.4, // 은퇴 권유 -60%
+};
+
+// ========================================
 // Phase 5: 활동 시스템 상수
 // ========================================
 
-// 경기당 활동 포인트 획득
-export const AP_PER_MATCH = 2;
+// 경기당 활동 포인트 획득 (승패별 차등 지급)
+export const AP_PER_MATCH = 2;        // 기본값 (레거시 호환)
+export const AP_WIN = 3;              // 승리 시
+export const AP_LOSE = 1;             // 패배 시
+export const AP_DRAW = 2;             // 무승부 시
 
 // 전환기 활동 포인트 보너스
 export const AP_HALF_TRANSITION_BONUS = 5;

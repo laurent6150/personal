@@ -1,10 +1,16 @@
 // ========================================
 // 경제 시스템 스토어 (Phase 5)
 // CP(크루 포인트) 관리, 인벤토리, 거래 로그
+// Phase 5.3: 소프트캡 페널티 시스템 추가
 // ========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  SOFT_SALARY_CAP,
+  SOFT_CAP_REWARD_PENALTY,
+  LUXURY_TAX_BRACKETS
+} from '../data/constants';
 
 // ========================================
 // CP 수입 테이블
@@ -57,6 +63,8 @@ export type TransactionReason =
   | 'FAN_MEETING_COST'
   | 'TRADE_CP_SENT'
   | 'SALARY_PAYMENT'
+  | 'LUXURY_TAX'           // Phase 5.3: 럭셔리 택스
+  | 'SOFT_CAP_PENALTY'     // Phase 5.3: 소프트캡 페널티
   | 'OTHER';
 
 export interface Transaction {
@@ -313,4 +321,103 @@ export function getMatchRewardCP(result: 'WIN' | 'LOSE' | 'DRAW'): number {
 // 순위에 따른 보너스 CP 계산
 export function getRankBonusCP(rank: number): number {
   return CP_INCOME.RANK_BONUS[rank] || 0;
+}
+
+// ========================================
+// Phase 5.3: 소프트캡 페널티 시스템
+// ========================================
+
+/**
+ * 소프트캡 초과 여부 확인
+ * @param totalCrewSalary 현재 크루 총 연봉
+ * @returns 초과 여부와 초과 금액
+ */
+export function checkSoftCapStatus(totalCrewSalary: number): {
+  isOver: boolean;
+  overAmount: number;
+  penaltyRate: number;
+} {
+  const overAmount = Math.max(0, totalCrewSalary - SOFT_SALARY_CAP);
+  const isOver = overAmount > 0;
+
+  // 구간별 페널티율 계산
+  let penaltyRate = 0;
+  if (isOver) {
+    for (const bracket of LUXURY_TAX_BRACKETS) {
+      if (overAmount > bracket.threshold) {
+        penaltyRate = bracket.rate;
+      }
+    }
+  }
+
+  return { isOver, overAmount, penaltyRate };
+}
+
+/**
+ * 럭셔리 택스 계산
+ * 소프트캡 초과분에 대해 시즌 종료 시 추가 비용 부과
+ * @param totalCrewSalary 현재 크루 총 연봉
+ * @returns 지불해야 할 럭셔리 택스
+ */
+export function calculateLuxuryTax(totalCrewSalary: number): number {
+  const { isOver, overAmount, penaltyRate } = checkSoftCapStatus(totalCrewSalary);
+
+  if (!isOver) return 0;
+
+  return Math.floor(overAmount * penaltyRate);
+}
+
+/**
+ * 소프트캡 초과 시 경기 보상 감소율 적용
+ * @param baseReward 기본 보상
+ * @param totalCrewSalary 현재 크루 총 연봉
+ * @returns 페널티 적용된 보상
+ */
+export function applyRewardPenalty(baseReward: number, totalCrewSalary: number): {
+  finalReward: number;
+  penaltyApplied: number;
+  isPenalized: boolean;
+} {
+  const { isOver } = checkSoftCapStatus(totalCrewSalary);
+
+  if (!isOver) {
+    return {
+      finalReward: baseReward,
+      penaltyApplied: 0,
+      isPenalized: false
+    };
+  }
+
+  const penaltyAmount = Math.floor(baseReward * SOFT_CAP_REWARD_PENALTY);
+  const finalReward = baseReward - penaltyAmount;
+
+  return {
+    finalReward,
+    penaltyApplied: penaltyAmount,
+    isPenalized: true
+  };
+}
+
+/**
+ * 경기 결과에 따른 CP 지급 (소프트캡 페널티 적용)
+ * @param result 경기 결과
+ * @param totalCrewSalary 현재 크루 총 연봉
+ * @returns 페널티 적용된 보상 정보
+ */
+export function getMatchRewardWithPenalty(
+  result: 'WIN' | 'LOSE' | 'DRAW',
+  totalCrewSalary: number
+): {
+  baseReward: number;
+  finalReward: number;
+  penaltyApplied: number;
+  isPenalized: boolean;
+} {
+  const baseReward = getMatchRewardCP(result);
+  const penaltyResult = applyRewardPenalty(baseReward, totalCrewSalary);
+
+  return {
+    baseReward,
+    ...penaltyResult
+  };
 }

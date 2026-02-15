@@ -3,13 +3,18 @@
 // 등급/레벨/생애주기 기반 연봉 계산
 // ========================================
 
-import type { LegacyGrade } from '../types';
+import type { LegacyGrade, CareerPhase } from '../types';
+import {
+  CARD_BASE_VALUE,
+  CARD_VALUE_PER_LEVEL,
+  CAREER_PHASE_VALUE_MULTIPLIER
+} from '../data/constants';
 
 // ========================================
-// 생애주기 타입
+// 생애주기 정보
 // ========================================
 
-export type CareerPhase = 'ROOKIE' | 'GROWTH' | 'PEAK' | 'DECLINE' | 'RETIREMENT_ELIGIBLE';
+// CareerPhase 타입은 types에서 import
 
 export const CAREER_PHASE_INFO: Record<CareerPhase, { label: string; icon: string; color: string }> = {
   ROOKIE:               { label: '신입', icon: '🌱', color: '#4CAF50' },
@@ -346,4 +351,87 @@ export function validateTradeSalary(
   }
 
   return { valid: true, newTotal, salaryDiff };
+}
+
+// ========================================
+// 카드 가치(Trade Value) 계산
+// ========================================
+
+/**
+ * 카드 트레이드 가치(CP) 계산
+ * 등급 + 레벨 + 생애주기에 따라 결정
+ */
+export function calculateCardValue(
+  grade: LegacyGrade,
+  level: number,
+  careerPhase: CareerPhase
+): number {
+  // 기본 가치 + 레벨 보너스
+  const baseValue = CARD_BASE_VALUE[grade] + CARD_VALUE_PER_LEVEL[grade] * (level - 1);
+
+  // 생애주기 배율 적용
+  const phaseMultiplier = CAREER_PHASE_VALUE_MULTIPLIER[careerPhase] || 1.0;
+
+  return Math.floor(baseValue * phaseMultiplier);
+}
+
+/**
+ * 카드 가치 상세 정보
+ */
+export interface CardValueInfo {
+  baseValue: number;       // 기본 가치 (등급 기반)
+  levelBonus: number;      // 레벨 보너스
+  phaseMultiplier: number; // 생애주기 배율
+  finalValue: number;      // 최종 가치
+}
+
+/**
+ * 카드 가치 상세 정보 계산
+ */
+export function getCardValueBreakdown(
+  grade: LegacyGrade,
+  level: number,
+  careerPhase: CareerPhase
+): CardValueInfo {
+  const baseValue = CARD_BASE_VALUE[grade];
+  const levelBonus = CARD_VALUE_PER_LEVEL[grade] * (level - 1);
+  const phaseMultiplier = CAREER_PHASE_VALUE_MULTIPLIER[careerPhase] || 1.0;
+  const finalValue = Math.floor((baseValue + levelBonus) * phaseMultiplier);
+
+  return {
+    baseValue,
+    levelBonus,
+    phaseMultiplier,
+    finalValue
+  };
+}
+
+/**
+ * 트레이드 가치 밸런스 검증
+ * 양측 패키지의 총 가치 차이가 허용 범위 내인지 확인
+ */
+export function validateTradeValue(
+  proposerTotalValue: number,
+  targetTotalValue: number,
+  allowedDifferencePercent: number = 20  // 기본 20% 허용
+): {
+  valid: boolean;
+  difference: number;
+  differencePercent: number;
+  message?: string;
+} {
+  const difference = Math.abs(proposerTotalValue - targetTotalValue);
+  const averageValue = (proposerTotalValue + targetTotalValue) / 2;
+  const differencePercent = averageValue > 0 ? (difference / averageValue) * 100 : 0;
+
+  if (differencePercent > allowedDifferencePercent) {
+    return {
+      valid: false,
+      difference,
+      differencePercent,
+      message: `트레이드 가치 불균형! 차이: ${difference.toLocaleString()} CP (${differencePercent.toFixed(1)}%)`
+    };
+  }
+
+  return { valid: true, difference, differencePercent };
 }

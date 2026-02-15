@@ -15,14 +15,15 @@ export interface AICrewTemplate {
   description: string;
 }
 
-// 등급별 최대 장수 (크루당)
+// 등급별 최대 장수 (크루당) - DEPRECATED: Phase 5.3에서 CP 샐러리캡으로 대체
+// 레거시 호환을 위해 유지하지만, 실제 제한은 샐러리캡으로 적용됨
 const GRADE_LIMITS: Record<LegacyGrade, number> = {
-  '특급': 1,
-  '1급': 3,
-  '준1급': 6,
-  '2급': 6,
-  '준2급': 6,
-  '3급': 6
+  '특급': 8,  // CP 샐러리캡으로 자연스럽게 제한됨
+  '1급': 8,   // CP 샐러리캡으로 자연스럽게 제한됨
+  '준1급': 8,
+  '2급': 8,
+  '준2급': 8,
+  '3급': 8
 };
 
 // AI 팀 템플릿 - 주술회전 세계관 영감 (7팀 = 8팀 - 플레이어 1팀)
@@ -205,28 +206,27 @@ export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICre
   return aiCrews;
 }
 
-// 플레이어 크루 유효성 검사 (등급 제한)
+// 플레이어 크루 유효성 검사 (Phase 5.3: CP 샐러리캡 기반)
 export function validatePlayerCrew(crew: string[]): { valid: boolean; error?: string } {
   if (crew.length !== CREW_SIZE) {
     return { valid: false, error: `크루는 ${CREW_SIZE}장이어야 합니다 (현재: ${crew.length}장)` };
   }
 
-  // 등급별 카운트
-  const gradeCount: Partial<Record<LegacyGrade, number>> = {};
-
+  // 캐릭터 존재 여부 확인
   for (const charId of crew) {
     const grade = getCharacterGrade(charId);
     if (!grade) {
       return { valid: false, error: `알 수 없는 캐릭터: ${charId}` };
     }
-    gradeCount[grade] = (gradeCount[grade] || 0) + 1;
+  }
 
-    if (gradeCount[grade]! > GRADE_LIMITS[grade]) {
-      return {
-        valid: false,
-        error: `${grade} 등급은 최대 ${GRADE_LIMITS[grade]}장까지 가능합니다`
-      };
-    }
+  // Phase 5.3: 샐러리캡 검증 (하드캡)
+  const crewSalaryResult = validateCrewSalaryCap(crew);
+  if (!crewSalaryResult.valid) {
+    return {
+      valid: false,
+      error: `샐러리캡 초과: ${crewSalaryResult.totalSalary.toLocaleString()} CP (한도: ${SALARY_CAP.toLocaleString()} CP)`
+    };
   }
 
   return { valid: true };

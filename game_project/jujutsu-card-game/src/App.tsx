@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { SeasonHub } from './pages/SeasonHub';
@@ -14,6 +14,7 @@ import { Settings } from './pages/Settings';
 import { BattleScreen } from './components/Battle/BattleScreen';
 import { IndividualLeagueScreen } from './components/IndividualLeague/IndividualLeagueScreen';
 import { IndividualBattleScreen } from './components/IndividualLeague/IndividualBattleScreen';
+import { DraftScreen } from './components/DraftScreen';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
@@ -23,7 +24,7 @@ import { usePlayerStore } from './stores/playerStore';
 import { useIndividualLeagueStore } from './stores/individualLeagueStore';
 import { CHARACTERS_BY_ID } from './data/characters';
 
-type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague' | 'individualBattle';
+type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague' | 'individualBattle' | 'draft';
 
 interface LevelUpInfo {
   cardId: string;
@@ -47,11 +48,13 @@ function App() {
   }, []);
 
   const { startGameWithBanPick } = useBattle();
-  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById } = useSeasonStore(useShallow(state => ({
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById, getCurrentStandings, startNewSeason } = useSeasonStore(useShallow(state => ({
     currentSeason: state.currentSeason,
     playMatch: state.playMatch,
     playPlayoffMatch: state.playPlayoffMatch,
-    getAICrewById: state.getAICrewById
+    getAICrewById: state.getAICrewById,
+    getCurrentStandings: state.getCurrentStandings,
+    startNewSeason: state.startNewSeason
   })));
   const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
   const player = usePlayerStore(state => state.player);
@@ -60,6 +63,17 @@ function App() {
   const { startBattle: startIndividualBattle } = useIndividualLeagueStore(useShallow(state => ({
     startBattle: state.startBattle,
   })));
+
+  // 크루 검증 함수
+  const validateAndFixCrew = usePlayerStore(state => state.validateAndFixCrew);
+
+  // 앱 시작 시 크루 검증 및 정리
+  useEffect(() => {
+    const result = validateAndFixCrew();
+    if (result.fixed) {
+      console.log('[App] 크루가 자동 정리되었습니다. 제외된 카드:', result.removedCards);
+    }
+  }, [validateAndFixCrew]);
 
   // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
   const handleStartMatch = useCallback((opponentCrewId: string) => {
@@ -131,6 +145,7 @@ function App() {
               onSettings={() => setCurrentPage('settings')}
               onIndividualLeague={() => setCurrentPage('individualLeague')}
               onCardSelect={(cardId) => goToCardDetail(cardId, 'seasonHub')}
+              onDraft={() => setCurrentPage('draft')}
             />
           </motion.div>
         )}
@@ -337,6 +352,29 @@ function App() {
                     setTimeout(() => handleShowAchievement(achievementId), index * 5500);
                   });
                 }
+              }}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'draft' && currentSeason && (
+          <motion.div
+            key="draft"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 w-full"
+          >
+            <DraftScreen
+              seasonNumber={currentSeason.number + 1}
+              standings={getCurrentStandings().map(s => ({
+                crewId: s.crewId,
+                points: s.points,
+                goalDifference: s.goalDifference
+              }))}
+              onComplete={() => {
+                startNewSeason();
+                setCurrentPage('seasonHub');
               }}
             />
           </motion.div>

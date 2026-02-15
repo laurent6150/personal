@@ -1,6 +1,6 @@
 // ========================================
 // 시즌 허브 - 메인 화면 (크루 선택 + 시즌 진행)
-// MVP v3: 등급 제한 추가
+// Phase 5.3: 등급 제한 제거 → CP 샐러리캡 기반
 // ========================================
 
 import { useState, useMemo } from 'react';
@@ -16,9 +16,10 @@ import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
 import { ActivityPanel, APIndicator } from '../components/Phase5/ActivityPanel';
 import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
+import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
-import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
-import { GRADE_LIMITS } from '../data/aiCrews';
+import { CREW_SIZE, ATTRIBUTES, SALARY_CAP } from '../data/constants';
+import { BASE_SALARY } from '../utils/salarySystem';
 import { getCharacterImage } from '../utils/imageHelper';
 import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
 
@@ -34,6 +35,7 @@ interface SeasonHubProps {
   onSettings: () => void;
   onIndividualLeague?: () => void;
   onCardSelect?: (cardId: string) => void;
+  onDraft?: () => void;
 }
 
 export function SeasonHub({
@@ -47,7 +49,8 @@ export function SeasonHub({
   onProfile,
   onSettings,
   onIndividualLeague,
-  onCardSelect
+  onCardSelect,
+  onDraft
 }: SeasonHubProps) {
   const {
     isInitialized,
@@ -130,7 +133,17 @@ export function SeasonHub({
     return counts;
   }, [selectedCards]);
 
-  // 특정 카드를 선택할 수 있는지 확인
+  // 선택된 카드들의 총 연봉 계산
+  const selectedTotalSalary = useMemo(() => {
+    return selectedCards.reduce((sum, cardId) => {
+      const char = CHARACTERS_BY_ID[cardId];
+      if (!char) return sum;
+      // 초기 선택이므로 레벨 1 기준 기본 연봉
+      return sum + (BASE_SALARY[char.grade as LegacyGrade] || 0);
+    }, 0);
+  }, [selectedCards]);
+
+  // 특정 카드를 선택할 수 있는지 확인 (Phase 5.3: 샐러리캡 기반)
   const canSelectCard = (cardId: string): { canSelect: boolean; reason?: string } => {
     if (selectedCards.includes(cardId)) {
       return { canSelect: true }; // 이미 선택된 카드는 해제 가능
@@ -142,13 +155,12 @@ export function SeasonHub({
     const char = CHARACTERS_BY_ID[cardId];
     if (!char) return { canSelect: false, reason: '카드를 찾을 수 없음' };
 
-    const currentCount = selectedGradeCounts[char.grade];
-    const limit = GRADE_LIMITS[char.grade];
-
-    if (currentCount >= limit) {
+    // Phase 5.3: 샐러리캡 검증
+    const cardSalary = BASE_SALARY[char.grade as LegacyGrade] || 0;
+    if (selectedTotalSalary + cardSalary > SALARY_CAP) {
       return {
         canSelect: false,
-        reason: `${char.grade}등급은 최대 ${limit}장까지 선택 가능`
+        reason: `샐러리캡 초과 (${(selectedTotalSalary + cardSalary).toLocaleString()} > ${SALARY_CAP.toLocaleString()} CP)`
       };
     }
 
@@ -170,6 +182,17 @@ export function SeasonHub({
   // 게임 시작 (크루 선택 완료)
   const handleStartGame = () => {
     if (selectedCards.length !== CREW_SIZE) return;
+
+    // 선택한 카드들 중 아직 소유하지 않은 카드를 ownedCards에 추가
+    const playerStore = usePlayerStore.getState();
+    for (const cardId of selectedCards) {
+      if (!playerStore.isCardOwned(cardId)) {
+        playerStore.addOwnedCard(cardId);
+      }
+    }
+
+    // playerStore 크루도 동기화
+    playerStore.setCurrentCrew(selectedCards);
     initializeGame(selectedCards);
     startNewSeason();
   };
@@ -196,6 +219,8 @@ export function SeasonHub({
 
   // 새로 시작 확인
   const handleResetGame = () => {
+    // playerStore도 함께 리셋 (ownedCards, currentCrew 초기화)
+    usePlayerStore.getState().resetPlayer();
     resetGame();
     setSelectedCards([]);
     setShowResetConfirm(false);
@@ -236,16 +261,17 @@ export function SeasonHub({
               시즌에서 사용할 {CREW_SIZE}장의 카드를 선택하세요. ({selectedCards.length}/{CREW_SIZE})
             </p>
 
-            {/* 등급 제한 안내 */}
+            {/* Phase 5.3: 샐러리캡 안내 */}
             <div className="flex flex-wrap gap-2 mb-4 text-xs">
-              <span className="px-2 py-1 rounded bg-grade-s/20 text-grade-s border border-grade-s/30">
-                특급: {selectedGradeCounts['특급'] || 0}/{GRADE_LIMITS['특급']}
-              </span>
-              <span className="px-2 py-1 rounded bg-grade-a/20 text-grade-a border border-grade-a/30">
-                1급: {selectedGradeCounts['1급'] || 0}/{GRADE_LIMITS['1급']}
+              <span className={`px-2 py-1 rounded border ${
+                selectedTotalSalary > SALARY_CAP
+                  ? 'bg-lose/20 text-lose border-lose/30'
+                  : 'bg-accent/20 text-accent border-accent/30'
+              }`}>
+                총 연봉: {selectedTotalSalary.toLocaleString()} / {SALARY_CAP.toLocaleString()} CP
               </span>
               <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
-                준1급 이하: 최대 {CREW_SIZE}장
+                등급별: 특급 {selectedGradeCounts['특급'] || 0}명, 1급 {selectedGradeCounts['1급'] || 0}명
               </span>
             </div>
 
@@ -303,7 +329,7 @@ export function SeasonHub({
                     {isDisabled && reason && (
                       <div className="absolute inset-0 flex items-end justify-center pb-1 bg-black/30">
                         <span className="text-[9px] bg-black/80 px-1 rounded text-red-400">
-                          {char.grade}등급 제한
+                          {reason.includes('샐러리캡') ? '연봉초과' : reason}
                         </span>
                       </div>
                     )}
@@ -476,13 +502,17 @@ export function SeasonHub({
               <Button
                 onClick={() => {
                   finalizeSeason();
-                  startNewSeason();
+                  if (onDraft) {
+                    onDraft();
+                  } else {
+                    startNewSeason();
+                  }
                 }}
                 variant="primary"
                 size="lg"
                 className="w-full mb-3"
               >
-                🎁 시즌 종료 & 다음 시즌 시작
+                🎯 시즌 종료 & 드래프트
               </Button>
             </>
           ) : teamLeagueCompleted && !individualLeagueCompleted ? (
@@ -661,8 +691,9 @@ export function SeasonHub({
               {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
             </p>
           </div>
-          {/* Phase 5: AP와 샐러리캡 인디케이터 */}
+          {/* Phase 5: CP, AP, 샐러리캡 인디케이터 */}
           <div className="flex items-center gap-3">
+            <CPMini />
             <APIndicator />
             <SalaryCapMini currentTotal={getTotalCrewSalary()} />
           </div>

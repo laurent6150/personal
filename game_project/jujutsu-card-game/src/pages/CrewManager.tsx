@@ -7,7 +7,6 @@ import { CardMini } from '../components/Card/CardDisplay';
 import { Button } from '../components/UI/Button';
 import { GradeBadge } from '../components/UI/Badge';
 import { SalaryCapDisplay } from '../components/Phase5/SalaryCapDisplay';
-import { GRADES } from '../data/constants';
 
 interface CrewManagerProps {
   onBack: () => void;
@@ -59,23 +58,23 @@ export function CrewManager({ onBack }: CrewManagerProps) {
         </div>
       </div>
 
-      {/* 등급 제한 표시 */}
+      {/* Phase 5.3: 등급별 현황 (등급 제한 제거, 정보 표시용) */}
       <div className="max-w-4xl mx-auto mb-6">
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-sm text-text-secondary mb-2">등급 제한</h3>
+          <h3 className="text-sm text-text-secondary mb-2">등급별 현황</h3>
           <div className="flex gap-4 flex-wrap">
             {(['특급', '1급', '준1급', '2급'] as const).map(grade => (
               <div key={grade} className="flex items-center gap-2">
                 <GradeBadge grade={grade} size="sm" />
-                <span className="text-sm">
-                  <span className={gradeCount[grade] >= GRADES[grade].maxInDeck ? 'text-lose' : 'text-text-primary'}>
-                    {gradeCount[grade]}
-                  </span>
-                  <span className="text-text-secondary">/{GRADES[grade].maxInDeck}</span>
+                <span className="text-sm text-text-primary">
+                  {gradeCount[grade]}명
                 </span>
               </div>
             ))}
           </div>
+          <p className="text-xs text-text-secondary mt-2">
+            ※ 샐러리캡 내에서 자유롭게 구성 가능
+          </p>
         </div>
       </div>
 
