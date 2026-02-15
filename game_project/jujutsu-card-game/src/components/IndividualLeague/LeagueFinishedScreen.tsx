@@ -14,6 +14,8 @@ import { Button } from '../UI/Button';
 import { RewardClaimScreen } from './RewardClaimScreen';
 import { AwardsDisplay } from './AwardsDisplay';
 import { HallOfFameScreen } from '../Phase4/HallOfFameScreen';
+import { AP_WIN, AP_LOSE, AP_DRAW } from '../../data/constants';
+import { CP_INCOME } from '../../stores/economyStore';
 import type { HallOfFameData } from '../../types';
 
 interface LeagueFinishedScreenProps {
@@ -80,6 +82,45 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
   const awards = calculateAwards(currentLeague, rankings);
   const myCards = rankings.filter(r => r.isPlayerCrew);
   const top16 = rankings.slice(0, 16);
+
+  // AP 보상 계산
+  const apRewardData = useMemo(() => {
+    let totalWins = 0;
+    let totalLosses = 0;
+    let totalDraws = 0;
+
+    myCards.forEach(card => {
+      totalWins += card.wins || 0;
+      totalLosses += card.losses || 0;
+      // draws가 없으면 0으로 처리
+      totalDraws += (card as { draws?: number }).draws || 0;
+    });
+
+    const winAP = totalWins * AP_WIN;
+    const loseAP = totalLosses * AP_LOSE;
+    const drawAP = totalDraws * AP_DRAW;
+    const totalAP = winAP + loseAP + drawAP;
+
+    return {
+      wins: totalWins,
+      losses: totalLosses,
+      draws: totalDraws,
+      winAP,
+      loseAP,
+      drawAP,
+      totalAP
+    };
+  }, [myCards]);
+
+  // CP 보상 계산 (승리당 CP_INCOME.MATCH_WIN)
+  const cpRewardData = useMemo(() => {
+    let totalCP = 0;
+    myCards.forEach(card => {
+      totalCP += (card.wins || 0) * CP_INCOME.MATCH_WIN;
+      totalCP += (card.losses || 0) * CP_INCOME.MATCH_LOSE;
+    });
+    return totalCP;
+  }, [myCards]);
 
   // 보상 수령 버튼 클릭 -> RewardClaimScreen 표시
   const handleClaimReward = () => {
@@ -269,15 +310,41 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
       {/* 획득 보상 요약 */}
       <div className="mb-6 bg-green-500/10 border border-green-500/30 rounded-lg p-4">
         <h3 className="font-bold text-green-400 mb-2">🎁 획득 보상</h3>
-        <div className="text-sm text-text-primary">
-          <div>참가 보상: <span className="text-green-400">+50 EXP (전원)</span></div>
-          {myCards.map(card => (
-            <div key={card.odId}>
-              {card.odName} ({getRankIcon(card.rank)}):
-              <span className="text-green-400 ml-1">+{card.exp} EXP</span>
-              {card.rank <= 4 && <span className="text-yellow-400 ml-1">+ 다음 시즌 시드</span>}
+        <div className="text-sm text-text-primary space-y-2">
+          {/* EXP 보상 */}
+          <div>
+            <div className="text-text-secondary text-xs mb-1">경험치</div>
+            <div>참가 보상: <span className="text-green-400">+50 EXP (전원)</span></div>
+            {myCards.map(card => (
+              <div key={card.odId}>
+                {card.odName} ({getRankIcon(card.rank)}):
+                <span className="text-green-400 ml-1">+{card.exp} EXP</span>
+                {card.rank <= 4 && <span className="text-yellow-400 ml-1">+ 다음 시즌 시드</span>}
+              </div>
+            ))}
+          </div>
+
+          {/* AP 보상 */}
+          <div className="pt-2 border-t border-white/10">
+            <div className="text-text-secondary text-xs mb-1">활동 포인트</div>
+            <div className="flex items-center gap-2">
+              <span className="text-orange-400 font-bold">+{apRewardData.totalAP} AP</span>
+              <span className="text-text-secondary text-xs">
+                (승리 {apRewardData.wins}회 × {AP_WIN} + 패배 {apRewardData.losses}회 × {AP_LOSE})
+              </span>
             </div>
-          ))}
+          </div>
+
+          {/* CP 보상 */}
+          <div className="pt-2 border-t border-white/10">
+            <div className="text-text-secondary text-xs mb-1">크루 포인트</div>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400 font-bold">+{cpRewardData} CP</span>
+              <span className="text-text-secondary text-xs">
+                (승리 {apRewardData.wins}회 × {CP_INCOME.MATCH_WIN} + 패배 {apRewardData.losses}회 × {CP_INCOME.MATCH_LOSE})
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -300,6 +367,8 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
         <RewardClaimScreen
           season={currentLeague.season}
           myCardRewards={getRewardData()}
+          apReward={apRewardData}
+          cpReward={cpRewardData}
           onConfirm={handleRewardConfirm}
         />
       )}
