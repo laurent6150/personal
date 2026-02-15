@@ -35,7 +35,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     skill: { name: "천여함수 완성", description: "토지와 동등한 경지", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 } },
     basicSkills: [
       { id: "maki_aw_1", name: "혼폭도 (魂爆刀)", type: "ATTACK", description: "영혼을 베는 특급 저주도구", effect: { type: "DAMAGE", value: 130, ignoreBarrier: true } },
-      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 70 } },
+      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 60 } },
       { id: "maki_aw_3", name: "연속 참격", type: "ATTACK", description: "빠른 연속 베기", effect: { type: "MULTI_HIT", hits: 4, value: 40 } }
     ],
     ultimateSkill: { id: "maki_aw_ult", name: "천여함수 완성", description: "토지와 동등한 경지에 도달", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 }, gaugeRequired: 100 },
@@ -66,13 +66,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("jogo", "죠고", "CONVERT"),
     baseStats: { atk: 20, def: 12, spd: 16, ce: 22, hp: 85 },
     growthStats: { primary: "ce", secondary: "atk" },
-    skill: { name: "개문돈갑", description: "태양 온도의 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 30, damage: 280 } },
+    skill: { name: "개문돈갑", description: "태양 온도의 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 20, damage: 230 } },
     basicSkills: [
       { id: "jogo_1", name: "화염탄", type: "ATTACK", description: "강력한 화염 투사체", effect: { type: "DAMAGE", value: 120, element: "FIRE" } },
       { id: "jogo_2", name: "용암 분출", type: "ATTACK", description: "땅에서 용암을 분출", effect: { type: "AOE_DAMAGE", value: 90 } },
       { id: "jogo_3", name: "소각", type: "ATTACK", description: "모든 것을 태운다", effect: { type: "BURN", value: 70, dotDamage: 25, duration: 2 } }
     ],
-    ultimateSkill: { id: "jogo_ult", name: "개문돈갑 (철위산)", description: "내부 온도가 태양 수준인 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 30, damage: 280 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "jogo_ult", name: "개문돈갑 (철위산)", description: "내부 온도가 태양 수준인 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 20, damage: 230 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -134,13 +134,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("hiromi_higuruma", "히구루마 히로미", "BARRIER"),
     baseStats: { atk: 16, def: 18, spd: 15, ce: 22, hp: 85 },
     growthStats: { primary: "ce", secondary: "def" },
-    skill: { name: "사법암흑계 - 사형선고", description: "영역 내 재판에서 유죄 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 40, damage: 300 } },
+    skill: { name: "사법암흑계 - 사형선고", description: "영역 내 재판에서 유죄 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 240 } },
     basicSkills: [
       { id: "higuruma_1", name: "법정봉 타격", type: "ATTACK", description: "법정봉으로 타격", effect: { type: "DAMAGE", value: 90 } },
       { id: "higuruma_2", name: "심문", type: "UTILITY", description: "상대의 약점을 심문", effect: { type: "WEAKNESS_FIND", critRate: 30 } },
       { id: "higuruma_3", name: "증거 수집", type: "UTILITY", description: "증거를 모아 게이지 충전", effect: { type: "CHARGE", gaugeBonus: 30 } }
     ],
-    ultimateSkill: { id: "higuruma_ult", name: "사법암흑계 (誅伏賜死)", description: "유죄 판결 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 40, damage: 300 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "higuruma_ult", name: "사법암흑계 (誅伏賜死)", description: "유죄 판결 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 240 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -151,13 +151,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("hajime_kashimo", "카시모 하지메", "CONVERT"),
     baseStats: { atk: 21, def: 14, spd: 21, ce: 20, hp: 82 },
     growthStats: { primary: "atk", secondary: "spd" },
-    skill: { name: "환상의 수", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 280, spdBonus: 60, duration: 3 } },
+    skill: { name: "환상의 수", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 230, spdBonus: 60, duration: 3 } },
     basicSkills: [
       { id: "kashimo_1", name: "뇌격", type: "ATTACK", description: "번개를 내리친다", effect: { type: "DAMAGE", value: 120, element: "LIGHTNING" } },
       { id: "kashimo_2", name: "방전", type: "ATTACK", description: "주변으로 전기 방출", effect: { type: "AOE_DAMAGE", value: 85 } },
       { id: "kashimo_3", name: "전격 가속", type: "UTILITY", description: "전기로 속도 증가", effect: { type: "STAT_BOOST", spdBonus: 40 } }
     ],
-    ultimateSkill: { id: "kashimo_ult", name: "환상의 수 (호박)", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 280, spdBonus: 60, duration: 3 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "kashimo_ult", name: "환상의 수 (호박)", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 230, spdBonus: 60, duration: 3 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -168,13 +168,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("ryu_ishigori", "이시고리 류", "RANGE"),
     baseStats: { atk: 23, def: 15, spd: 14, ce: 20, hp: 88 },
     growthStats: { primary: "atk", secondary: "ce" },
-    skill: { name: "화산두", description: "최대 출력 저주력 방출", effect: { type: "DAMAGE", value: 320 } },
+    skill: { name: "화산두", description: "최대 출력 저주력 방출", effect: { type: "DAMAGE", value: 250 } },
     basicSkills: [
-      { id: "ryu_1", name: "저주력 포격", type: "ATTACK", description: "강력한 저주력 방출", effect: { type: "DAMAGE", value: 140 } },
+      { id: "ryu_1", name: "저주력 포격", type: "ATTACK", description: "강력한 저주력 방출", effect: { type: "DAMAGE", value: 120 } },
       { id: "ryu_2", name: "연속 포격", type: "ATTACK", description: "연속으로 포격", effect: { type: "MULTI_HIT", hits: 3, value: 50 } },
       { id: "ryu_3", name: "포격 집중", type: "UTILITY", description: "다음 공격 강화", effect: { type: "STAT_BOOST", atkBonus: 50 } }
     ],
-    ultimateSkill: { id: "ryu_ult", name: "화산두", description: "최대 출력 저주력 방출", effect: { type: "DAMAGE", value: 320 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "ryu_ult", name: "화산두", description: "최대 출력 저주력 방출", effect: { type: "DAMAGE", value: 250 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -270,13 +270,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("yorozu", "요로즈", "CONVERT"),
     baseStats: { atk: 19, def: 15, spd: 17, ce: 21, hp: 83 },
     growthStats: { primary: "ce", secondary: "atk" },
-    skill: { name: "진구", description: "완벽한 구체로 공격", effect: { type: "DAMAGE", value: 260 } },
+    skill: { name: "진구", description: "완벽한 구체로 공격", effect: { type: "DAMAGE", value: 220 } },
     basicSkills: [
       { id: "yorozu_1", name: "구축술식", type: "ATTACK", description: "무기를 구축하여 공격", effect: { type: "DAMAGE", value: 110 } },
       { id: "yorozu_2", name: "갑충 소환", type: "ATTACK", description: "갑충을 소환하여 공격", effect: { type: "SUMMON_DAMAGE", value: 95 } },
       { id: "yorozu_3", name: "갑충 갑옷", type: "DEFENSE", description: "갑충으로 갑옷 형성", effect: { type: "DAMAGE_REDUCE", value: 40 } }
     ],
-    ultimateSkill: { id: "yorozu_ult", name: "진구 (真球)", description: "완벽한 구체로 공격", effect: { type: "DAMAGE", value: 260 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "yorozu_ult", name: "진구 (真球)", description: "완벽한 구체로 공격", effect: { type: "DAMAGE", value: 220 }, gaugeRequired: 100 },
     achievements: []
   },
   // ========================================
@@ -327,13 +327,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("dagon", "다곤", "CONVERT"),
     baseStats: { atk: 18, def: 18, spd: 14, ce: 22, hp: 92 },
     growthStats: { primary: "ce", secondary: "def" },
-    skill: { name: "사미세유도", description: "열대의 해변 영역전개, 필중 물고기떼", effect: { type: "DOMAIN", damage: 240 } },
+    skill: { name: "사미세유도", description: "열대의 해변 영역전개, 필중 물고기떼", effect: { type: "DOMAIN", damage: 210 } },
     basicSkills: [
       { id: "dagon_1", name: "사도대해", type: "ATTACK", description: "바다의 저주력을 소환하여 공격", effect: { type: "DAMAGE", value: 110 } },
       { id: "dagon_2", name: "식신 물고기떼", type: "ATTACK", description: "무수한 식신 물고기로 공격", effect: { type: "MULTI_HIT", hits: 5, value: 25 } },
       { id: "dagon_3", name: "파도 방벽", type: "DEFENSE", description: "물의 벽으로 방어", effect: { type: "DAMAGE_REDUCE", value: 50 } }
     ],
-    ultimateSkill: { id: "dagon_ult", name: "사미세유도 (蕩蘊平線)", description: "영역 내 필중의 물고기떼 공격", effect: { type: "DOMAIN", damage: 240 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "dagon_ult", name: "사미세유도 (蕩蘊平線)", description: "영역 내 필중의 물고기떼 공격", effect: { type: "DOMAIN", damage: 210 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -344,13 +344,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("mechamaru", "메카마루", "RANGE"),
     baseStats: { atk: 19, def: 17, spd: 14, ce: 21, hp: 85 },
     growthStats: { primary: "ce", secondary: "atk" },
-    skill: { name: "궁극 메카마루", description: "17년분 저주력을 모은 절대 병기", effect: { type: "TRANSFORM", damage: 260, defBonus: 50, duration: 3 } },
+    skill: { name: "궁극 메카마루", description: "17년분 저주력을 모은 절대 병기", effect: { type: "TRANSFORM", damage: 220, defBonus: 50, duration: 3 } },
     basicSkills: [
       { id: "mecha_1", name: "저주력 포", type: "ATTACK", description: "인형 팔의 저주력 포격", effect: { type: "DAMAGE", value: 110 } },
       { id: "mecha_2", name: "실드", type: "DEFENSE", description: "기계 갑옷으로 방어", effect: { type: "DAMAGE_REDUCE", value: 50 } },
       { id: "mecha_3", name: "울트라 캐논", type: "ATTACK", description: "최대 출력 저주력 방출", effect: { type: "DAMAGE", value: 130 } }
     ],
-    ultimateSkill: { id: "mecha_ult", name: "궁극 메카마루 (究極メカ丸)", description: "17년분 저주력을 모은 절대 병기로 변신", effect: { type: "TRANSFORM", damage: 260, defBonus: 50, duration: 3 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "mecha_ult", name: "궁극 메카마루 (究極メカ丸)", description: "17년분 저주력을 모은 절대 병기로 변신", effect: { type: "TRANSFORM", damage: 220, defBonus: 50, duration: 3 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -378,13 +378,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("smallpox_deity", "포창신", "CURSE"),
     baseStats: { atk: 16, def: 18, spd: 12, ce: 22, hp: 90 },
     growthStats: { primary: "ce", secondary: "def" },
-    skill: { name: "포창 영역", description: "관에 갇힌 자에게 3카운트 내 사형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 } },
+    skill: { name: "포창 영역", description: "관에 갇힌 자에게 3카운트 내 사형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 230 } },
     basicSkills: [
       { id: "smallpox_1", name: "관 가두기", type: "UTILITY", description: "대상을 관에 가둔다", effect: { type: "STUN", duration: 1 } },
       { id: "smallpox_2", name: "포창", type: "ATTACK", description: "질병의 저주로 공격", effect: { type: "POISON_EXPLOSION", damage: 100, dotDamage: 30, duration: 2 } },
       { id: "smallpox_3", name: "저주 방벽", type: "DEFENSE", description: "질병의 기운으로 방어", effect: { type: "DAMAGE_REDUCE", value: 45 } }
     ],
-    ultimateSkill: { id: "smallpox_ult", name: "포창 영역전개", description: "관에 갇힌 자에게 3카운트 내 사형 선고", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "smallpox_ult", name: "포창 영역전개", description: "관에 갇힌 자에게 3카운트 내 사형 선고", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 230 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -429,13 +429,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("tsurugi_okkotsu", "옷코츠 츠루기", "BODY"),
     baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85 },
     growthStats: { primary: "atk", secondary: "spd" },
-    skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 240, atkBonus: 60, spdBonus: 40, duration: 3 } },
+    skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [
       { id: "tsurugi_1", name: "검영류 발도", type: "ATTACK", description: "호노야기의 화염 발도술", effect: { type: "DAMAGE", value: 130, element: "FIRE" } },
       { id: "tsurugi_2", name: "초인적 반사", type: "DEFENSE", description: "천여체의 초인적 동체시력", effect: { type: "DODGE", chance: 65 } },
       { id: "tsurugi_3", name: "연속 참격", type: "ATTACK", description: "고속 연속 베기", effect: { type: "MULTI_HIT", hits: 3, value: 50 } }
     ],
-    ultimateSkill: { id: "tsurugi_ult", name: "리카 융합 (里香融合)", description: "할아버지의 반지를 통해 리카와 융합", effect: { type: "TRANSFORM", damage: 240, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "tsurugi_ult", name: "리카 융합 (里香融合)", description: "할아버지의 반지를 통해 리카와 융합", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },
     achievements: []
   }
 ];

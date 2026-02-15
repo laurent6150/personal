@@ -29,7 +29,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     grade: "2급",
     attribute: "BODY",
     imageUrl: getCharacterImage("panda", "판다", "BODY"),
-    baseStats: { atk: 16, def: 17, spd: 14, ce: 15, hp: 90 },
+    baseStats: { atk: 16, def: 15, spd: 14, ce: 15, hp: 82 },
     growthStats: { primary: "def", secondary: "atk" },
     skill: { name: "자매 핵 해방", description: "세 번째 핵의 힘", effect: { type: "TRANSFORM", damage: 200, defBonus: 40, atkBonus: 30 } },
     basicSkills: [
@@ -69,7 +69,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     basicSkills: [
       { id: "momo_1", name: "빗자루 공격", type: "ATTACK", description: "빗자루를 휘둘러 공격", effect: { type: "DAMAGE", value: 70 } },
       { id: "momo_2", name: "바람 조작", type: "ATTACK", description: "바람을 일으켜 공격", effect: { type: "DAMAGE", value: 75 } },
-      { id: "momo_3", name: "비행", type: "DEFENSE", description: "빗자루로 빠르게 회피", effect: { type: "DODGE", chance: 55 } }
+      { id: "momo_3", name: "비행", type: "DEFENSE", description: "빗자루로 빠르게 회피", effect: { type: "DODGE", chance: 45 } }
     ],
     ultimateSkill: { id: "momo_ult", name: "대선풍", description: "강력한 바람을 일으켜 공격", effect: { type: "AOE_DAMAGE", damage: 150 }, gaugeRequired: 100 },
     achievements: []
@@ -206,7 +206,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "운명의 만화", description: "미래를 완전히 그려내어 극대화", effect: { type: "STAT_BOOST", atkBonus: 40, spdBonus: 40, damage: 160 } },
     basicSkills: [
-      { id: "charles_1", name: "미래 예지", type: "DEFENSE", description: "1동작 앞의 미래를 예측", effect: { type: "DODGE", chance: 55 } },
+      { id: "charles_1", name: "미래 예지", type: "DEFENSE", description: "1동작 앞의 미래를 예측", effect: { type: "DODGE", chance: 45 } },
       { id: "charles_2", name: "G펜 공격", type: "ATTACK", description: "G펜을 이용한 공격", effect: { type: "DAMAGE", value: 80 } },
       { id: "charles_3", name: "만화 그리기", type: "UTILITY", description: "그림으로 미래를 시각화", effect: { type: "WEAKNESS_FIND", critRate: 30 } }
     ],

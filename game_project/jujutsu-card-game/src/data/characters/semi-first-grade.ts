@@ -98,7 +98,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("fumihiko_takaba", "타카바 후미히코", "SOUL"),
-    baseStats: { atk: 14, def: 18, spd: 15, ce: 23, hp: 85 },
+    baseStats: { atk: 14, def: 18, spd: 15, ce: 20, hp: 82 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "코미디", description: "재밌으면 모든 것이 가능", effect: { type: "DAMAGE", value: 200 } },
     basicSkills: [
@@ -187,7 +187,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     growthStats: { primary: "def", secondary: "atk" },
     skill: { name: "신음류 오의", description: "간단한 영역 + 검술 결합", effect: { type: "DAMAGE", value: 200 } },
     basicSkills: [
-      { id: "kusakabe_1", name: "간단한 영역", type: "DEFENSE", description: "간이 영역으로 방어", effect: { type: "DAMAGE_REDUCE", value: 70 } },
+      { id: "kusakabe_1", name: "간단한 영역", type: "DEFENSE", description: "간이 영역으로 방어", effect: { type: "DAMAGE_REDUCE", value: 55 } },
       { id: "kusakabe_2", name: "검술", type: "ATTACK", description: "기본 검술", effect: { type: "DAMAGE", value: 95 } },
       { id: "kusakabe_3", name: "발도", type: "ATTACK", description: "빠른 발도술", effect: { type: "CRITICAL_ATTACK", value: 100, critRate: 35 } }
     ],

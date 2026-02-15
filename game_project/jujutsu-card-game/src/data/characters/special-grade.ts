@@ -206,7 +206,7 @@ export const SPECIAL_GRADE: CharacterCard[] = [
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "궁극 살의", description: "살의를 극한까지 실체화한 궁극의 일격", effect: { type: "DAMAGE", value: 300 } },
     basicSkills: [
-      { id: "dabura_1", name: "살의 실체화", type: "ATTACK", description: "살의를 물리적 힘으로 변환", effect: { type: "TRUE_DAMAGE", value: 150 } },
+      { id: "dabura_1", name: "살의 실체화", type: "ATTACK", description: "살의를 물리적 힘으로 변환", effect: { type: "TRUE_DAMAGE", value: 120 } },
       { id: "dabura_2", name: "시무리아 전투술", type: "ATTACK", description: "외계 전투 기술로 연속 공격", effect: { type: "MULTI_HIT", hits: 3, value: 55 } },
       { id: "dabura_3", name: "주력 강화", type: "DEFENSE", description: "시무리아 고유의 주력으로 방어", effect: { type: "DAMAGE_REDUCE", value: 50 } }
     ],
