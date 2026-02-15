@@ -44,10 +44,10 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
   {
     // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
     id: "fushiguro_toji",
-    name: { ko: "후시구로 토지", ja: "伏黒甚爾", en: "Fushiguro Toji" },
+    name: { ko: "후시구로 토우지", ja: "伏黒甚爾", en: "Fushiguro Toji" },
     grade: "준특급",
     attribute: "BODY",
-    imageUrl: getCharacterImage("fushiguro_toji", "후시구로 토지", "BODY"),
+    imageUrl: getCharacterImage("fushiguro_toji", "후시구로 토우지", "BODY"),
     baseStats: { atk: 24, def: 15, spd: 23, ce: 0, hp: 90, crt: 25, tec: 20, mnt: 10 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천역봉인", description: "모든 술식을 강제 해제", effect: { type: "SKILL_NULLIFY", damage: 200 } },
