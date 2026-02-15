@@ -1,6 +1,6 @@
 // ========================================
-// 1급 캐릭터 (26명)
-// 기존 16명 + 마히토/메이메이 승급 + 신규 8명
+// 1급 캐릭터 (25명)
+// 기존 16명 + 마히토/메이메이 승급 + 신규 7명
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -372,19 +372,19 @@ export const FIRST_GRADE: CharacterCard[] = [
   },
   {
     id: "smallpox_deity",
-    name: { ko: "역병신", ja: "疱瘡神", en: "Smallpox Deity" },
+    name: { ko: "포창신", ja: "疱瘡神", en: "Smallpox Deity" },
     grade: "1급",
     attribute: "CURSE",
-    imageUrl: getCharacterImage("smallpox_deity", "역병신", "CURSE"),
+    imageUrl: getCharacterImage("smallpox_deity", "포창신", "CURSE"),
     baseStats: { atk: 16, def: 18, spd: 12, ce: 22, hp: 90 },
     growthStats: { primary: "ce", secondary: "def" },
-    skill: { name: "역병 영역", description: "관에 갇힌 자에게 3카운트 내 사형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 } },
+    skill: { name: "포창 영역", description: "관에 갇힌 자에게 3카운트 내 사형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 } },
     basicSkills: [
       { id: "smallpox_1", name: "관 가두기", type: "UTILITY", description: "대상을 관에 가둔다", effect: { type: "STUN", duration: 1 } },
-      { id: "smallpox_2", name: "역병", type: "ATTACK", description: "질병의 저주로 공격", effect: { type: "POISON_EXPLOSION", damage: 100, dotDamage: 30, duration: 2 } },
+      { id: "smallpox_2", name: "포창", type: "ATTACK", description: "질병의 저주로 공격", effect: { type: "POISON_EXPLOSION", damage: 100, dotDamage: 30, duration: 2 } },
       { id: "smallpox_3", name: "저주 방벽", type: "DEFENSE", description: "질병의 기운으로 방어", effect: { type: "DAMAGE_REDUCE", value: 45 } }
     ],
-    ultimateSkill: { id: "smallpox_ult", name: "역병 영역전개", description: "관에 갇힌 자에게 3카운트 내 사형 선고", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "smallpox_ult", name: "포창 영역전개", description: "관에 갇힌 자에게 3카운트 내 사형 선고", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 35, damage: 260 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -436,23 +436,6 @@ export const FIRST_GRADE: CharacterCard[] = [
       { id: "tsurugi_3", name: "연속 참격", type: "ATTACK", description: "고속 연속 베기", effect: { type: "MULTI_HIT", hits: 3, value: 50 } }
     ],
     ultimateSkill: { id: "tsurugi_ult", name: "리카 융합 (里香融合)", description: "할아버지의 반지를 통해 리카와 융합", effect: { type: "TRANSFORM", damage: 240, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
-    id: "daido_hajime",
-    name: { ko: "다이도 하지메", ja: "大道鋼", en: "Hajime Daido" },
-    grade: "1급",
-    attribute: "BODY",
-    imageUrl: getCharacterImage("daido_hajime", "다이도 하지메", "BODY"),
-    baseStats: { atk: 21, def: 16, spd: 17, ce: 16, hp: 88 },
-    growthStats: { primary: "atk", secondary: "def" },
-    skill: { name: "사무라이 오의", description: "400년 전사의 검술 오의", effect: { type: "MULTI_HIT", hits: 4, value: 55 } },
-    basicSkills: [
-      { id: "daido_1", name: "고류 검술", type: "ATTACK", description: "400년 단련된 검술", effect: { type: "DAMAGE", value: 115 } },
-      { id: "daido_2", name: "강격", type: "ATTACK", description: "전신의 힘을 실은 강타", effect: { type: "DAMAGE", value: 125 } },
-      { id: "daido_3", name: "회피술", type: "DEFENSE", description: "전장의 경험으로 회피", effect: { type: "DODGE", chance: 50 } }
-    ],
-    ultimateSkill: { id: "daido_ult", name: "사무라이 오의 (古流極意)", description: "400년 전사의 검술 오의, 연속 참격", effect: { type: "MULTI_HIT", hits: 4, value: 55 }, gaugeRequired: 100 },
     achievements: []
   }
 ];
