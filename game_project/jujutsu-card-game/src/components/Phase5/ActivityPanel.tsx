@@ -9,6 +9,7 @@ import { ACTIVITY_OPTIONS } from '../../types';
 import { useActivityStore, canPerformActivity } from '../../stores/activityStore';
 import { useEconomyStore } from '../../stores/economyStore';
 import { CHARACTERS_BY_ID } from '../../data/characters';
+import { getExpProgress } from '../../data/growthSystem';
 
 interface ActivityPanelProps {
   cards: PlayerCard[];           // 활동 대상 카드 목록
@@ -157,11 +158,28 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({
         <div className="mb-4">
           <h4 className="text-sm font-medium text-gray-300 mb-2">
             대상 카드 선택
+            {selectedActivity === 'REST' && (
+              <span className="ml-2 text-xs text-gray-500">컨디션 +15</span>
+            )}
+            {selectedActivity === 'TRAIN' && (
+              <span className="ml-2 text-xs text-gray-500">공/방/속 +2 (1경기)</span>
+            )}
+            {selectedActivity === 'PRACTICE' && (
+              <span className="ml-2 text-xs text-gray-500">경험치 +20</span>
+            )}
           </h4>
           <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
             {cards.map(card => {
               const character = CHARACTERS_BY_ID[card.cardId];
               const isSelected = selectedCard === card.cardId;
+
+              // 활동별 효과 미리보기 데이터
+              const currentCondition = card.condition?.value ?? 70;
+              const expectedCondition = Math.min(currentCondition + 15, 100);
+              const conditionWasted = expectedCondition === 100 && currentCondition > 85;
+              const conditionAlreadyMax = currentCondition >= 100;
+
+              const expProgress = getExpProgress(card.totalExp || 0, card.level);
 
               return (
                 <button
@@ -170,7 +188,11 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({
                   className={`p-2 rounded-lg border transition-all ${
                     isSelected
                       ? 'border-blue-500 bg-blue-500/20'
-                      : 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
+                      : selectedActivity === 'REST' && conditionAlreadyMax
+                        ? 'border-red-500/50 bg-red-900/20 hover:bg-red-900/30'
+                        : selectedActivity === 'REST' && conditionWasted
+                          ? 'border-yellow-500/50 bg-yellow-900/20 hover:bg-yellow-900/30'
+                          : 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
                   }`}
                 >
                   <div className="text-center">
@@ -183,6 +205,46 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({
                     <div className="text-xs text-gray-500">
                       Lv.{card.level}
                     </div>
+
+                    {/* 활동별 효과 미리보기 */}
+                    {selectedActivity === 'REST' && (
+                      <div className={`mt-1 text-xs ${
+                        conditionAlreadyMax
+                          ? 'text-red-400'
+                          : conditionWasted
+                            ? 'text-yellow-400'
+                            : 'text-green-400'
+                      }`}>
+                        {conditionAlreadyMax ? (
+                          <span>컨디션 MAX</span>
+                        ) : (
+                          <span>{currentCondition} → {expectedCondition}</span>
+                        )}
+                        {conditionWasted && !conditionAlreadyMax && (
+                          <div className="text-yellow-500 text-[10px]">일부 낭비</div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedActivity === 'TRAIN' && (
+                      <div className="mt-1 text-xs text-blue-400">
+                        <span>스탯 +2</span>
+                      </div>
+                    )}
+
+                    {selectedActivity === 'PRACTICE' && (
+                      <div className="mt-1 text-xs text-purple-400">
+                        <span>{expProgress.currentLevelExp}/{expProgress.requiredExp}</span>
+                        {card.level < 10 && (
+                          <div className="text-[10px] text-gray-500">
+                            +20 EXP
+                          </div>
+                        )}
+                        {card.level >= 10 && (
+                          <div className="text-[10px] text-yellow-500">MAX</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </button>
               );
