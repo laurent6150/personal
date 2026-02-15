@@ -95,7 +95,7 @@ export function CardDisplayLarge({
         {/* 상단 배지 */}
         <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
           <GradeBadge grade={character.grade} size="md" />
-          <AttributeBadge attribute={character.attribute} size="md" />
+          <AttributeBadge attribute={character.attribute} size="md" showLabel={true} />
         </div>
 
         {/* 하단 이름/레벨 */}

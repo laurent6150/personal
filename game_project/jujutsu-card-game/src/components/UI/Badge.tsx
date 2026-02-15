@@ -34,22 +34,23 @@ interface AttributeBadgeProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function AttributeBadge({ attribute, showLabel = false, size = 'md' }: AttributeBadgeProps) {
+export function AttributeBadge({ attribute, showLabel = true, size = 'md' }: AttributeBadgeProps) {
   const attrInfo = ATTRIBUTES[attribute];
 
   const sizes = {
-    sm: 'text-sm px-2 py-0.5',
-    md: 'text-base px-3 py-1',
-    lg: 'text-lg px-4 py-1.5'
+    sm: showLabel ? 'text-[10px] px-1.5 py-0.5 gap-0.5' : 'text-sm px-1.5 py-0.5 gap-0.5',
+    md: showLabel ? 'text-xs px-2 py-0.5 gap-1' : 'text-base px-2 py-0.5 gap-1',
+    lg: showLabel ? 'text-sm px-3 py-1 gap-1' : 'text-lg px-3 py-1 gap-1'
   };
 
   return (
     <span
-      className={`${sizes[size]} rounded-full flex items-center gap-1 font-medium`}
+      className={`${sizes[size]} rounded-full flex items-center font-bold shadow-md whitespace-nowrap`}
       style={{
-        backgroundColor: `${attrInfo.color}30`,
+        backgroundColor: `${attrInfo.color}40`,
         color: attrInfo.color,
-        border: `1px solid ${attrInfo.color}`
+        border: `1px solid ${attrInfo.color}80`,
+        textShadow: `0 0 6px ${attrInfo.color}60`
       }}
     >
       <span>{attrInfo.icon}</span>
