@@ -124,6 +124,8 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
       }
     }
   }
+  // 장비 보너스 총합
+  const equipmentBonusTotal = Object.values(equipmentBonus).reduce((sum, val) => sum + val, 0);
 
   // 폼/컨디션 정보
   const formState = playerCard?.currentForm || 'STABLE';
@@ -250,6 +252,7 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
               displayExp={displayExp}
               enhancedStats={enhancedStats}
               equipmentBonus={equipmentBonus}
+              equipmentBonusTotal={equipmentBonusTotal}
               levelProgress={levelProgress}
               expToNext={expToNext}
               maxExp={maxExp}
@@ -325,6 +328,7 @@ function InfoTab({
   displayExp,
   enhancedStats,
   equipmentBonus,
+  equipmentBonusTotal,
   levelProgress,
   expToNext,
   maxExp,
@@ -344,6 +348,7 @@ function InfoTab({
   displayExp: number;
   enhancedStats: Record<string, number>;
   equipmentBonus: Record<string, number>;
+  equipmentBonusTotal: number;
   levelProgress: number;
   expToNext: number;
   maxExp: number;
@@ -563,7 +568,7 @@ function InfoTab({
         <div className="bg-bg-card rounded-xl p-6 border border-white/10">
           <h3 className="font-bold mb-4">스탯</h3>
 
-          {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합) */}
+          {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합 + 장비 보너스) */}
           <div className="flex justify-center mb-6">
             <RadarChart
               stats={character.baseStats}
@@ -571,6 +576,7 @@ function InfoTab({
               showLabels={true}
               showValues={true}
               showTotal={true}
+              bonusTotal={equipmentBonusTotal}
               fillColor={`${attrInfo.color}40`}
               strokeColor={attrInfo.color}
             />

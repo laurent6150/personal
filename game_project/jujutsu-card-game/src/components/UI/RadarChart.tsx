@@ -11,6 +11,7 @@ interface RadarChartProps {
   showLabels?: boolean;
   showValues?: boolean;
   showTotal?: boolean;  // 중앙에 능력치 총합 표시
+  bonusTotal?: number;  // 장비 등으로 인한 보너스 총합 (0보다 크면 "+n" 표시)
   maxValue?: number;
   fillColor?: string;
   strokeColor?: string;
@@ -41,6 +42,7 @@ export function RadarChart({
   showLabels = true,
   showValues = false,
   showTotal = false,
+  bonusTotal = 0,
   maxValue = 30,
   fillColor = 'rgba(139, 92, 246, 0.3)',
   strokeColor = '#8B5CF6',
@@ -211,9 +213,22 @@ export function RadarChart({
           >
             {total}
           </text>
+          {bonusTotal > 0 && (
+            <text
+              x={centerX}
+              y={centerY + (size === 'sm' ? 6 : size === 'md' ? 10 : 14)}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#4ADE80"
+              fontSize={size === 'sm' ? 8 : size === 'md' ? 11 : 14}
+              fontWeight="bold"
+            >
+              (+{bonusTotal})
+            </text>
+          )}
           <text
             x={centerX}
-            y={centerY + (size === 'sm' ? 8 : size === 'md' ? 12 : 16)}
+            y={centerY + (size === 'sm' ? (bonusTotal > 0 ? 14 : 8) : size === 'md' ? (bonusTotal > 0 ? 22 : 12) : (bonusTotal > 0 ? 30 : 16))}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#aaa"
