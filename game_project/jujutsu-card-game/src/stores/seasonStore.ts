@@ -711,6 +711,10 @@ export const useSeasonStore = create<SeasonState>()(
           const newSemiFinals: [PlayoffMatch, PlayoffMatch] = [...playoff.semiFinals] as [PlayoffMatch, PlayoffMatch];
           newSemiFinals[semiIndex] = updatedSemi;
 
+          // AP 지급 (플레이오프 경기 결과에 따라)
+          const playoffResult: 'WIN' | 'LOSE' = playerScore > opponentScore ? 'WIN' : 'LOSE';
+          useActivityStore.getState().grantMatchAP(playoffResult);
+
           // 다른 준결승도 시뮬레이션
           const otherIndex = 1 - semiIndex;
           if (!newSemiFinals[otherIndex].result) {
@@ -818,6 +822,10 @@ export const useSeasonStore = create<SeasonState>()(
           const actualAwayScore = isHome ? opponentScore : playerScore;
 
           const updatedFinal = updatePlayoffMatch(final, actualHomeScore, actualAwayScore);
+
+          // AP 지급 (플레이오프 결승 경기 결과에 따라)
+          const finalResult: 'WIN' | 'LOSE' = playerScore > opponentScore ? 'WIN' : 'LOSE';
+          useActivityStore.getState().grantMatchAP(finalResult);
 
           if (updatedFinal.result) {
             // 시즌 종료
