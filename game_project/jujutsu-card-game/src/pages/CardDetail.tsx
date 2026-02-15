@@ -8,6 +8,7 @@ import { useShallow } from 'zustand/shallow';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
+import { useEconomyStore } from '../stores/economyStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
 import { ITEMS_BY_ID, ALL_ITEMS } from '../data/items';
 import { ARENAS_BY_ID } from '../data/arenas';
@@ -49,6 +50,7 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     getSeasonStats: state.getSeasonStats,
     getCardAwards: state.getCardAwards
   })));
+  const inventory = useEconomyStore(state => state.inventory);
 
   const [mainTab, setMainTab] = useState<MainTab>('info');
   const [recordTab, setRecordTab] = useState<RecordTab>('career');
@@ -130,10 +132,10 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     : 100;
   const formConfig = FORM_CONFIG[formState as FormState];
 
-  // 장착 가능한 아이템 필터링
+  // 장착 가능한 아이템 필터링 (economyStore의 inventory와 playerStore의 unlockedItems 모두 확인)
   const availableItems = ALL_ITEMS.filter(item => {
     if (equipmentList.includes(item.id)) return false;
-    return player.unlockedItems.includes(item.id);
+    return inventory.includes(item.id) || player.unlockedItems.includes(item.id);
   });
 
   const handleEquip = (item: Item) => {

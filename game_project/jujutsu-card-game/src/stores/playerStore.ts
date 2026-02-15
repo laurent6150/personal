@@ -279,8 +279,8 @@ export const usePlayerStore = create<PlayerState>()(
         const playerCard = player.ownedCards[cardId];
         if (!playerCard) return false;
 
-        // 아이템 소유 확인
-        if (!player.unlockedItems.includes(itemId)) return false;
+        // 아이템 소유 여부는 UI 레벨(CardDetail)에서 검증됨
+        // (playerStore.unlockedItems 또는 economyStore.inventory에 있는 아이템만 표시)
 
         const newEquipment: [string | null, string | null] = [...playerCard.equipment];
         newEquipment[slot] = itemId;
