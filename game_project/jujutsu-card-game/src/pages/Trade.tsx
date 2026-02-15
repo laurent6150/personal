@@ -1,6 +1,7 @@
 // ========================================
 // 트레이드 화면
-// Phase 5: CP 기반 트레이드 시스템
+// Phase 5: CP 기반 패키지 트레이드 시스템
+// 다중 카드 + 아이템 + CP 복합 거래 지원
 // ========================================
 
 import { useState, useMemo } from 'react';
@@ -9,11 +10,13 @@ import { useShallow } from 'zustand/shallow';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useTradeStore } from '../stores/tradeStore';
+import { useEconomyStore } from '../stores/economyStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
+import { ALL_ITEMS, ITEMS_BY_ID } from '../data/items';
 import { PLAYER_CREW_ID } from '../data/aiCrews';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
-import { GradeBadge } from '../components/UI/Badge';
+import { RarityBadge } from '../components/UI/Badge';
 import { getCharacterImage, getPlaceholderImage } from '../utils/imageHelper';
 import { ATTRIBUTES } from '../data';
 import type { AICrew, CharacterCard, TradeOffer } from '../types';
@@ -29,6 +32,10 @@ export function Trade({ onBack }: TradeProps) {
     currentAICrews: state.currentAICrews
   })));
   const player = usePlayerStore(state => state.player);
+  const { cp, inventory } = useEconomyStore(useShallow(state => ({
+    cp: state.cp,
+    inventory: state.inventory
+  })));
   const {
     proposeTrade,
     forceTrade,
@@ -43,10 +50,14 @@ export function Trade({ onBack }: TradeProps) {
     getTradeHistory: state.getTradeHistory
   })));
 
-  const [selectedPlayerCard, setSelectedPlayerCard] = useState<string | null>(null);
+  // 다중 선택 상태
+  const [selectedPlayerCards, setSelectedPlayerCards] = useState<Set<string>>(new Set());
   const [selectedTargetCrew, setSelectedTargetCrew] = useState<AICrew | null>(null);
-  const [selectedTargetCard, setSelectedTargetCard] = useState<string | null>(null);
+  const [selectedTargetCards, setSelectedTargetCards] = useState<Set<string>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [addedCP, setAddedCP] = useState<number>(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
   const [tradeResult, setTradeResult] = useState<{
     success: boolean;
     message: string;
@@ -57,35 +68,111 @@ export function Trade({ onBack }: TradeProps) {
     return playerCrew.map(id => CHARACTERS_BY_ID[id]).filter(Boolean) as CharacterCard[];
   }, [playerCrew]);
 
+  // 플레이어 소유 아이템
+  const playerItems = useMemo(() => {
+    const allOwned = new Set([...inventory, ...player.unlockedItems]);
+    return ALL_ITEMS.filter(item => allOwned.has(item.id));
+  }, [inventory, player.unlockedItems]);
+
   // 트레이드 히스토리
   const recentTrades = useMemo(() => {
     return getTradeHistory(currentSeason?.number).slice(0, 5);
   }, [getTradeHistory, currentSeason?.number]);
 
-  // CP 가치 차이 계산
+  // 내 패키지 가치 계산
+  const myPackageValue = useMemo(() => {
+    let total = addedCP;
+    selectedPlayerCards.forEach(cardId => {
+      total += getCardCPValue(cardId);
+    });
+    selectedItems.forEach(itemId => {
+      const item = ITEMS_BY_ID[itemId];
+      if (item) total += item.price;
+    });
+    return total;
+  }, [selectedPlayerCards, selectedItems, addedCP, getCardCPValue]);
+
+  // 상대 패키지 가치 계산
+  const targetPackageValue = useMemo(() => {
+    let total = 0;
+    selectedTargetCards.forEach(cardId => {
+      total += getCardCPValue(cardId);
+    });
+    return total;
+  }, [selectedTargetCards, getCardCPValue]);
+
+  // 트레이드 밸런스 계산
   const tradeBalance = useMemo(() => {
-    if (!selectedPlayerCard || !selectedTargetCard) {
+    if (selectedPlayerCards.size === 0 && selectedItems.size === 0 && addedCP === 0) {
       return { valid: true, proposerValue: 0, targetValue: 0, difference: 0, differencePercent: 0 };
     }
+    if (selectedTargetCards.size === 0) {
+      return { valid: true, proposerValue: myPackageValue, targetValue: 0, difference: myPackageValue, differencePercent: 100 };
+    }
     return validateTradeBalance(
-      { cards: [selectedPlayerCard], cp: 0, items: [], draftPicks: [] },
-      { cards: [selectedTargetCard], cp: 0, items: [], draftPicks: [] }
+      { cards: Array.from(selectedPlayerCards), cp: addedCP, items: Array.from(selectedItems), draftPicks: [] },
+      { cards: Array.from(selectedTargetCards), cp: 0, items: [], draftPicks: [] }
     );
-  }, [selectedPlayerCard, selectedTargetCard, validateTradeBalance]);
+  }, [selectedPlayerCards, selectedTargetCards, selectedItems, addedCP, validateTradeBalance, myPackageValue]);
 
-  // 트레이드 가능 여부 (±20% 이내)
-  const canTrade = selectedPlayerCard && selectedTargetCrew && selectedTargetCard;
+  // 트레이드 가능 여부
+  const canTrade = (selectedPlayerCards.size > 0 || selectedItems.size > 0 || addedCP > 0) &&
+                   selectedTargetCrew &&
+                   selectedTargetCards.size > 0;
   const isValidTrade = tradeBalance.differencePercent <= 20;
 
-  // 트레이드 제안
-  const handleProposeTrade = () => {
-    if (!canTrade || !currentSeason) return;
+  // 카드 선택 토글 (플레이어)
+  const togglePlayerCard = (cardId: string) => {
+    setSelectedPlayerCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
 
+  // 카드 선택 토글 (상대)
+  const toggleTargetCard = (cardId: string) => {
+    setSelectedTargetCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
+
+  // 아이템 선택 토글
+  const toggleItem = (itemId: string) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  // 트레이드 제안 (첫 번째 카드 기준으로 레거시 API 사용)
+  const handleProposeTrade = () => {
+    if (!canTrade || !currentSeason || !selectedTargetCrew) return;
+
+    const playerCardArray = Array.from(selectedPlayerCards);
+    const targetCardArray = Array.from(selectedTargetCards);
+
+    // 레거시 API는 1:1 교환만 지원하므로 첫 번째 카드 사용
     const result = proposeTrade({
       seasonNumber: currentSeason.number,
       targetCrewId: selectedTargetCrew.id,
-      offeredCardId: selectedPlayerCard,
-      requestedCardId: selectedTargetCard,
+      offeredCardId: playerCardArray[0] || '',
+      requestedCardId: targetCardArray[0] || '',
       playerCrew,
       targetCrew: selectedTargetCrew
     });
@@ -113,13 +200,16 @@ export function Trade({ onBack }: TradeProps) {
 
   // 강제 트레이드
   const handleForceTrade = () => {
-    if (!canTrade || !currentSeason) return;
+    if (!canTrade || !currentSeason || !selectedTargetCrew) return;
+
+    const playerCardArray = Array.from(selectedPlayerCards);
+    const targetCardArray = Array.from(selectedTargetCards);
 
     forceTrade({
       seasonNumber: currentSeason.number,
       targetCrewId: selectedTargetCrew.id,
-      offeredCardId: selectedPlayerCard,
-      requestedCardId: selectedTargetCard
+      offeredCardId: playerCardArray[0] || '',
+      requestedCardId: targetCardArray[0] || ''
     });
 
     setTradeResult({
@@ -132,9 +222,11 @@ export function Trade({ onBack }: TradeProps) {
 
   // 선택 초기화
   const resetSelection = () => {
-    setSelectedPlayerCard(null);
+    setSelectedPlayerCards(new Set());
     setSelectedTargetCrew(null);
-    setSelectedTargetCard(null);
+    setSelectedTargetCards(new Set());
+    setSelectedItems(new Set());
+    setAddedCP(0);
     setTradeResult(null);
   };
 
@@ -157,189 +249,139 @@ export function Trade({ onBack }: TradeProps) {
   return (
     <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
-      <div className="max-w-5xl mx-auto mb-6">
+      <div className="max-w-6xl mx-auto mb-4">
         <div className="flex items-center justify-between bg-black/40 rounded-xl p-4 backdrop-blur-sm">
           <Button onClick={onBack} variant="ghost" size="sm">
             ← 뒤로
           </Button>
           <h1 className="text-2xl font-bold text-accent text-shadow-strong">🔄 트레이드</h1>
-          <div className="w-20" />
+          <div className="text-sm text-text-secondary">
+            보유 CP: <span className="text-accent font-bold">{formatCP(cp)}</span>
+          </div>
         </div>
       </div>
 
-      {/* Phase 5: 트레이드 안내 (CP 기반) */}
-      <div className="max-w-5xl mx-auto mb-6">
-        <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-sm text-text-secondary mb-2">트레이드 규칙</h3>
+      {/* 트레이드 규칙 안내 */}
+      <div className="max-w-6xl mx-auto mb-4">
+        <div className="bg-bg-card rounded-xl p-3 border border-white/10">
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="px-2 py-1 rounded bg-accent/20 text-accent">
               CP 가치 ±20% 이내
             </span>
             <span className="px-2 py-1 rounded bg-white/10 text-text-secondary">
-              샐러리캡 준수 필요
+              다중 카드 선택 가능
             </span>
             <span className="px-2 py-1 rounded bg-white/10 text-text-secondary">
-              강제 트레이드 가능
+              카드 + 아이템 + CP 조합 가능
             </span>
           </div>
         </div>
       </div>
 
-      {/* 트레이드 패널 */}
-      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6 mb-6">
-        {/* 내 크루 */}
+      {/* 메인 트레이드 패널 */}
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-4 mb-4">
+        {/* 내 패키지 */}
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-lg font-bold text-text-primary mb-4">
-            내 크루 ({player.name})
-          </h3>
-          <div className="grid grid-cols-5 gap-2">
-            {playerCards.map(card => (
-              <TradeCard
-                key={card.id}
-                card={card}
-                cpValue={getCardCPValue(card.id)}
-                isSelected={selectedPlayerCard === card.id}
-                onClick={() => setSelectedPlayerCard(
-                  selectedPlayerCard === card.id ? null : card.id
-                )}
-              />
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-text-primary">내가 주는 것</h3>
+            <span className="text-sm text-accent font-bold">{formatCP(myPackageValue)} CP</span>
           </div>
-          {selectedPlayerCard && (
-            <div className="mt-4 p-3 bg-accent/20 rounded-lg">
-              <div className="text-sm text-accent">
-                내보낼 카드: {CHARACTERS_BY_ID[selectedPlayerCard]?.name.ko}
-                <span className="ml-2 text-xs">
-                  ({formatCP(getCardCPValue(selectedPlayerCard))} CP)
-                </span>
-              </div>
+
+          {/* 내 크루 카드 */}
+          <div className="mb-3">
+            <div className="text-xs text-text-secondary mb-2">카드 ({selectedPlayerCards.size}개 선택)</div>
+            <div className="grid grid-cols-6 gap-1">
+              {playerCards.map(card => (
+                <MiniTradeCard
+                  key={card.id}
+                  card={card}
+                  cpValue={getCardCPValue(card.id)}
+                  isSelected={selectedPlayerCards.has(card.id)}
+                  onClick={() => togglePlayerCard(card.id)}
+                />
+              ))}
             </div>
-          )}
-        </div>
-
-        {/* 상대 크루 선택 */}
-        <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-lg font-bold text-text-primary mb-4">
-            상대 크루 선택
-          </h3>
-
-          {/* 크루 목록 */}
-          <div className="space-y-2 mb-4">
-            {currentAICrews.map(crew => (
-              <button
-                key={crew.id}
-                onClick={() => {
-                  setSelectedTargetCrew(
-                    selectedTargetCrew?.id === crew.id ? null : crew
-                  );
-                  setSelectedTargetCard(null);
-                }}
-                className={`w-full p-3 rounded-lg text-left transition-all ${
-                  selectedTargetCrew?.id === crew.id
-                    ? 'bg-accent/20 border border-accent'
-                    : 'bg-black/20 hover:bg-black/40'
-                }`}
-              >
-                <div className="font-bold">{crew.name}</div>
-                <div className="text-xs text-text-secondary">
-                  {crew.crew.map(id => CHARACTERS_BY_ID[id]?.name.ko).join(', ')}
-                </div>
-              </button>
-            ))}
           </div>
 
-          {/* 상대 카드 선택 */}
-          {selectedTargetCrew && (
-            <>
-              <h4 className="text-sm text-text-secondary mb-2">
-                받을 카드 선택
-              </h4>
-              <div className="grid grid-cols-5 gap-2">
-                {selectedTargetCrew.crew.map(cardId => {
-                  const card = CHARACTERS_BY_ID[cardId];
-                  if (!card) return null;
-                  return (
-                    <TradeCard
-                      key={cardId}
-                      card={card}
-                      cpValue={getCardCPValue(cardId)}
-                      isSelected={selectedTargetCard === cardId}
-                      onClick={() => setSelectedTargetCard(
-                        selectedTargetCard === cardId ? null : cardId
-                      )}
-                    />
-                  );
+          {/* 아이템 추가 버튼 */}
+          <div className="mb-3">
+            <div className="text-xs text-text-secondary mb-2">아이템 ({selectedItems.size}개 선택)</div>
+            <Button
+              onClick={() => setShowItemModal(true)}
+              variant="ghost"
+              size="sm"
+              className="w-full"
+            >
+              + 아이템 추가
+            </Button>
+            {selectedItems.size > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {Array.from(selectedItems).map(itemId => {
+                  const item = ITEMS_BY_ID[itemId];
+                  return item ? (
+                    <span
+                      key={itemId}
+                      onClick={() => toggleItem(itemId)}
+                      className="px-2 py-1 bg-accent/20 rounded text-xs cursor-pointer hover:bg-accent/40"
+                    >
+                      {item.name.ko} ✕
+                    </span>
+                  ) : null;
                 })}
               </div>
-              {selectedTargetCard && (
-                <div className="mt-4 p-3 bg-accent/20 rounded-lg">
-                  <div className="text-sm text-accent">
-                    받을 카드: {CHARACTERS_BY_ID[selectedTargetCard]?.name.ko}
-                    <span className="ml-2 text-xs">
-                      ({formatCP(getCardCPValue(selectedTargetCard))} CP)
-                    </span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </div>
+
+          {/* CP 추가 */}
+          <div>
+            <div className="text-xs text-text-secondary mb-2">추가 CP</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={addedCP}
+                onChange={(e) => setAddedCP(Math.max(0, Math.min(cp, parseInt(e.target.value) || 0)))}
+                className="flex-1 px-3 py-2 bg-black/30 rounded border border-white/10 text-sm"
+                min={0}
+                max={cp}
+                step={100}
+              />
+              <Button
+                onClick={() => setAddedCP(0)}
+                variant="ghost"
+                size="sm"
+              >
+                초기화
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* 트레이드 요약 및 버튼 */}
-      {canTrade && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-5xl mx-auto mb-6"
-        >
-          <div className="bg-bg-card rounded-xl p-6 border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                {/* 내보낼 카드 */}
-                <div className="text-center">
-                  <div className="text-xs text-text-secondary mb-1">내보냄</div>
-                  <div className="text-lg font-bold">
-                    {CHARACTERS_BY_ID[selectedPlayerCard]?.name.ko}
-                  </div>
-                  <div className="text-sm text-text-secondary">
-                    {formatCP(tradeBalance.proposerValue)} CP
-                  </div>
-                </div>
+        {/* 교환 표시 */}
+        <div className="flex flex-col items-center justify-center">
+          <div className="text-4xl mb-4">↔️</div>
 
-                <div className="text-2xl">↔️</div>
-
-                {/* 받을 카드 */}
-                <div className="text-center">
-                  <div className="text-xs text-text-secondary mb-1">받음</div>
-                  <div className="text-lg font-bold">
-                    {CHARACTERS_BY_ID[selectedTargetCard]?.name.ko}
-                  </div>
-                  <div className="text-sm text-text-secondary">
-                    {formatCP(tradeBalance.targetValue)} CP
-                  </div>
-                </div>
+          {/* 밸런스 표시 */}
+          {canTrade && (
+            <div className={`text-center px-4 py-3 rounded-lg ${
+              isValidTrade ? 'bg-win/20 text-win' : 'bg-lose/20 text-lose'
+            }`}>
+              <div className="text-xs mb-1">가치 차이</div>
+              <div className="text-2xl font-bold">
+                {tradeBalance.differencePercent.toFixed(1)}%
               </div>
-
-              {/* 가치 차이 */}
-              <div className={`text-center px-4 py-2 rounded-lg ${
-                isValidTrade ? 'bg-win/20 text-win' : 'bg-lose/20 text-lose'
-              }`}>
-                <div className="text-xs">가치 차이</div>
-                <div className="text-xl font-bold">
-                  {tradeBalance.differencePercent.toFixed(1)}%
-                </div>
-                <div className="text-xs">
-                  {isValidTrade ? '적합 (±20%)' : '부적합'}
-                </div>
+              <div className="text-xs">
+                {isValidTrade ? '적합 (±20%)' : '부적합'}
               </div>
             </div>
+          )}
 
-            <div className="flex gap-3">
+          {/* 버튼들 */}
+          {canTrade && (
+            <div className="mt-4 space-y-2 w-full px-4">
               <Button
                 onClick={() => setShowConfirmModal(true)}
                 variant="primary"
-                className="flex-1"
+                className="w-full"
                 disabled={!isValidTrade}
               >
                 트레이드 제안
@@ -347,19 +389,129 @@ export function Trade({ onBack }: TradeProps) {
               <Button
                 onClick={handleForceTrade}
                 variant="secondary"
-                className="flex-1"
+                className="w-full"
               >
                 ⚡ 강제 트레이드
               </Button>
-              <Button onClick={resetSelection} variant="ghost">
-                취소
+              <Button onClick={resetSelection} variant="ghost" className="w-full">
+                초기화
               </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 상대 패키지 */}
+        <div className="bg-bg-card rounded-xl p-4 border border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-text-primary">내가 받는 것</h3>
+            <span className="text-sm text-accent font-bold">{formatCP(targetPackageValue)} CP</span>
+          </div>
+
+          {/* 크루 선택 */}
+          <div className="mb-3">
+            <div className="text-xs text-text-secondary mb-2">상대 크루</div>
+            <select
+              value={selectedTargetCrew?.id || ''}
+              onChange={(e) => {
+                const crew = currentAICrews.find(c => c.id === e.target.value);
+                setSelectedTargetCrew(crew || null);
+                setSelectedTargetCards(new Set());
+              }}
+              className="w-full px-3 py-2 bg-black/30 rounded border border-white/10 text-sm"
+            >
+              <option value="">크루 선택...</option>
+              {currentAICrews.map(crew => (
+                <option key={crew.id} value={crew.id}>{crew.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 상대 크루 카드 */}
+          {selectedTargetCrew && (
+            <div>
+              <div className="text-xs text-text-secondary mb-2">카드 ({selectedTargetCards.size}개 선택)</div>
+              <div className="grid grid-cols-6 gap-1">
+                {selectedTargetCrew.crew.map(cardId => {
+                  const card = CHARACTERS_BY_ID[cardId];
+                  if (!card) return null;
+                  return (
+                    <MiniTradeCard
+                      key={cardId}
+                      card={card}
+                      cpValue={getCardCPValue(cardId)}
+                      isSelected={selectedTargetCards.has(cardId)}
+                      onClick={() => toggleTargetCard(cardId)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 선택된 패키지 요약 */}
+      {canTrade && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-6xl mx-auto mb-4"
+        >
+          <div className="bg-bg-card rounded-xl p-4 border border-white/10">
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* 내가 주는 것 요약 */}
+              <div>
+                <div className="text-sm text-text-secondary mb-2">📤 내가 주는 것</div>
+                <div className="space-y-1 text-sm">
+                  {Array.from(selectedPlayerCards).map(cardId => (
+                    <div key={cardId} className="flex justify-between">
+                      <span>{CHARACTERS_BY_ID[cardId]?.name.ko}</span>
+                      <span className="text-text-secondary">{formatCP(getCardCPValue(cardId))} CP</span>
+                    </div>
+                  ))}
+                  {Array.from(selectedItems).map(itemId => {
+                    const item = ITEMS_BY_ID[itemId];
+                    return item ? (
+                      <div key={itemId} className="flex justify-between text-yellow-400">
+                        <span>🎁 {item.name.ko}</span>
+                        <span>{formatCP(item.price)} CP</span>
+                      </div>
+                    ) : null;
+                  })}
+                  {addedCP > 0 && (
+                    <div className="flex justify-between text-accent">
+                      <span>💰 CP</span>
+                      <span>{formatCP(addedCP)} CP</span>
+                    </div>
+                  )}
+                  <div className="border-t border-white/10 pt-1 font-bold flex justify-between">
+                    <span>합계</span>
+                    <span className="text-accent">{formatCP(myPackageValue)} CP</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 내가 받는 것 요약 */}
+              <div>
+                <div className="text-sm text-text-secondary mb-2">📥 내가 받는 것</div>
+                <div className="space-y-1 text-sm">
+                  {Array.from(selectedTargetCards).map(cardId => (
+                    <div key={cardId} className="flex justify-between">
+                      <span>{CHARACTERS_BY_ID[cardId]?.name.ko}</span>
+                      <span className="text-text-secondary">{formatCP(getCardCPValue(cardId))} CP</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-white/10 pt-1 font-bold flex justify-between">
+                    <span>합계</span>
+                    <span className="text-accent">{formatCP(targetPackageValue)} CP</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {!isValidTrade && (
               <div className="mt-3 text-sm text-lose text-center">
-                가치 차이가 ±20%를 초과하여 일반 트레이드가 불가능합니다.
-                강제 트레이드를 사용해주세요.
+                가치 차이가 ±20%를 초과합니다. CP를 추가하거나 강제 트레이드를 사용하세요.
               </div>
             )}
           </div>
@@ -373,7 +525,7 @@ export function Trade({ onBack }: TradeProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="max-w-5xl mx-auto mb-6"
+            className="max-w-6xl mx-auto mb-4"
           >
             <div className={`p-4 rounded-xl ${
               tradeResult.success
@@ -401,7 +553,7 @@ export function Trade({ onBack }: TradeProps) {
 
       {/* 최근 트레이드 히스토리 */}
       {recentTrades.length > 0 && (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="bg-bg-card rounded-xl p-4 border border-white/10">
             <h3 className="text-lg font-bold text-text-primary mb-4">
               최근 트레이드
@@ -437,23 +589,65 @@ export function Trade({ onBack }: TradeProps) {
           </div>
         </div>
       </Modal>
+
+      {/* 아이템 선택 모달 */}
+      <Modal
+        isOpen={showItemModal}
+        onClose={() => setShowItemModal(false)}
+        title="아이템 선택"
+      >
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {playerItems.length === 0 ? (
+            <div className="text-center text-text-secondary py-4">
+              보유한 아이템이 없습니다.
+            </div>
+          ) : (
+            playerItems.map(item => (
+              <div
+                key={item.id}
+                onClick={() => toggleItem(item.id)}
+                className={`p-3 rounded-lg cursor-pointer transition-all ${
+                  selectedItems.has(item.id)
+                    ? 'bg-accent/20 border border-accent'
+                    : 'bg-black/20 hover:bg-black/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RarityBadge rarity={item.rarity} size="sm" />
+                    <span className="font-bold">{item.name.ko}</span>
+                  </div>
+                  <span className="text-sm text-accent">{formatCP(item.price)} CP</span>
+                </div>
+                <div className="text-xs text-text-secondary mt-1">
+                  {Object.entries(item.statBonus).map(([stat, val]) => (
+                    <span key={stat} className="mr-2">{stat.toUpperCase()} +{val}</span>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <Button onClick={() => setShowItemModal(false)} variant="primary" className="w-full mt-4">
+          완료
+        </Button>
+      </Modal>
     </div>
   );
 }
 
-// 트레이드 카드 컴포넌트
-interface TradeCardProps {
+// 미니 트레이드 카드 컴포넌트
+interface MiniTradeCardProps {
   card: CharacterCard;
   cpValue: number;
   isSelected: boolean;
   onClick: () => void;
 }
 
-function TradeCard({ card, cpValue, isSelected, onClick }: TradeCardProps) {
+function MiniTradeCard({ card, cpValue, isSelected, onClick }: MiniTradeCardProps) {
   const [imageError, setImageError] = useState(false);
   const attrInfo = ATTRIBUTES[card.attribute];
 
-  // CP 포맷팅
   const formatCP = (value: number) => {
     if (value >= 1000) {
       return `${(value / 1000).toFixed(1)}K`;
@@ -461,7 +655,6 @@ function TradeCard({ card, cpValue, isSelected, onClick }: TradeCardProps) {
     return value.toLocaleString();
   };
 
-  // 이미지 URL (실제 이미지 또는 폴백)
   const imageUrl = imageError
     ? getPlaceholderImage(card.name.ko, card.attribute)
     : getCharacterImage(card.id, card.name.ko, card.attribute);
@@ -470,19 +663,18 @@ function TradeCard({ card, cpValue, isSelected, onClick }: TradeCardProps) {
     <div
       onClick={onClick}
       className={`
-        aspect-[3/4] rounded-lg cursor-pointer transition-all overflow-hidden
+        aspect-[3/4] rounded cursor-pointer transition-all overflow-hidden
         flex flex-col
         ${isSelected
-          ? 'border-2 border-accent scale-105'
-          : 'border border-white/10 hover:border-accent/50'
+          ? 'ring-2 ring-accent scale-105 z-10'
+          : 'border border-white/10 hover:border-accent/50 opacity-70 hover:opacity-100'
         }
       `}
     >
-      {/* 이미지 영역 */}
       <div className="flex-1 relative overflow-hidden bg-black/20">
         {imageError ? (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-xl">{attrInfo.icon}</span>
+            <span className="text-sm">{attrInfo.icon}</span>
           </div>
         ) : (
           <img
@@ -492,14 +684,15 @@ function TradeCard({ card, cpValue, isSelected, onClick }: TradeCardProps) {
             onError={() => setImageError(true)}
           />
         )}
+        {isSelected && (
+          <div className="absolute inset-0 bg-accent/30 flex items-center justify-center">
+            <span className="text-white text-lg">✓</span>
+          </div>
+        )}
       </div>
-      {/* 정보 영역 */}
-      <div className="p-1 bg-black/40 text-center">
-        <GradeBadge grade={card.grade} size="sm" />
-        <div className="text-xs font-bold mt-0.5 truncate">{card.name.ko}</div>
-        <div className="text-[10px] text-text-secondary">
-          {formatCP(cpValue)} CP
-        </div>
+      <div className="p-0.5 bg-black/60 text-center">
+        <div className="text-[8px] font-bold truncate">{card.name.ko}</div>
+        <div className="text-[7px] text-accent">{formatCP(cpValue)}</div>
       </div>
     </div>
   );
