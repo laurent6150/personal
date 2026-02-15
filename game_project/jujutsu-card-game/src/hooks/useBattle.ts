@@ -456,7 +456,7 @@ export function useCrewManagement() {
 
   // 등급별 카드 수
   const gradeCount = useMemo(() => {
-    const counts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
+    const counts: Record<string, number> = { '특급': 0, '준특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of player.currentCrew) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) counts[char.grade]++;

@@ -32,6 +32,7 @@ export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 // Phase 5.3: 등급 제한 제거 → CP 샐러리캡으로 대체 (maxInDeck은 레거시 호환용으로 유지, 실제 제한 없음)
 export const GRADES: Record<LegacyGrade, GradeInfo> = {
   '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 8 },  // CP 샐러리캡으로 제한
+  '준특급': { bg: '#FF8C42', text: '#FFFFFF', maxInDeck: 8 }, // CP 샐러리캡으로 제한
   '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 8 },   // CP 샐러리캡으로 제한
   '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 8 },
   '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 8 },
@@ -201,6 +202,7 @@ export const LUXURY_TAX_BRACKETS = [
 // 등급별 기본 카드 가치 (CP)
 export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
   '특급': 8000,   // 최상위 등급
+  '준특급': 6500,
   '1급': 5000,
   '준1급': 3000,
   '2급': 2000,
@@ -211,6 +213,7 @@ export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
 // 레벨당 가치 증가 (CP)
 export const CARD_VALUE_PER_LEVEL: Record<LegacyGrade, number> = {
   '특급': 500,
+  '준특급': 400,
   '1급': 300,
   '준1급': 200,
   '2급': 150,

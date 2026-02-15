@@ -30,6 +30,7 @@ import { GRADE_POINTS } from '../types';
 // 레거시 호환을 위해 유지하지만, 실제 제한은 샐러리캡으로 적용됨
 const BASE_GRADE_LIMITS: Record<LegacyGrade, number> = {
   '특급': 8,  // CP 샐러리캡으로 자연스럽게 제한됨
+  '준특급': 8, // CP 샐러리캡으로 자연스럽게 제한됨
   '1급': 8,   // CP 샐러리캡으로 자연스럽게 제한됨
   '준1급': 8,
   '2급': 8,

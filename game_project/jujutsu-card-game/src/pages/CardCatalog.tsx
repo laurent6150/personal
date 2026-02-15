@@ -23,7 +23,7 @@ interface CardCatalogProps {
 
 type SortOption = 'name' | 'grade' | 'level' | 'winRate' | 'wins' | 'atk' | 'def' | 'spd' | 'ce' | 'hp';
 
-const GRADE_OPTIONS: (LegacyGrade | 'all')[] = ['all', '특급', '1급', '준1급', '2급', '준2급', '3급'];
+const GRADE_OPTIONS: (LegacyGrade | 'all')[] = ['all', '특급', '준특급', '1급', '준1급', '2급', '준2급', '3급'];
 const ATTRIBUTE_OPTIONS: (Attribute | 'all')[] = ['all', 'BARRIER', 'BODY', 'CURSE', 'SOUL', 'CONVERT', 'RANGE'];
 const SORT_OPTIONS: { id: SortOption; label: string }[] = [
   { id: 'name', label: '이름순' },
@@ -49,11 +49,12 @@ const ATTRIBUTE_NAMES: Record<Attribute, string> = {
 
 const GRADE_ORDER: Record<LegacyGrade, number> = {
   '특급': 0,
-  '1급': 1,
-  '준1급': 2,
-  '2급': 3,
-  '준2급': 4,
-  '3급': 5
+  '준특급': 1,
+  '1급': 2,
+  '준1급': 3,
+  '2급': 4,
+  '준2급': 5,
+  '3급': 6
 };
 
 export function CardCatalog({ onBack, onCardSelect }: CardCatalogProps) {

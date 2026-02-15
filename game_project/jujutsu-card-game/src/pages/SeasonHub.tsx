@@ -127,7 +127,7 @@ export function SeasonHub({
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
-    const counts: Record<LegacyGrade, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
+    const counts: Record<LegacyGrade, number> = { '특급': 0, '준특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of selectedCards) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) {
@@ -275,7 +275,7 @@ export function SeasonHub({
                 총 연봉: {selectedTotalSalary.toLocaleString()} / {SALARY_CAP.toLocaleString()} CP
               </span>
               <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
-                등급별: 특급 {selectedGradeCounts['특급'] || 0}명, 1급 {selectedGradeCounts['1급'] || 0}명
+                등급별: 특급 {selectedGradeCounts['특급'] || 0}명, 준특급 {selectedGradeCounts['준특급'] || 0}명, 1급 {selectedGradeCounts['1급'] || 0}명
               </span>
             </div>
 

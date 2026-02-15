@@ -61,7 +61,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
       .filter(item => item.character)
       .sort((a, b) => {
         // 등급 순으로 정렬
-        const gradeOrder: LegacyGrade[] = ['특급', '1급', '준1급', '2급', '준2급', '3급'];
+        const gradeOrder: LegacyGrade[] = ['특급', '준특급', '1급', '준1급', '2급', '준2급', '3급'];
         const aIndex = gradeOrder.indexOf(a.character!.grade as LegacyGrade);
         const bIndex = gradeOrder.indexOf(b.character!.grade as LegacyGrade);
         return aIndex - bIndex;

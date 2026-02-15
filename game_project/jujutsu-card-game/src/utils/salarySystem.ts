@@ -31,6 +31,7 @@ export const CAREER_PHASE_INFO: Record<CareerPhase, { label: string; icon: strin
 // 등급별 기본 연봉
 export const BASE_SALARY: Record<LegacyGrade, number> = {
   '특급': 5000,
+  '준특급': 4000,
   '1급': 3000,
   '준1급': 2000,
   '2급': 1200,
@@ -41,6 +42,7 @@ export const BASE_SALARY: Record<LegacyGrade, number> = {
 // 등급별 레벨당 추가 연봉
 export const SALARY_PER_LEVEL: Record<LegacyGrade, number> = {
   '특급': 300,
+  '준특급': 250,
   '1급': 200,
   '준1급': 150,
   '2급': 100,
@@ -76,12 +78,13 @@ export const LIFECYCLE_TABLE: Record<LegacyGrade, {
   declineStart: number;
   retirementStart: number;
 }> = {
-  '특급':  { peakStart: 2, declineStart: 5, retirementStart: 8 },
-  '1급':   { peakStart: 3, declineStart: 6, retirementStart: 9 },
-  '준1급': { peakStart: 3, declineStart: 7, retirementStart: 10 },
-  '2급':   { peakStart: 3, declineStart: 7, retirementStart: 10 },
-  '준2급': { peakStart: 4, declineStart: 8, retirementStart: 11 },
-  '3급':   { peakStart: 4, declineStart: 8, retirementStart: 11 },
+  '특급':   { peakStart: 2, declineStart: 5, retirementStart: 8 },
+  '준특급': { peakStart: 2, declineStart: 5, retirementStart: 8 },
+  '1급':    { peakStart: 3, declineStart: 6, retirementStart: 9 },
+  '준1급':  { peakStart: 3, declineStart: 7, retirementStart: 10 },
+  '2급':    { peakStart: 3, declineStart: 7, retirementStart: 10 },
+  '준2급':  { peakStart: 4, declineStart: 8, retirementStart: 11 },
+  '3급':    { peakStart: 4, declineStart: 8, retirementStart: 11 },
 };
 
 // ========================================

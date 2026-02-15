@@ -24,6 +24,7 @@ export const TV_TOLERANCE = 0.2;
 // 등급별 기본 TV
 export const BASE_TV: Record<LegacyGrade, number> = {
   '특급': 5000,
+  '준특급': 4000,
   '1급': 3000,
   '준1급': 2000,
   '2급': 1200,

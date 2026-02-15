@@ -12,6 +12,7 @@ import type { LegacyGrade } from '../types';
 
 export const GRADE_GAUGE_BONUS: Record<LegacyGrade, number> = {
   '특급': 0.30,    // +30% (최강 = 가장 빠름)
+  '준특급': 0.25,  // +25%
   '1급': 0.20,     // +20%
   '준1급': 0.15,   // +15%
   '2급': 0.10,     // +10%
