@@ -1,5 +1,5 @@
 // ========================================
-// 2급 캐릭터 (10명)
+// 2급 캐릭터 (12명) - 기존 10명 + 신규 2명
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -116,13 +116,13 @@ export const SECOND_GRADE: CharacterCard[] = [
     imageUrl: getCharacterImage("eso", "에소", "CURSE"),
     baseStats: { atk: 15, def: 13, spd: 14, ce: 17, hp: 78 },
     growthStats: { primary: "ce", secondary: "atk" },
-    skill: { name: "극노천", description: "최대 농도 독혈 방출", effect: { type: "POISON_EXPLOSION", damage: 160, dotDamage: 40, duration: 3 } },
+    skill: { name: "독혈 극대", description: "최대 농도 독혈 방출", effect: { type: "POISON_EXPLOSION", damage: 160, dotDamage: 40, duration: 3 } },
     basicSkills: [
       { id: "eso_1", name: "비익", type: "ATTACK", description: "날개로 공격", effect: { type: "DAMAGE", value: 85 } },
       { id: "eso_2", name: "독혈 살포", type: "ATTACK", description: "독혈을 뿌림", effect: { type: "AOE_DAMAGE", value: 70 } },
       { id: "eso_3", name: "비행", type: "DEFENSE", description: "날개로 회피", effect: { type: "DODGE", chance: 40 } }
     ],
-    ultimateSkill: { id: "eso_ult", name: "극노천", description: "최대 농도 독혈 방출", effect: { type: "POISON_EXPLOSION", damage: 160, dotDamage: 40, duration: 3 }, gaugeRequired: 100 },
+    ultimateSkill: { id: "eso_ult", name: "독혈 극대 (蝕爛腐術)", description: "비익의 날개에서 최대 농도 독혈 방출", effect: { type: "POISON_EXPLOSION", damage: 160, dotDamage: 40, duration: 3 }, gaugeRequired: 100 },
     achievements: []
   },
   {
@@ -174,6 +174,43 @@ export const SECOND_GRADE: CharacterCard[] = [
       { id: "shoko_3", name: "저주력 공격", type: "ATTACK", description: "저주력으로 공격", effect: { type: "DAMAGE", value: 60 } }
     ],
     ultimateSkill: { id: "shoko_ult", name: "완전 소생", description: "치명상도 완전 회복", effect: { type: "HEAL", value: 200 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  // ========================================
+  // 신규 2급 캐릭터
+  // ========================================
+  {
+    id: "granny_ogami",
+    name: { ko: "오가미 할멈", ja: "尾神婆", en: "Granny Ogami" },
+    grade: "2급",
+    attribute: "SOUL",
+    imageUrl: getCharacterImage("granny_ogami", "오가미 할멈", "SOUL"),
+    baseStats: { atk: 10, def: 13, spd: 11, ce: 19, hp: 75 },
+    growthStats: { primary: "ce", secondary: "def" },
+    skill: { name: "완전 강신", description: "사망한 강자의 힘을 완전히 강림", effect: { type: "TRANSFORM", damage: 180, atkBonus: 60, spdBonus: 40, duration: 3 } },
+    basicSkills: [
+      { id: "ogami_1", name: "강신술 (降神術)", type: "UTILITY", description: "죽은 자의 육체 정보를 부여", effect: { type: "STAT_BOOST", atkBonus: 40 } },
+      { id: "ogami_2", name: "저주 방어", type: "DEFENSE", description: "저주의 힘으로 방어", effect: { type: "DAMAGE_REDUCE", value: 40 } },
+      { id: "ogami_3", name: "저주력 공격", type: "ATTACK", description: "순수 저주력으로 공격", effect: { type: "DAMAGE", value: 65 } }
+    ],
+    ultimateSkill: { id: "ogami_ult", name: "완전 강신 (完全降神)", description: "시부야에서 토지의 육체를 강림시킨 술식", effect: { type: "TRANSFORM", damage: 180, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "charles_bernard",
+    name: { ko: "찰스 버나드", ja: "チャールズ・バーナード", en: "Charles Bernard" },
+    grade: "2급",
+    attribute: "SOUL",
+    imageUrl: getCharacterImage("charles_bernard", "찰스 버나드", "SOUL"),
+    baseStats: { atk: 14, def: 12, spd: 16, ce: 17, hp: 75 },
+    growthStats: { primary: "ce", secondary: "spd" },
+    skill: { name: "운명의 만화", description: "미래를 완전히 그려내어 극대화", effect: { type: "STAT_BOOST", atkBonus: 40, spdBonus: 40, damage: 160 } },
+    basicSkills: [
+      { id: "charles_1", name: "미래 예지", type: "DEFENSE", description: "1동작 앞의 미래를 예측", effect: { type: "DODGE", chance: 55 } },
+      { id: "charles_2", name: "G펜 공격", type: "ATTACK", description: "G펜을 이용한 공격", effect: { type: "DAMAGE", value: 80 } },
+      { id: "charles_3", name: "만화 그리기", type: "UTILITY", description: "그림으로 미래를 시각화", effect: { type: "WEAKNESS_FIND", critRate: 30 } }
+    ],
+    ultimateSkill: { id: "charles_ult", name: "운명의 만화 (漫画)", description: "미래를 완전히 그려내어 회피와 공격 극대화", effect: { type: "STAT_BOOST", atkBonus: 40, spdBonus: 40, damage: 160 }, gaugeRequired: 100 },
     achievements: []
   }
 ];

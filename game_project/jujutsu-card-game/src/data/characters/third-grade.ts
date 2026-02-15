@@ -1,5 +1,5 @@
 // ========================================
-// 3급 캐릭터 (5명)
+// 3급 캐릭터 (4명) - 야가 마사미치 준1급 승급
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -72,23 +72,6 @@ export const THIRD_GRADE: CharacterCard[] = [
       { id: "kuroi_3", name: "회피", type: "DEFENSE", description: "회피 동작", effect: { type: "DODGE", chance: 35 } }
     ],
     ultimateSkill: { id: "kuroi_ult", name: "필사의 수호", description: "목숨을 걸고 지킨다", effect: { type: "DAMAGE", value: 120, defBonus: 60 }, gaugeRequired: 100 },
-    achievements: []
-  },
-  {
-    id: "masamichi_yaga",
-    name: { ko: "야가 마사미치", ja: "夜蛾正道", en: "Masamichi Yaga" },
-    grade: "3급",
-    attribute: "SOUL",
-    imageUrl: getCharacterImage("masamichi_yaga", "야가 마사미치", "SOUL"),
-    baseStats: { atk: 14, def: 15, spd: 11, ce: 18, hp: 82 },
-    growthStats: { primary: "ce", secondary: "def" },
-    skill: { name: "자율 인형술", description: "자아를 가진 인형 군단", effect: { type: "MULTI_SUMMON", damage: 180 } },
-    basicSkills: [
-      { id: "yaga_1", name: "저주 인형 소환", type: "ATTACK", description: "인형을 소환하여 공격", effect: { type: "SUMMON_DAMAGE", value: 85 } },
-      { id: "yaga_2", name: "인형 방어", type: "DEFENSE", description: "인형으로 방어", effect: { type: "DAMAGE_REDUCE", value: 45 } },
-      { id: "yaga_3", name: "다중 소환", type: "ATTACK", description: "여러 인형 소환", effect: { type: "MULTI_HIT", hits: 3, value: 30 } }
-    ],
-    ultimateSkill: { id: "yaga_ult", name: "자율 인형술", description: "자아를 가진 인형 군단", effect: { type: "MULTI_SUMMON", damage: 180 }, gaugeRequired: 100 },
     achievements: []
   }
 ];
