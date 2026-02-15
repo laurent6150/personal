@@ -19,6 +19,7 @@ import type { CharacterCard, AllKillState } from '../../types';
 import { AllKillIndicator } from '../Phase4/AllKillIndicator';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { useGameStore } from '../../stores/gameStore';
+import { getMatchRewardCP } from '../../stores/economyStore';
 import { useShallow } from 'zustand/shallow';
 import {
   INITIAL_ALLKILL_STATE,
@@ -560,6 +561,27 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
               </div>
             </motion.div>
           )}
+
+          {/* CP 획득 알림 */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4"
+          >
+            <h3 className="text-sm font-bold text-yellow-400 mb-2 flex items-center gap-2">
+              <span>💰</span> CP 획득
+            </h3>
+            <div className="flex items-center justify-between">
+              <span className="text-text-secondary">경기 결과 보상</span>
+              <span className="text-lg font-bold text-yellow-400">
+                +{getMatchRewardCP(isPlayerWin ? 'WIN' : 'LOSE').toLocaleString()} CP
+              </span>
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              {isPlayerWin ? '승리 보너스가 지급되었습니다!' : '참가 보상이 지급되었습니다.'}
+            </div>
+          </motion.div>
 
           {/* 버튼 */}
           <motion.div

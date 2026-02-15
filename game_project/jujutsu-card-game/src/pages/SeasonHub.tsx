@@ -16,6 +16,7 @@ import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
 import { ActivityPanel, APIndicator } from '../components/Phase5/ActivityPanel';
 import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
+import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
 import { CREW_SIZE, ATTRIBUTES } from '../data/constants';
 import { GRADE_LIMITS } from '../data/aiCrews';
@@ -678,8 +679,9 @@ export function SeasonHub({
               {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
             </p>
           </div>
-          {/* Phase 5: AP와 샐러리캡 인디케이터 */}
+          {/* Phase 5: CP, AP, 샐러리캡 인디케이터 */}
           <div className="flex items-center gap-3">
+            <CPMini />
             <APIndicator />
             <SalaryCapMini currentTotal={getTotalCrewSalary()} />
           </div>
