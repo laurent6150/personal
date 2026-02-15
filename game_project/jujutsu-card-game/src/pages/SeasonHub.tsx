@@ -18,6 +18,7 @@ import { ActivityPanel, APIndicator } from '../components/Phase5/ActivityPanel';
 import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
 import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
+import { StrategyDashboard, MiniStrategyPanel } from '../components/Strategy';
 import { CREW_SIZE, ATTRIBUTES, SALARY_CAP } from '../data/constants';
 import { BASE_SALARY } from '../utils/salarySystem';
 import { getCharacterImage } from '../utils/imageHelper';
@@ -120,6 +121,9 @@ export function SeasonHub({
 
   // 크루 상세 모달 상태
   const [viewingCrew, setViewingCrew] = useState<{ name: string; cards: CharacterCard[] } | null>(null);
+
+  // 전략 대시보드 모달 상태
+  const [showStrategyDashboard, setShowStrategyDashboard] = useState(false);
 
   // 현재 선택된 카드들의 등급별 개수
   const selectedGradeCounts = useMemo(() => {
@@ -765,14 +769,32 @@ export function SeasonHub({
                   </div>
                 </div>
 
-                <Button
-                  onClick={() => onStartMatch(opponentId)}
-                  variant="primary"
-                  size="lg"
-                  className="w-full"
-                >
-                  대전 시작
-                </Button>
+                {/* 전략 미니 패널 */}
+                <div className="mb-4">
+                  <MiniStrategyPanel
+                    playerCards={playerCrewCards}
+                    opponentCards={opponent?.crew.map(id => CHARACTERS_BY_ID[id]).filter(Boolean) as CharacterCard[]}
+                    onOpenFull={() => setShowStrategyDashboard(true)}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowStrategyDashboard(true)}
+                    variant="secondary"
+                    className="flex-1"
+                  >
+                    📊 전략
+                  </Button>
+                  <Button
+                    onClick={() => onStartMatch(opponentId)}
+                    variant="primary"
+                    size="lg"
+                    className="flex-[2]"
+                  >
+                    대전 시작
+                  </Button>
+                </div>
               </div>
             );
           })() : (
@@ -882,6 +904,7 @@ export function SeasonHub({
       >
         <div className="flex justify-center gap-3 flex-wrap">
           <Button onClick={onCrewManagement} variant="secondary">크루 관리</Button>
+          <Button onClick={() => setShowStrategyDashboard(true)} variant="secondary">📊 전략</Button>
           <Button onClick={onCollection} variant="ghost">내 크루</Button>
           <Button onClick={onCatalog} variant="ghost">술사 명부</Button>
           {onItems && <Button onClick={onItems} variant="ghost">아이템</Button>}
@@ -892,6 +915,27 @@ export function SeasonHub({
           <Button onClick={onSettings} variant="ghost">설정</Button>
         </div>
       </motion.div>
+
+      {/* 전략 대시보드 모달 */}
+      <AnimatePresence>
+        {showStrategyDashboard && (
+          <StrategyDashboard
+            playerCards={playerCrewCards}
+            opponentCards={nextMatch ? (() => {
+              const isPlayerHome = nextMatch.homeCrewId === PLAYER_CREW_ID;
+              const opponentId = isPlayerHome ? nextMatch.awayCrewId : nextMatch.homeCrewId;
+              const opponent = getAICrewById(opponentId);
+              return opponent?.crew.map(id => CHARACTERS_BY_ID[id]).filter(Boolean) as CharacterCard[] || [];
+            })() : undefined}
+            opponentName={nextMatch ? (() => {
+              const isPlayerHome = nextMatch.homeCrewId === PLAYER_CREW_ID;
+              const opponentId = isPlayerHome ? nextMatch.awayCrewId : nextMatch.homeCrewId;
+              return getAICrewById(opponentId)?.name;
+            })() : undefined}
+            onClose={() => setShowStrategyDashboard(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* 크루 카드 상세 모달 */}
       <AnimatePresence>
