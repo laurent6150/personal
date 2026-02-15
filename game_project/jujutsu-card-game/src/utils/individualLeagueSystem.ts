@@ -10,9 +10,11 @@ import type {
   LeagueGroup,
   IndividualBrackets,
   LeagueMatchFormat,
-  CharacterCard
+  CharacterCard,
+  PlayerCard
 } from '../types';
 import { CHARACTERS_BY_ID, ALL_CHARACTERS } from '../data/characters';
+import { ITEMS_BY_ID } from '../data/items';
 
 // ========================================
 // 유틸리티 함수
@@ -83,16 +85,73 @@ function getGradePriority(grade: string): number {
 // ========================================
 
 /**
+ * 플레이어 카드의 장비/레벨 보너스 스탯 계산
+ */
+function calculatePlayerCardBonus(playerCard: PlayerCard): {
+  statBonus: LeagueParticipant['statBonus'];
+  totalBonus: number;
+} {
+  const baseCard = CHARACTERS_BY_ID[playerCard.cardId];
+  if (!baseCard) return { statBonus: {}, totalBonus: 0 };
+
+  const statBonus: LeagueParticipant['statBonus'] = {};
+  let totalBonus = 0;
+
+  // 레벨업 보너스 (레벨당 주요 스탯 +2)
+  const levelBonus = (playerCard.level - 1) * 2;
+  if (levelBonus > 0) {
+    const primaryStat = baseCard.growthStats?.primary;
+    const secondaryStat = baseCard.growthStats?.secondary;
+    if (primaryStat) {
+      statBonus[primaryStat as keyof typeof statBonus] = levelBonus;
+      totalBonus += levelBonus;
+    }
+    if (secondaryStat) {
+      statBonus[secondaryStat as keyof typeof statBonus] =
+        (statBonus[secondaryStat as keyof typeof statBonus] || 0) + levelBonus;
+      totalBonus += levelBonus;
+    }
+  }
+
+  // 장비 보너스
+  for (const equipId of playerCard.equipment || []) {
+    if (equipId) {
+      const item = ITEMS_BY_ID[equipId];
+      if (item?.statBonus) {
+        for (const [stat, value] of Object.entries(item.statBonus)) {
+          if (value) {
+            const key = stat as keyof typeof statBonus;
+            statBonus[key] = (statBonus[key] || 0) + value;
+            totalBonus += value;
+          }
+        }
+      }
+    }
+  }
+
+  return { statBonus, totalBonus };
+}
+
+/**
  * 32명 참가자 생성 (등급순 선발 + 시드 시스템)
  * - 등급별 내림차순으로 강한 순 32명 선발
  * - 같은 등급 내에서는 총 스탯 합계 높은 순
  * - 시드 4명은 A, B, C, D조에 각각 배치 (시즌 2부터)
+ * - playerCards: 플레이어 크루의 카드 정보 (장비/레벨 반영용)
  */
 export function generateParticipants(
   playerCrewIds: string[],
   playerCrewName: string = '내 크루',
-  seeds: string[] = []  // 전 시즌 1~4위 (시즌 2부터)
+  seeds: string[] = [],  // 전 시즌 1~4위 (시즌 2부터)
+  playerCards?: PlayerCard[]  // 플레이어 크루 카드 정보
 ): LeagueParticipant[] {
+  // 플레이어 카드 맵 생성
+  const playerCardMap = new Map<string, PlayerCard>();
+  if (playerCards) {
+    for (const pc of playerCards) {
+      playerCardMap.set(pc.cardId, pc);
+    }
+  }
   // 모든 캐릭터를 등급순 + 스탯순으로 정렬
   const sortedCharacters = [...ALL_CHARACTERS].sort((a, b) => {
     const gradeA = getGradePriority(a.grade);
@@ -113,6 +172,9 @@ export function generateParticipants(
     const card = CHARACTERS_BY_ID[seedId];
     if (card) {
       const isPlayer = playerCrewIds.includes(seedId);
+      const playerCard = isPlayer ? playerCardMap.get(seedId) : undefined;
+      const bonus = playerCard ? calculatePlayerCardBonus(playerCard) : { statBonus: {}, totalBonus: 0 };
+
       seedParticipants.push({
         odId: card.id,
         odName: card.name.ko,
@@ -120,7 +182,11 @@ export function generateParticipants(
         crewName: isPlayer ? playerCrewName : getRandomCrewName(),
         isPlayerCrew: isPlayer,
         status: 'ACTIVE',
-        totalStats: calculateTotalStat(card),
+        totalStats: calculateTotalStat(card) + bonus.totalBonus,
+        // 플레이어 카드 장비/레벨 정보
+        equipment: playerCard?.equipment,
+        level: playerCard?.level,
+        statBonus: bonus.statBonus && Object.keys(bonus.statBonus).length > 0 ? bonus.statBonus : undefined,
       });
       seedIds.add(seedId);
     }
@@ -135,6 +201,9 @@ export function generateParticipants(
     if (seedIds.has(card.id)) continue;  // 시드는 제외
 
     const isPlayer = playerCrewIds.includes(card.id);
+    const playerCard = isPlayer ? playerCardMap.get(card.id) : undefined;
+    const bonus = playerCard ? calculatePlayerCardBonus(playerCard) : { statBonus: {}, totalBonus: 0 };
+
     participants.push({
       odId: card.id,
       odName: card.name.ko,
@@ -142,7 +211,11 @@ export function generateParticipants(
       crewName: isPlayer ? playerCrewName : getRandomCrewName(),
       isPlayerCrew: isPlayer,
       status: 'ACTIVE',
-      totalStats: calculateTotalStat(card),
+      totalStats: calculateTotalStat(card) + bonus.totalBonus,
+      // 플레이어 카드 장비/레벨 정보
+      equipment: playerCard?.equipment,
+      level: playerCard?.level,
+      statBonus: bonus.statBonus && Object.keys(bonus.statBonus).length > 0 ? bonus.statBonus : undefined,
     });
   }
 

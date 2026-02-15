@@ -45,6 +45,7 @@ import {
 } from '../utils/individualLeagueSystem';
 import { useCardRecordStore } from './cardRecordStore';
 import { useSeasonStore } from './seasonStore';
+import { usePlayerStore } from './playerStore';
 import type { IndividualSeasonRecord } from '../types';
 import {
   simulateMatch as simulateBattle,
@@ -140,8 +141,14 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           // 간단히 현재 hallOfFame만 사용 (추후 확장 가능)
         }
 
-        // 참가자 생성 (32명, 등급순 선발 + 시드)
-        const participants = generateParticipants(playerCrewIds, playerCrewName, seeds);
+        // 플레이어 카드 정보 가져오기 (장비/레벨 반영용)
+        const playerStoreState = usePlayerStore.getState();
+        const playerCards = playerCrewIds
+          .map(cardId => playerStoreState.player.ownedCards[cardId])
+          .filter((pc): pc is import('../types').PlayerCard => pc !== undefined);
+
+        // 참가자 생성 (32명, 등급순 선발 + 시드 + 장비/레벨 반영)
+        const participants = generateParticipants(playerCrewIds, playerCrewName, seeds, playerCards);
 
         // 대진표 생성
         const brackets = generateInitialBrackets(participants);

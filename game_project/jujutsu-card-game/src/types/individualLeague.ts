@@ -151,6 +151,19 @@ export interface Participant {
   isPlayerCrew: boolean;
   totalStats: number;
   attribute?: string;
+  // Phase 5: 아이템 장착 능력치 반영용
+  equipment?: (string | null)[];  // 장착 아이템 ID 배열
+  level?: number;                  // 카드 레벨
+  statBonus?: {                    // 레벨업 + 장비로 인한 추가 스탯
+    atk?: number;
+    def?: number;
+    spd?: number;
+    hp?: number;
+    ce?: number;
+    crt?: number;
+    tec?: number;
+    mnt?: number;
+  };
 }
 
 // 배틀 턴 (시뮬레이터용 - HP 기반)

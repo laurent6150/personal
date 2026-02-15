@@ -38,15 +38,18 @@ export function applyArenaEffect(
 ): BattleStats {
   const character = getCharacterById(participant.odId);
 
+  // 기본 스탯 + 장비/레벨 보너스 적용
+  const statBonus = participant.statBonus || {};
+
   const baseStats = {
-    atk: character?.baseStats?.atk || 50,
-    def: character?.baseStats?.def || 50,
-    spd: character?.baseStats?.spd || 50,
-    ce: character?.baseStats?.ce || 50,
-    hp: character?.baseStats?.hp || 50,
-    crt: (character?.baseStats as { crt?: number })?.crt || 50,
-    tec: (character?.baseStats as { tec?: number })?.tec || 50,
-    mnt: (character?.baseStats as { mnt?: number })?.mnt || 50,
+    atk: (character?.baseStats?.atk || 50) + (statBonus.atk || 0),
+    def: (character?.baseStats?.def || 50) + (statBonus.def || 0),
+    spd: (character?.baseStats?.spd || 50) + (statBonus.spd || 0),
+    ce: (character?.baseStats?.ce || 50) + (statBonus.ce || 0),
+    hp: (character?.baseStats?.hp || 50) + (statBonus.hp || 0),
+    crt: ((character?.baseStats as { crt?: number })?.crt || 50) + (statBonus.crt || 0),
+    tec: ((character?.baseStats as { tec?: number })?.tec || 50) + (statBonus.tec || 0),
+    mnt: ((character?.baseStats as { mnt?: number })?.mnt || 50) + (statBonus.mnt || 0),
     total: participant.totalStats || calculateTotalStats(character!),
   };
 

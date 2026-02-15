@@ -1054,6 +1054,19 @@ export interface LeagueParticipant {
   dominantWins?: number;  // 압승 횟수 (HP 70% 이상 남기고 승리)
   totalStats?: number;    // 총 스탯
   groupId?: string;       // 32강 소속 조 ID ('A' ~ 'H')
+  // Phase 5: 아이템/레벨 반영용
+  equipment?: (string | null)[];  // 장착 아이템 ID 배열
+  level?: number;                  // 카드 레벨
+  statBonus?: {                    // 레벨업 + 장비로 인한 추가 스탯
+    atk?: number;
+    def?: number;
+    spd?: number;
+    hp?: number;
+    ce?: number;
+    crt?: number;
+    tec?: number;
+    mnt?: number;
+  };
 }
 
 // 개인 리그 매치

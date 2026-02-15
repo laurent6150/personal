@@ -4,7 +4,7 @@
 // 경기장 효과 및 추천도 표시
 // ========================================
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { Button } from '../UI/Button';
@@ -16,8 +16,9 @@ import {
   getRecommendedCardsForArena
 } from '../../utils/banPickSystem';
 import { analyzeArenaEffects } from '../../utils/arenaEffectAnalyzer';
+import { recommendOptimalPlacement, type PlacementRecommendation } from '../../utils/strategyAdvisor';
 import { SelectedCardPanel } from './SelectedCardPanel';
-import type { Arena, CardAssignment, ArenaEffect } from '../../types';
+import type { Arena, CardAssignment, ArenaEffect, PlayerCard } from '../../types';
 
 // 배치 필요 경기 수 (4경기, 5경기는 에이스 결정전)
 const REQUIRED_ASSIGNMENTS = 4;
@@ -53,6 +54,21 @@ export function CardPlacementScreen({
 
   // 배치 완료 여부 (4개 모두 배치)
   const isComplete = assignments.slice(0, REQUIRED_ASSIGNMENTS).every(a => a !== null);
+
+  // 전략 추천 (strategyAdvisor 사용)
+  const [showStrategyTips, setShowStrategyTips] = useState(true);
+  const strategyRecommendations = useMemo(() => {
+    // PlayerCard 형태로 변환 (기본 레벨 1, 장비 없음)
+    const playerCards: PlayerCard[] = playerCrew.map(cardId => ({
+      cardId,
+      level: 1,
+      exp: 0,
+      totalExp: 0,
+      equipment: [null, null],
+      condition: 'STABLE' as const
+    }));
+    return recommendOptimalPlacement(playerCards, arenas.slice(0, REQUIRED_ASSIGNMENTS));
+  }, [playerCrew, arenas]);
 
   // 슬롯 클릭 핸들러
   const handleSlotClick = (index: number) => {
@@ -395,6 +411,46 @@ export function CardPlacementScreen({
           )}
         </div>
       </div>
+
+      {/* 전략 추천 패널 */}
+      {showStrategyTips && strategyRecommendations.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-4">
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-bold text-purple-400 flex items-center gap-2">
+                <span>💡</span> AI 전략 추천
+              </div>
+              <button
+                onClick={() => setShowStrategyTips(false)}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                닫기 ×
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {strategyRecommendations.map((rec) => (
+                <div key={rec.arenaId} className="bg-black/30 rounded-lg p-2">
+                  <div className="text-xs text-gray-400 truncate">{rec.arenaName}</div>
+                  <div className="text-sm text-white font-bold truncate">
+                    → {rec.recommendedCardName}
+                  </div>
+                  <div className="text-xs text-purple-400">
+                    적합도: {rec.score.toFixed(0)}점
+                  </div>
+                  {rec.reasons.length > 0 && (
+                    <div className="text-[10px] text-gray-500 mt-1 truncate" title={rec.reasons.join(', ')}>
+                      {rec.reasons[0]}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 text-xs text-gray-400 text-center">
+              추천을 참고하여 자신만의 전략을 세워보세요!
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 안내 문구 */}
       <div className="max-w-6xl mx-auto mb-4">

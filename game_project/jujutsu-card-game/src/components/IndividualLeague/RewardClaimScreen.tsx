@@ -31,9 +31,22 @@ interface RewardCardData {
   statIncrease?: number;
 }
 
+// AP 보상 정보
+interface APRewardInfo {
+  wins: number;
+  losses: number;
+  draws: number;
+  winAP: number;
+  loseAP: number;
+  drawAP: number;
+  totalAP: number;
+}
+
 interface RewardClaimScreenProps {
   season: number;
   myCardRewards: RewardCardData[];
+  apReward?: APRewardInfo;
+  cpReward?: number;
   onConfirm: () => void;
 }
 
@@ -267,7 +280,7 @@ function RewardCard({ card, index }: { card: RewardCardData; index: number }) {
   );
 }
 
-export function RewardClaimScreen({ season, myCardRewards, onConfirm }: RewardClaimScreenProps) {
+export function RewardClaimScreen({ season, myCardRewards, apReward, cpReward, onConfirm }: RewardClaimScreenProps) {
   // showConfetti used for future confetti animation feature
   const [, setShowConfetti] = useState(false);
 
@@ -321,6 +334,34 @@ export function RewardClaimScreen({ season, myCardRewards, onConfirm }: RewardCl
             {levelUpCount > 0 && <span className="text-yellow-400">| {levelUpCount}장 레벨업!</span>}
             {totalStatIncrease > 0 && <span className="text-blue-400">| 총 +{totalStatIncrease} 스탯</span>}
           </div>
+
+          {/* AP & CP 보상 표시 */}
+          {(apReward || cpReward) && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-4 flex justify-center gap-4"
+            >
+              {apReward && (
+                <div className="bg-orange-500/20 border border-orange-500/40 rounded-lg px-4 py-2">
+                  <div className="text-xs text-orange-300 mb-1">활동 포인트</div>
+                  <div className="text-lg font-bold text-orange-400">+{apReward.totalAP} AP</div>
+                  <div className="text-[10px] text-text-secondary mt-1">
+                    승리 {apReward.wins}회 (+{apReward.winAP}) |
+                    패배 {apReward.losses}회 (+{apReward.loseAP})
+                    {apReward.draws > 0 && ` | 무승부 ${apReward.draws}회 (+${apReward.drawAP})`}
+                  </div>
+                </div>
+              )}
+              {cpReward !== undefined && cpReward > 0 && (
+                <div className="bg-blue-500/20 border border-blue-500/40 rounded-lg px-4 py-2">
+                  <div className="text-xs text-blue-300 mb-1">크루 포인트</div>
+                  <div className="text-lg font-bold text-blue-400">+{cpReward} CP</div>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
 
         {/* 보상 카드 그리드 */}
