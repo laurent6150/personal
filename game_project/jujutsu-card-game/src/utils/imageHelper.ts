@@ -1,13 +1,13 @@
 // ========================================
-// 캐릭터 이미지 헬퍼 - 52명 캐릭터 지원
+// 캐릭터 이미지 헬퍼 - 71명 캐릭터 지원
 // ========================================
 
 import { ATTRIBUTES } from '../data/constants';
 import type { Attribute } from '../types';
 
-// 로컬 캐릭터 이미지 경로 매핑 (53명)
+// 로컬 캐릭터 이미지 경로 매핑 (71명)
 export const CHARACTER_IMAGES: Record<string, string> = {
-  // ===== 특급 (8명) =====
+  // ===== 특급 (13명) =====
   gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
   geto_suguru: '/images/characters/Suguru_Geto (Original).jpg',
   yuta_okkotsu: '/images/characters/Yuta_Okkotsu.jpg',
@@ -16,9 +16,13 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   tengen: '/images/characters/tengen.jpg',
   ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
   fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
-  itadori_yuji_final: '/images/characters/Yuji_Itadori (Final).jpg',
+  itadori_yuji_final: '/images/characters/itadori_yuji_final.jpg',
+  mahoraga: '/images/characters/Mahura.jpg',
+  rika_full: '/images/characters/Rika (Full Manifestation).jpg',
+  tamamo_no_mae: '/images/characters/Tamamo_no_Mae.jpg',
+  dabura: '/images/characters/Dabura.jpg',
 
-  // ===== 1급 (16명) =====
+  // ===== 1급 (23명) =====
   itadori_yuji: '/images/characters/Yuji_Itadori.jpg',
   maki_zenin_awakened: '/images/characters/Maki_Zenin (Awakened).jpg',
   nanami_kento: '/images/characters/Kento_Nanami.jpg',
@@ -35,8 +39,15 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   todo_aoi: '/images/characters/Aoi_Todo.jpg',
   uraume: '/images/characters/Uraume.jpg',
   yorozu: '/images/characters/Yorozu.jpg',
+  dagon: '/images/characters/Dagon.jpg',
+  mechamaru: '/images/characters/Mechamaru.jpg',
+  miguel: '/images/characters/Miguel.jpg',
+  smallpox_deity: '/images/characters/Smallpox_Deity.jpg',
+  kurourushi: '/images/characters/Kurourushi.jpg',
+  bansho: '/images/characters/Bansho.jpg',
+  tsurugi_okkotsu: '/images/characters/Tsurugi_Okkotsu.jpg',
 
-  // ===== 준1급 (13명) =====
+  // ===== 준1급 (18명) =====
   fushiguro_megumi: '/images/characters/Megumi_Fushiguro.jpg',
   mahito: '/images/characters/Mahito.jpg',
   mei_mei: '/images/characters/Mei_Mei.jpg',
@@ -50,8 +61,13 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   noritoshi_kamo: '/images/characters/Noritoshi_Kamo.jpg',
   iori_hazenoki: '/images/characters/Iori_Hazenoki.jpg',
   kusakabe_atsuya: '/images/characters/Atsuya_Kusakabe.jpg',
+  ui_ui: '/images/characters/Ui_Ui.jpg',
+  yuka_okkotsu: '/images/characters/Yuka_Okkotsu.jpg',
+  cross: '/images/characters/Cross.jpg',
+  marulu: '/images/characters/Marulu.jpg',
+  usami: '/images/characters/Usami.jpg',
 
-  // ===== 2급 (10명) =====
+  // ===== 2급 (12명) =====
   kugisaki_nobara: '/images/characters/Nobara_Kugisaki.jpg',
   panda: '/images/characters/Panda.jpg',
   ino_takuma: '/images/characters/Takuma_Ino.jpg',
@@ -62,6 +78,8 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   kechizu: '/images/characters/kechizu.jpg',
   utahime_iori: '/images/characters/Utahime_Iori.jpg',
   shoko_ieiri: '/images/characters/Shoko_Ieiri.jpg',
+  granny_ogami: '/images/characters/Granny_Ogami.jpg',
+  charles_bernard: '/images/characters/Charles_Bernard.jpg',
 
   // ===== 3급 (5명 - 에소&케치즈 듀오 제거됨) =====
   yu_haibara: '/images/characters/Yu_Haibara.jpg',
