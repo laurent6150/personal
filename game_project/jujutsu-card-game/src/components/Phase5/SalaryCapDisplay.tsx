@@ -1,10 +1,12 @@
 // ========================================
 // 샐러리캡 표시 컴포넌트 (Phase 5)
 // 크루 총 연봉 및 캡 상태 표시
+// Phase 5.3: 소프트캡 페널티 정보 추가
 // ========================================
 
 import React from 'react';
-import { SALARY_CAP, SOFT_SALARY_CAP } from '../../data/constants';
+import { SALARY_CAP, SOFT_SALARY_CAP, SOFT_CAP_REWARD_PENALTY } from '../../data/constants';
+import { calculateLuxuryTax } from '../../stores/economyStore';
 
 interface SalaryCapDisplayProps {
   currentTotal: number;      // 현재 총 연봉
@@ -99,7 +101,7 @@ export const SalaryCapDisplay: React.FC<SalaryCapDisplayProps> = ({
       {showDetails && (
         <div className="mt-3 pt-3 border-t border-gray-700 space-y-1 text-xs text-gray-400">
           <div className="flex justify-between">
-            <span>소프트 캡 (경고)</span>
+            <span>소프트 캡</span>
             <span>{SOFT_SALARY_CAP.toLocaleString()} CP</span>
           </div>
           <div className="flex justify-between">
@@ -110,6 +112,17 @@ export const SalaryCapDisplay: React.FC<SalaryCapDisplayProps> = ({
             <span>사용률</span>
             <span>{percentage.toFixed(1)}%</span>
           </div>
+
+          {/* Phase 5.3: 소프트캡 페널티 정보 */}
+          {isNearCap && !isOverCap && (
+            <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/40 rounded text-yellow-400">
+              <div className="font-medium mb-1">⚠️ 소프트캡 초과 페널티</div>
+              <div className="text-xs space-y-0.5">
+                <div>• 경기 보상 -{Math.round(SOFT_CAP_REWARD_PENALTY * 100)}% 감소</div>
+                <div>• 럭셔리 택스: {calculateLuxuryTax(currentTotal).toLocaleString()} CP/시즌</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

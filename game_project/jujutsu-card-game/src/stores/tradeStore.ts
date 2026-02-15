@@ -26,14 +26,15 @@ import type {
 } from '../types';
 import { GRADE_POINTS } from '../types';
 
-// 기본 등급 제한
+// 기본 등급 제한 - DEPRECATED: Phase 5.3에서 CP 샐러리캡으로 대체
+// 레거시 호환을 위해 유지하지만, 실제 제한은 샐러리캡으로 적용됨
 const BASE_GRADE_LIMITS: Record<LegacyGrade, number> = {
-  '특급': 1,
-  '1급': 2,
-  '준1급': 5,
-  '2급': 5,
-  '준2급': 5,
-  '3급': 5
+  '특급': 8,  // CP 샐러리캡으로 자연스럽게 제한됨
+  '1급': 8,   // CP 샐러리캡으로 자연스럽게 제한됨
+  '준1급': 8,
+  '2급': 8,
+  '준2급': 8,
+  '3급': 8
 };
 
 // ========================================
@@ -176,11 +177,12 @@ interface TradeStore {
 }
 
 // AI가 트레이드를 평가하는 로직
+// Phase 5.3: 등급 제한 제거 → CP 가치 기반 평가
 function evaluateTradeForAI(
   offeredCardId: string,
   requestedCardId: string,
-  targetCrew: string[],
-  targetGradeLimits: Record<LegacyGrade, number>
+  _targetCrew: string[],  // 레거시 호환용 (미사용)
+  _targetGradeLimits: Record<LegacyGrade, number>  // 레거시 호환용 (미사용)
 ): TradeEvaluation {
   const offeredCard = CHARACTERS_BY_ID[offeredCardId];
   const requestedCard = CHARACTERS_BY_ID[requestedCardId];
@@ -189,72 +191,49 @@ function evaluateTradeForAI(
     return { shouldAccept: false, reason: 'NOT_INTERESTED', pointDifference: 0 };
   }
 
-  const offeredPoints = GRADE_POINTS[offeredCard.grade];
-  const requestedPoints = GRADE_POINTS[requestedCard.grade];
-  const pointDiff = offeredPoints - requestedPoints;
+  // Phase 5.3: CP 가치 기반 평가 (등급 포인트 대신)
+  const offeredValue = getCardCPValue(offeredCardId);
+  const requestedValue = getCardCPValue(requestedCardId);
+  const valueDiff = offeredValue - requestedValue;
+  const valueDiffPercent = Math.abs(valueDiff) / Math.max(requestedValue, 1) * 100;
 
-  // 포인트 차이가 ±1 초과면 거절
-  if (Math.abs(pointDiff) > 1) {
+  // CP 가치 차이가 30% 초과면 거절
+  if (valueDiffPercent > 30) {
     return {
       shouldAccept: false,
       reason: 'POINT_DIFF_TOO_HIGH',
-      pointDifference: pointDiff
+      pointDifference: valueDiff
     };
   }
 
-  // 받을 카드로 등급 제한 확인
-  const targetCrewCards = targetCrew.filter(id => id !== requestedCardId);
-  const newCrewCards = [...targetCrewCards, offeredCardId];
-
-  // 등급별 카운트
-  const gradeCounts: Record<LegacyGrade, number> = {
-    '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0
-  };
-
-  for (const cardId of newCrewCards) {
-    const card = CHARACTERS_BY_ID[cardId];
-    if (card) gradeCounts[card.grade as LegacyGrade]++;
-  }
-
-  // 등급 제한 확인
-  for (const grade of Object.keys(gradeCounts) as LegacyGrade[]) {
-    if (gradeCounts[grade] > targetGradeLimits[grade]) {
-      return {
-        shouldAccept: false,
-        reason: 'GRADE_LIMIT',
-        pointDifference: pointDiff
-      };
-    }
-  }
-
-  // 특급이나 1급 카드를 내주는 것은 거절 확률 높음
+  // 고가치 카드(특급/1급)를 내주는 것은 거절 확률 높음
   if (requestedCard.grade === '특급') {
-    // 특급은 80% 확률로 거절
-    if (Math.random() < 0.8) {
+    // 특급은 70% 확률로 거절 (완화)
+    if (Math.random() < 0.7) {
       return {
         shouldAccept: false,
         reason: 'NEED_THIS_CARD',
-        pointDifference: pointDiff
+        pointDifference: valueDiff
       };
     }
   } else if (requestedCard.grade === '1급') {
-    // 1급은 50% 확률로 거절
-    if (Math.random() < 0.5) {
+    // 1급은 40% 확률로 거절 (완화)
+    if (Math.random() < 0.4) {
       return {
         shouldAccept: false,
         reason: 'NEED_THIS_CARD',
-        pointDifference: pointDiff
+        pointDifference: valueDiff
       };
     }
   }
 
-  // 받는 포인트가 더 높으면 좋은 거래
-  if (pointDiff > 0) {
-    return { shouldAccept: true, reason: 'GOOD_DEAL', pointDifference: pointDiff };
+  // 받는 가치가 더 높으면 좋은 거래
+  if (valueDiff > 0) {
+    return { shouldAccept: true, reason: 'GOOD_DEAL', pointDifference: valueDiff };
   }
 
   // 동등하면 공정한 거래
-  return { shouldAccept: true, reason: 'FAIR_TRADE', pointDifference: pointDiff };
+  return { shouldAccept: true, reason: 'FAIR_TRADE', pointDifference: valueDiff };
 }
 
 export const useTradeStore = create<TradeStore>()(
@@ -559,7 +538,6 @@ export const useTradeStore = create<TradeStore>()(
           targetCrewId,
           proposerPackage,
           targetPackage,
-          targetCrew,
           cardSeasonsMap
         } = params;
 
@@ -578,35 +556,7 @@ export const useTradeStore = create<TradeStore>()(
         // 가치 밸런스 검증 (20% 허용)
         const balanceResult = validateTradeValue(proposerValue, targetValue, 20);
 
-        // AI 평가 (기존 로직 + CP 가치 기반)
-        const gradeLimits = get().getGradeLimits();
-
-        // 등급 제한 확인 (받을 카드들 기준)
-        const targetCrewCards = targetCrew.crew.filter(id => !targetPackage.cards.includes(id));
-        const newCrewCards = [...targetCrewCards, ...proposerPackage.cards];
-
-        const gradeCounts: Record<LegacyGrade, number> = {
-          '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0
-        };
-
-        for (const cardId of newCrewCards) {
-          const card = CHARACTERS_BY_ID[cardId];
-          if (card) gradeCounts[card.grade as LegacyGrade]++;
-        }
-
-        for (const grade of Object.keys(gradeCounts) as LegacyGrade[]) {
-          if (gradeCounts[grade] > gradeLimits[grade]) {
-            return {
-              success: false,
-              evaluation: {
-                shouldAccept: false,
-                reason: 'GRADE_LIMIT',
-                pointDifference: targetValue - proposerValue
-              },
-              error: `등급 제한 초과: ${grade}`
-            };
-          }
-        }
+        // Phase 5.3: 등급 제한 검증 제거 → CP 가치 기반만 사용
 
         // 가치 불균형 시 거절
         if (!balanceResult.valid) {
@@ -621,10 +571,10 @@ export const useTradeStore = create<TradeStore>()(
           };
         }
 
-        // 특급/1급 카드 보호 로직
+        // 특급/1급 카드 보호 로직 (완화된 확률)
         for (const cardId of targetPackage.cards) {
           const card = CHARACTERS_BY_ID[cardId];
-          if (card?.grade === '특급' && Math.random() < 0.8) {
+          if (card?.grade === '특급' && Math.random() < 0.7) {  // 80% → 70%
             return {
               success: false,
               evaluation: {
@@ -634,7 +584,7 @@ export const useTradeStore = create<TradeStore>()(
               }
             };
           }
-          if (card?.grade === '1급' && Math.random() < 0.5) {
+          if (card?.grade === '1급' && Math.random() < 0.4) {  // 50% → 40%
             return {
               success: false,
               evaluation: {

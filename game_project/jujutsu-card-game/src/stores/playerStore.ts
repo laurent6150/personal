@@ -148,22 +148,17 @@ export const usePlayerStore = create<PlayerState>()(
         if (crew.length !== CREW_SIZE) return false;
 
         // 모든 카드가 소유 중인지 확인
-        const { player } = get();
+        const { player, getCardSalary } = get();
         for (const cardId of crew) {
           if (!player.ownedCards[cardId]) return false;
         }
 
-        // 등급 제한 체크
-        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
-        for (const cardId of crew) {
-          const char = CHARACTERS_BY_ID[cardId];
-          if (char) {
-            gradeCounts[char.grade]++;
-          }
+        // Phase 5.3: 샐러리캡 검증 (등급 제한 제거)
+        const totalSalary = crew.reduce((sum, cardId) => sum + getCardSalary(cardId), 0);
+        if (totalSalary > SALARY_CAP) {
+          console.warn(`[playerStore] 샐러리캡 초과로 크루 설정 불가: ${totalSalary} > ${SALARY_CAP}`);
+          return false;
         }
-
-        if (gradeCounts['특급'] > 1) return false; // 특급은 1장까지
-        if (gradeCounts['1급'] > 2) return false; // 1급은 2장까지
 
         set({
           player: {
@@ -250,17 +245,7 @@ export const usePlayerStore = create<PlayerState>()(
         const char = CHARACTERS_BY_ID[newCardId];
         if (!char) return false;
 
-        // 등급 제한 체크
-        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
-        for (const cardId of tempCrew) {
-          const c = CHARACTERS_BY_ID[cardId];
-          if (c) gradeCounts[c.grade]++;
-        }
-        gradeCounts[char.grade]++;
-
-        if (gradeCounts['특급'] > 1 || gradeCounts['1급'] > 2) return false;
-
-        // 샐러리캡 검증
+        // Phase 5.3: 샐러리캡 검증 (등급 제한 제거)
         const currentSalaries = tempCrew.map(id => getCardSalary(id));
         const addingSalary = getCardSalary(newCardId);
         const salaryValidation = validateCrewSalary(currentSalaries, addingSalary);
@@ -510,7 +495,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       canAddToCrew: (cardId: string) => {
-        const { player, isCardOwned, isCardInCrew } = get();
+        const { player, isCardOwned, isCardInCrew, getCardSalary } = get();
 
         // 소유 확인
         if (!isCardOwned(cardId)) return false;
@@ -521,18 +506,16 @@ export const usePlayerStore = create<PlayerState>()(
         // 크루가 가득 찼는지 확인
         if (player.currentCrew.length >= CREW_SIZE) return false;
 
-        // 등급 제한 체크
+        // 캐릭터 존재 확인
         const char = CHARACTERS_BY_ID[cardId];
         if (!char) return false;
 
-        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
-        for (const crewCardId of player.currentCrew) {
-          const c = CHARACTERS_BY_ID[crewCardId];
-          if (c) gradeCounts[c.grade]++;
-        }
+        // Phase 5.3: 샐러리캡 검증 (등급 제한 제거)
+        const currentSalaries = player.currentCrew.map(id => getCardSalary(id));
+        const addingSalary = getCardSalary(cardId);
+        const salaryValidation = validateCrewSalary(currentSalaries, addingSalary);
 
-        if (char.grade === '특급' && gradeCounts['특급'] >= 1) return false;
-        if (char.grade === '1급' && gradeCounts['1급'] >= 2) return false;
+        if (!salaryValidation.valid) return false;
 
         return true;
       },
@@ -790,31 +773,25 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       // 크루 검증 및 정리 (앱 시작 시 호출)
+      // Phase 5.3: 등급 제한 제거 → 샐러리캡 기반 검증
       validateAndFixCrew: () => {
-        const { player } = get();
+        const { player, getCardSalary } = get();
         const currentCrew = player.currentCrew;
         const ownedCardCount = Object.keys(player.ownedCards).length;
         const removedCards: string[] = [];
 
-        // 크루와 ownedCards가 동기화되어 있고 등급 제한도 맞으면 수정 불필요
+        // 크루와 ownedCards가 동기화되어 있고 샐러리캡도 맞으면 수정 불필요
         const needsOwnedCardsSync = ownedCardCount !== currentCrew.length;
+        const totalSalary = currentCrew.reduce((sum, cardId) => sum + getCardSalary(cardId), 0);
 
-        if (!needsOwnedCardsSync && currentCrew.length <= CREW_SIZE) {
-          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
-          for (const cardId of currentCrew) {
-            const char = CHARACTERS_BY_ID[cardId];
-            if (char?.grade === '특급') gradeCounts['특급']++;
-            if (char?.grade === '1급') gradeCounts['1급']++;
-          }
-          if (gradeCounts['특급'] <= 1 && gradeCounts['1급'] <= 2) {
-            return { fixed: false, removedCards: [] };
-          }
+        if (!needsOwnedCardsSync && currentCrew.length <= CREW_SIZE && totalSalary <= SALARY_CAP) {
+          return { fixed: false, removedCards: [] };
         }
 
         // 크루 정리 필요
-        console.log(`[validateAndFixCrew] 정리 시작: currentCrew=${currentCrew.length}장, ownedCards=${ownedCardCount}장`);
+        console.log(`[validateAndFixCrew] 정리 시작: currentCrew=${currentCrew.length}장, ownedCards=${ownedCardCount}장, 총연봉=${totalSalary}`);
         const validatedCrew: string[] = [];
-        const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
+        let currentSalary = 0;
 
         for (const cardId of currentCrew) {
           if (validatedCrew.length >= CREW_SIZE) {
@@ -828,20 +805,16 @@ export const usePlayerStore = create<PlayerState>()(
             continue;
           }
 
-          if (char.grade === '특급' && gradeCounts['특급'] >= 1) {
-            console.log(`[validateAndFixCrew] 특급 제한 초과로 제외: ${cardId}`);
-            removedCards.push(cardId);
-            continue;
-          }
-          if (char.grade === '1급' && gradeCounts['1급'] >= 2) {
-            console.log(`[validateAndFixCrew] 1급 제한 초과로 제외: ${cardId}`);
+          // Phase 5.3: 샐러리캡 검증
+          const cardSalary = getCardSalary(cardId);
+          if (currentSalary + cardSalary > SALARY_CAP) {
+            console.log(`[validateAndFixCrew] 샐러리캡 초과로 제외: ${cardId} (연봉: ${cardSalary})`);
             removedCards.push(cardId);
             continue;
           }
 
           validatedCrew.push(cardId);
-          if (char.grade === '특급') gradeCounts['특급']++;
-          if (char.grade === '1급') gradeCounts['1급']++;
+          currentSalary += cardSalary;
         }
 
         // ownedCards를 validatedCrew에 맞게 정리 (크루에 있는 카드만 유지)
@@ -854,7 +827,7 @@ export const usePlayerStore = create<PlayerState>()(
           }
         }
 
-        console.log(`[validateAndFixCrew] 정리 완료: currentCrew=${validatedCrew.length}장, ownedCards=${Object.keys(newOwnedCards).length}장`);
+        console.log(`[validateAndFixCrew] 정리 완료: currentCrew=${validatedCrew.length}장, ownedCards=${Object.keys(newOwnedCards).length}장, 총연봉=${currentSalary}`);
 
         set({
           player: {
@@ -874,9 +847,9 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'jujutsu-card-game-player',
-      version: 6, // Phase 5.2: 등급 제한 통일 - 크루 6장, 1급 2장 제한
+      version: 7, // Phase 5.3: 등급 제한 제거 → CP 샐러리캡 기반으로 전환
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Player Store] 마이그레이션:', version, '->', 6);
+        console.log('[Player Store] 마이그레이션:', version, '->', 7);
         const state = persistedState as PlayerState;
 
         // 버전 4 이하: 새로운 카드 소유 시스템으로 마이그레이션
@@ -912,58 +885,11 @@ export const usePlayerStore = create<PlayerState>()(
           };
         }
 
-        // 버전 5 이하: 크루 크기 및 등급 제한 정리
-        if (version < 6) {
-          console.log('[Player Store] 크루 크기 및 등급 제한 정리');
-          const currentCrew = state.player?.currentCrew || [];
-          const ownedCards = state.player?.ownedCards || {};
-
-          // 등급 제한에 맞게 크루 정리
-          const validatedCrew: string[] = [];
-          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
-
-          for (const cardId of currentCrew) {
-            // 이미 6장이면 중단
-            if (validatedCrew.length >= CREW_SIZE) break;
-
-            const char = CHARACTERS_BY_ID[cardId];
-            if (!char) continue;
-
-            // 등급 제한 체크
-            if (char.grade === '특급' && gradeCounts['특급'] >= 1) {
-              console.log(`[Player Store] 특급 제한 초과로 제외: ${cardId}`);
-              continue;
-            }
-            if (char.grade === '1급' && gradeCounts['1급'] >= 2) {
-              console.log(`[Player Store] 1급 제한 초과로 제외: ${cardId}`);
-              continue;
-            }
-
-            validatedCrew.push(cardId);
-            if (char.grade === '특급') gradeCounts['특급']++;
-            if (char.grade === '1급') gradeCounts['1급']++;
-          }
-
-          // ownedCards도 validatedCrew에 맞게 정리
-          const newOwnedCards: Record<string, PlayerCard> = {};
-          for (const cardId of validatedCrew) {
-            if (ownedCards[cardId]) {
-              newOwnedCards[cardId] = ownedCards[cardId];
-            } else {
-              newOwnedCards[cardId] = createPlayerCard(cardId);
-            }
-          }
-
-          console.log(`[Player Store] 크루 정리 완료: ${currentCrew.length}장 → ${validatedCrew.length}장`);
-
-          return {
-            ...state,
-            player: {
-              ...state.player,
-              ownedCards: newOwnedCards,
-              currentCrew: validatedCrew
-            }
-          };
+        // 버전 5~6: 기존 등급 제한 데이터 유지 (샐러리캡으로 자연스럽게 제한됨)
+        // Phase 5.3에서는 등급 제한이 없으므로 기존 크루 유지
+        if (version < 7 && version >= 5) {
+          console.log('[Player Store] Phase 5.3 마이그레이션: 등급 제한 제거 (기존 크루 유지)');
+          // 기존 크루는 그대로 유지 (샐러리캡은 런타임에 검증됨)
         }
 
         return persistedState as PlayerState;

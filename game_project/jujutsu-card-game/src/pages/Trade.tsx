@@ -32,13 +32,11 @@ export function Trade({ onBack }: TradeProps) {
   const {
     proposeTrade,
     forceTrade,
-    getGradeLimits,
     getCardPoint,
     getTradeHistory
   } = useTradeStore(useShallow(state => ({
     proposeTrade: state.proposeTrade,
     forceTrade: state.forceTrade,
-    getGradeLimits: state.getGradeLimits,
     getCardPoint: state.getCardPoint,
     getTradeHistory: state.getTradeHistory
   })));
@@ -51,8 +49,6 @@ export function Trade({ onBack }: TradeProps) {
     success: boolean;
     message: string;
   } | null>(null);
-
-  const gradeLimits = useMemo(() => getGradeLimits(), [getGradeLimits]);
 
   // 플레이어 크루 카드 정보
   const playerCards = useMemo(() => {
@@ -156,19 +152,19 @@ export function Trade({ onBack }: TradeProps) {
         </div>
       </div>
 
-      {/* 등급 제한 정보 */}
+      {/* Phase 5.3: 트레이드 안내 (등급 제한 제거) */}
       <div className="max-w-5xl mx-auto mb-6">
         <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-sm text-text-secondary mb-2">등급 제한</h3>
+          <h3 className="text-sm text-text-secondary mb-2">트레이드 규칙</h3>
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="px-2 py-1 rounded bg-grade-s/20 text-grade-s">
-              특급: {gradeLimits['특급']}
-            </span>
-            <span className="px-2 py-1 rounded bg-grade-a/20 text-grade-a">
-              1급: {gradeLimits['1급']}
+            <span className="px-2 py-1 rounded bg-accent/20 text-accent">
+              CP 가치 ±20% 이내
             </span>
             <span className="px-2 py-1 rounded bg-white/10 text-text-secondary">
-              준1급↓: 제한 없음
+              샐러리캡 준수 필요
+            </span>
+            <span className="px-2 py-1 rounded bg-white/10 text-text-secondary">
+              카드 + CP 복합 거래 가능
             </span>
           </div>
         </div>
