@@ -18,7 +18,8 @@ import { ActivityPanel, APIndicator } from '../components/Phase5/ActivityPanel';
 import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
 import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
-import { CREW_SIZE, ATTRIBUTES, SALARY_CAP, CARD_BASE_VALUE } from '../data/constants';
+import { CREW_SIZE, ATTRIBUTES, SALARY_CAP } from '../data/constants';
+import { BASE_SALARY } from '../utils/salarySystem';
 import { getCharacterImage } from '../utils/imageHelper';
 import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
 
@@ -138,7 +139,7 @@ export function SeasonHub({
       const char = CHARACTERS_BY_ID[cardId];
       if (!char) return sum;
       // 초기 선택이므로 레벨 1 기준 기본 연봉
-      return sum + (CARD_BASE_VALUE[char.grade as LegacyGrade] || 0);
+      return sum + (BASE_SALARY[char.grade as LegacyGrade] || 0);
     }, 0);
   }, [selectedCards]);
 
@@ -155,7 +156,7 @@ export function SeasonHub({
     if (!char) return { canSelect: false, reason: '카드를 찾을 수 없음' };
 
     // Phase 5.3: 샐러리캡 검증
-    const cardSalary = CARD_BASE_VALUE[char.grade as LegacyGrade] || 0;
+    const cardSalary = BASE_SALARY[char.grade as LegacyGrade] || 0;
     if (selectedTotalSalary + cardSalary > SALARY_CAP) {
       return {
         canSelect: false,
