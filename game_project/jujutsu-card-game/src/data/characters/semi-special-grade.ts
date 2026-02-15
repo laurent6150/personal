@@ -13,7 +13,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("geto_suguru", "게토 스구루", "CURSE"),
-    baseStats: { atk: 20, def: 18, spd: 18, ce: 22, hp: 95 },
+    baseStats: { atk: 19, def: 18, spd: 18, ce: 22, hp: 93 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "우즈마키", description: "모든 저주령을 하나로 합쳐 극대화", effect: { type: "DAMAGE", value: 280 } },
     basicSkills: [
@@ -48,7 +48,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "BODY",
     imageUrl: getCharacterImage("fushiguro_toji", "후시구로 토우지", "BODY"),
-    baseStats: { atk: 24, def: 15, spd: 23, ce: 0, hp: 90, crt: 25, tec: 20, mnt: 10 },
+    baseStats: { atk: 25, def: 16, spd: 24, ce: 0, hp: 92, crt: 26, tec: 20, mnt: 10 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천역봉인", description: "모든 술식을 강제 해제", effect: { type: "SKILL_NULLIFY", damage: 200 } },
     basicSkills: [
