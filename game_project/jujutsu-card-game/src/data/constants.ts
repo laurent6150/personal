@@ -231,8 +231,11 @@ export const CAREER_PHASE_VALUE_MULTIPLIER: Record<string, number> = {
 // Phase 5: 활동 시스템 상수
 // ========================================
 
-// 경기당 활동 포인트 획득
-export const AP_PER_MATCH = 2;
+// 경기당 활동 포인트 획득 (승패별 차등 지급)
+export const AP_PER_MATCH = 2;        // 기본값 (레거시 호환)
+export const AP_WIN = 3;              // 승리 시
+export const AP_LOSE = 1;             // 패배 시
+export const AP_DRAW = 2;             // 무승부 시
 
 // 전환기 활동 포인트 보너스
 export const AP_HALF_TRANSITION_BONUS = 5;
