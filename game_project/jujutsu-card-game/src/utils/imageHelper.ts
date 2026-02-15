@@ -5,7 +5,7 @@
 import { ATTRIBUTES } from '../data/constants';
 import type { Attribute } from '../types';
 
-// 로컬 캐릭터 이미지 경로 매핑 (52명)
+// 로컬 캐릭터 이미지 경로 매핑 (53명)
 export const CHARACTER_IMAGES: Record<string, string> = {
   // ===== 특급 (8명) =====
   gojo_satoru: '/images/characters/Satoru_Gojo.jpg',
@@ -16,6 +16,7 @@ export const CHARACTER_IMAGES: Record<string, string> = {
   tengen: '/images/characters/tengen.jpg',
   ryomen_sukuna: '/images/characters/Ryomen_Sukuna.jpg',
   fushiguro_toji: '/images/characters/Toji_Fushiguro.jpg',
+  itadori_yuji_final: '/images/characters/Yuji_Itadori (Final).jpg',
 
   // ===== 1급 (16명) =====
   itadori_yuji: '/images/characters/Yuji_Itadori.jpg',

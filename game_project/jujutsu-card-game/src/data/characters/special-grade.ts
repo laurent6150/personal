@@ -1,5 +1,5 @@
 // ========================================
-// 특급 캐릭터 (12명)
+// 특급 캐릭터 (13명)
 // ========================================
 
 import type { CharacterCard } from '../../types';
@@ -211,6 +211,23 @@ export const SPECIAL_GRADE: CharacterCard[] = [
       { id: "dabura_3", name: "주력 강화", type: "DEFENSE", description: "시무리아 고유의 주력으로 방어", effect: { type: "DAMAGE_REDUCE", value: 50 } }
     ],
     ultimateSkill: { id: "dabura_ult", name: "궁극 살의 (殺意具現)", description: "살의를 극한까지 실체화, 모듈로 최강", effect: { type: "DAMAGE", value: 300 }, gaugeRequired: 100 },
+    achievements: []
+  },
+  {
+    id: "itadori_yuji_final",
+    name: { ko: "이타도리 유지 (최종전)", ja: "虎杖悠仁 (最終戦)", en: "Itadori Yuji (Final Battle)" },
+    grade: "특급",
+    attribute: "SOUL",
+    imageUrl: getCharacterImage("itadori_yuji_final", "이타도리 유지 (최종전)", "SOUL"),
+    baseStats: { atk: 23, def: 16, spd: 23, ce: 21, hp: 95 },
+    growthStats: { primary: "spd", secondary: "atk" },
+    skill: { name: "영혼의 일격", description: "영혼에 직접 도달하는 주먹, 스쿠나를 꺾은 최후의 일격", effect: { type: "TRUE_DAMAGE", value: 250, ignoreDefense: true } },
+    basicSkills: [
+      { id: "yuji_final_1", name: "해 (解)", type: "ATTACK", description: "스쿠나에게서 이어받은 참격 술식", effect: { type: "DAMAGE", value: 135, ignoreBarrier: true } },
+      { id: "yuji_final_2", name: "흑섬 연쇄", type: "ATTACK", description: "연속으로 흑섬을 발동하는 극한의 집중", effect: { type: "MULTI_HIT", hits: 3, value: 50 } },
+      { id: "yuji_final_3", name: "반전술식", type: "UTILITY", description: "저주력을 역전시켜 부상을 회복", effect: { type: "HEAL", value: 60 } }
+    ],
+    ultimateSkill: { id: "yuji_final_ult", name: "영혼의 일격 (魂打)", description: "영혼에 직접 도달하는 일격, 스쿠나를 꺾은 최후의 주먹", effect: { type: "TRUE_DAMAGE", value: 250, ignoreDefense: true }, gaugeRequired: 100 },
     achievements: []
   }
 ];
