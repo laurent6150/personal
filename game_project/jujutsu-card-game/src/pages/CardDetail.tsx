@@ -571,7 +571,16 @@ function InfoTab({
           {/* RadarChart로 8스탯 시각화 (한글 라벨 + 총합 + 장비 보너스) */}
           <div className="flex justify-center mb-6">
             <RadarChart
-              stats={character.baseStats}
+              stats={{
+                atk: character.baseStats.atk + (equipmentBonus.atk || 0),
+                def: character.baseStats.def + (equipmentBonus.def || 0),
+                spd: character.baseStats.spd + (equipmentBonus.spd || 0),
+                ce: character.baseStats.ce + (equipmentBonus.ce || 0),
+                hp: character.baseStats.hp + (equipmentBonus.hp || 0),
+                crt: ((character.baseStats as { crt?: number }).crt ?? 0) + (equipmentBonus.crt || 0),
+                tec: ((character.baseStats as { tec?: number }).tec ?? 0) + (equipmentBonus.tec || 0),
+                mnt: ((character.baseStats as { mnt?: number }).mnt ?? 0) + (equipmentBonus.mnt || 0),
+              }}
               size="lg"
               showLabels={true}
               showValues={true}

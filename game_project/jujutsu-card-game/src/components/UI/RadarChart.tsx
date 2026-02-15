@@ -206,29 +206,29 @@ export function RadarChart({
             y={centerY - (size === 'sm' ? 3 : size === 'md' ? 5 : 7)}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#fff"
-            fontSize={size === 'sm' ? 14 : size === 'md' ? 20 : 26}
-            fontWeight="bold"
             className="drop-shadow-lg"
           >
-            {total}
-          </text>
-          {bonusTotal > 0 && (
-            <text
-              x={centerX}
-              y={centerY + (size === 'sm' ? 6 : size === 'md' ? 10 : 14)}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#4ADE80"
-              fontSize={size === 'sm' ? 8 : size === 'md' ? 11 : 14}
+            <tspan
+              fill="#fff"
+              fontSize={size === 'sm' ? 14 : size === 'md' ? 20 : 26}
               fontWeight="bold"
             >
-              (+{bonusTotal})
-            </text>
-          )}
+              {total}
+            </tspan>
+            {bonusTotal > 0 && (
+              <tspan
+                fill="#4ADE80"
+                fontSize={size === 'sm' ? 9 : size === 'md' ? 12 : 15}
+                fontWeight="bold"
+                dx={size === 'sm' ? 2 : size === 'md' ? 3 : 4}
+              >
+                (+{bonusTotal})
+              </tspan>
+            )}
+          </text>
           <text
             x={centerX}
-            y={centerY + (size === 'sm' ? (bonusTotal > 0 ? 14 : 8) : size === 'md' ? (bonusTotal > 0 ? 22 : 12) : (bonusTotal > 0 ? 30 : 16))}
+            y={centerY + (size === 'sm' ? 8 : size === 'md' ? 12 : 16)}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#aaa"
