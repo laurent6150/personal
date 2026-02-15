@@ -38,9 +38,9 @@ export function AttributeBadge({ attribute, showLabel = true, size = 'md' }: Att
   const attrInfo = ATTRIBUTES[attribute];
 
   const sizes = {
-    sm: showLabel ? 'text-[10px] px-1.5 py-0.5 gap-0.5' : 'text-sm px-1.5 py-0.5 gap-0.5',
-    md: showLabel ? 'text-xs px-2 py-0.5 gap-1' : 'text-base px-2 py-0.5 gap-1',
-    lg: showLabel ? 'text-sm px-3 py-1 gap-1' : 'text-lg px-3 py-1 gap-1'
+    sm: showLabel ? 'text-xs px-1.5 py-0.5 gap-0.5' : 'text-sm px-1.5 py-0.5 gap-0.5',
+    md: showLabel ? 'text-sm px-2 py-0.5 gap-1' : 'text-base px-2 py-0.5 gap-1',
+    lg: showLabel ? 'text-base px-3 py-1 gap-1' : 'text-lg px-3 py-1 gap-1'
   };
 
   return (
