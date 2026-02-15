@@ -271,24 +271,25 @@ export function MatchPreviewModal({
     return getHeadToHeadRecord(match.participant1, match.participant2);
   }, [getHeadToHeadRecord, match.participant1, match.participant2]);
 
-  // 8스탯 가져오기 (마이그레이션된 경우 대비)
-  const getFullStats = (card: typeof card1): Stats => {
+  // 8스탯 가져오기 (아이템/레벨 보너스 포함)
+  const getFullStats = (card: typeof card1, participant?: typeof p1): Stats => {
     if (!card) return { atk: 0, def: 0, spd: 0, hp: 0, ce: 0, crt: 0, tec: 0, mnt: 0 };
     const stats = card.baseStats;
+    const bonus = participant?.statBonus || {};
     return {
-      atk: stats.atk || 0,
-      def: stats.def || 0,
-      spd: stats.spd || 0,
-      hp: stats.hp || 0,
-      ce: stats.ce || 0,
-      crt: (stats as Stats).crt || 50,
-      tec: (stats as Stats).tec || 50,
-      mnt: (stats as Stats).mnt || 50,
+      atk: (stats.atk || 0) + (bonus.atk || 0),
+      def: (stats.def || 0) + (bonus.def || 0),
+      spd: (stats.spd || 0) + (bonus.spd || 0),
+      hp: (stats.hp || 0) + (bonus.hp || 0),
+      ce: (stats.ce || 0) + (bonus.ce || 0),
+      crt: ((stats as Stats).crt || 50) + (bonus.crt || 0),
+      tec: ((stats as Stats).tec || 50) + (bonus.tec || 0),
+      mnt: ((stats as Stats).mnt || 50) + (bonus.mnt || 0),
     };
   };
 
-  const stats1 = getFullStats(card1);
-  const stats2 = getFullStats(card2);
+  const stats1 = getFullStats(card1, p1);
+  const stats2 = getFullStats(card2, p2);
 
   return (
     <motion.div
