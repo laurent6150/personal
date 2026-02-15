@@ -42,10 +42,10 @@ export const SPECIAL_GRADE: CharacterCard[] = [
   },
   {
     id: "yuta_okkotsu",
-    name: { ko: "오코츠 유타", ja: "乙骨憂太", en: "Yuta Okkotsu" },
+    name: { ko: "옷코츠 유타", ja: "乙骨憂太", en: "Yuta Okkotsu" },
     grade: "특급",
     attribute: "CURSE",
-    imageUrl: getCharacterImage("yuta_okkotsu", "오코츠 유타", "CURSE"),
+    imageUrl: getCharacterImage("yuta_okkotsu", "옷코츠 유타", "CURSE"),
     baseStats: { atk: 21, def: 18, spd: 20, ce: 26, hp: 95 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "진안상애", description: "사랑과 저주가 뒤엉킨 영역전개", effect: { type: "DOMAIN", damage: 260, ceBonus: 50 } },
