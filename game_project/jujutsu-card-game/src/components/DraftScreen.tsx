@@ -87,13 +87,13 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
       .filter(Boolean) as CharacterCard[];
   }, [crewDraftResults]);
 
-  // 드래프트 시작 (마운트 시 1회)
+  // 드래프트 시작 (마운트 시 1회, persist된 이전 상태와 무관하게 항상 새로 시작)
   useEffect(() => {
-    if (!draftStartedRef.current && !isDraftInProgress) {
+    if (!draftStartedRef.current) {
       draftStartedRef.current = true;
       startDraft(seasonNumber, standings, rounds);
     }
-  }, [isDraftInProgress, seasonNumber, standings, startDraft, rounds]);
+  }, [seasonNumber, standings, startDraft, rounds]);
 
   // AI 턴 자동 처리
   // aiPickingRef로 재진입 방지 (state인 aiPickingAnimation을 deps에 넣으면
@@ -468,7 +468,10 @@ function DraftCard({ cardId, character, isSelected, isSelectable, onClick }: Dra
         )}
       </div>
       <div className="h-1/3 p-1.5 bg-black/60 flex flex-col justify-center">
-        <GradeBadge grade={character.grade as LegacyGrade} size="sm" />
+        <div className="flex items-center justify-center gap-0.5">
+          <GradeBadge grade={character.grade as LegacyGrade} size="sm" />
+          <span className="text-[10px]" title={attrInfo.name}>{attrInfo.icon}</span>
+        </div>
         <div className="text-[10px] font-bold mt-0.5 truncate text-center">
           {character.name.ko}
         </div>

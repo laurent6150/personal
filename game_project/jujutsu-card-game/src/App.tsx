@@ -124,13 +124,12 @@ function App() {
     const draftState = useDraftStore.getState();
     const crewResults = draftState.crewDraftResults;
 
-    // 플레이어 크루 설정
+    // 플레이어 크루 설정 (이전 시즌 카드 정리 후 드래프트 결과만 적용)
     const playerCards = crewResults[PLAYER_CREW_ID] || [];
     const pStore = usePlayerStore.getState();
+    pStore.resetForDraft();
     for (const cardId of playerCards) {
-      if (!pStore.isCardOwned(cardId)) {
-        pStore.addOwnedCard(cardId);
-      }
+      pStore.addOwnedCard(cardId);
     }
     pStore.setCurrentCrew(playerCards);
 

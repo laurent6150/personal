@@ -109,6 +109,7 @@ interface PlayerState {
   addOwnedCard: (cardId: string) => boolean;
   releaseCard: (cardId: string) => boolean;
   getOwnedCardIds: () => string[];
+  resetForDraft: () => void;
 
   // 헬퍼
   getPlayerCard: (cardId: string) => PlayerCard | undefined;
@@ -588,6 +589,19 @@ export const usePlayerStore = create<PlayerState>()(
       // 소유 카드 ID 목록 조회
       getOwnedCardIds: () => {
         return Object.keys(get().player.ownedCards);
+      },
+
+      // 드래프트 시작 전 보유 카드 초기화 (이전 시즌 카드 제거)
+      resetForDraft: () => {
+        const { player } = get();
+        console.log(`[Player] 드래프트 초기화: 기존 ${Object.keys(player.ownedCards).length}장 제거`);
+        set({
+          player: {
+            ...player,
+            ownedCards: {},
+            currentCrew: [],
+          }
+        });
       },
 
       // ========================================
