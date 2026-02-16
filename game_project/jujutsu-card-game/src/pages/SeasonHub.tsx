@@ -9,8 +9,7 @@ import { useShallow } from 'zustand/shallow';
 import { useSeasonStore } from '../stores/seasonStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { PLAYER_CREW_ID } from '../data/aiCrews';
-import { ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
-import { CardDisplay } from '../components/Card/CardDisplay';
+import { CHARACTERS_BY_ID } from '../data/characters';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
 import { NewsFeed } from '../components/NewsFeed';
@@ -19,10 +18,9 @@ import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
 import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
 import { StrategyDashboard, MiniStrategyPanel } from '../components/Strategy';
-import { ROSTER_SIZE, ATTRIBUTES, SALARY_CAP, REGULAR_SEASON_GAMES } from '../data/constants';
-import { BASE_SALARY } from '../utils/salarySystem';
+import { ATTRIBUTES, REGULAR_SEASON_GAMES } from '../data/constants';
 import { getCharacterImage } from '../utils/imageHelper';
-import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
+import type { LeagueStanding, CharacterCard, PlayerCard } from '../types';
 
 interface SeasonHubProps {
   onStartMatch: (opponentCrewId: string) => void;
@@ -58,7 +56,6 @@ export function SeasonHub({
     playerCrew,
     currentSeason,
     seasonHistory,
-    initializeGame,
     startNewSeason,
     getNextMatch,
     getCurrentStandings,
@@ -79,7 +76,6 @@ export function SeasonHub({
     playerCrew: state.playerCrew,
     currentSeason: state.currentSeason,
     seasonHistory: state.seasonHistory,
-    initializeGame: state.initializeGame,
     startNewSeason: state.startNewSeason,
     getNextMatch: state.getNextMatch,
     getCurrentStandings: state.getCurrentStandings,
@@ -115,8 +111,6 @@ export function SeasonHub({
       .filter((card): card is PlayerCard => card !== undefined);
   }, [playerCrew, getPlayerCard]);
 
-  // 크루 선택 상태
-  const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // 크루 상세 모달 상태
@@ -125,80 +119,11 @@ export function SeasonHub({
   // 전략 대시보드 모달 상태
   const [showStrategyDashboard, setShowStrategyDashboard] = useState(false);
 
-  // 현재 선택된 카드들의 등급별 개수
-  const selectedGradeCounts = useMemo(() => {
-    const counts: Record<LegacyGrade, number> = { '특급': 0, '준특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
-    for (const cardId of selectedCards) {
-      const char = CHARACTERS_BY_ID[cardId];
-      if (char) {
-        counts[char.grade as LegacyGrade]++;
-      }
+  // 게임 시작 → 드래프트로 이동
+  const handleGoToDraft = () => {
+    if (onDraft) {
+      onDraft();
     }
-    return counts;
-  }, [selectedCards]);
-
-  // 선택된 카드들의 총 연봉 계산
-  const selectedTotalSalary = useMemo(() => {
-    return selectedCards.reduce((sum, cardId) => {
-      const char = CHARACTERS_BY_ID[cardId];
-      if (!char) return sum;
-      // 초기 선택이므로 레벨 1 기준 기본 연봉
-      return sum + (BASE_SALARY[char.grade as LegacyGrade] || 0);
-    }, 0);
-  }, [selectedCards]);
-
-  // 특정 카드를 선택할 수 있는지 확인 (Phase 5.3: 샐러리캡 기반)
-  const canSelectCard = (cardId: string): { canSelect: boolean; reason?: string } => {
-    if (selectedCards.includes(cardId)) {
-      return { canSelect: true }; // 이미 선택된 카드는 해제 가능
-    }
-    if (selectedCards.length >= ROSTER_SIZE) {
-      return { canSelect: false, reason: `${ROSTER_SIZE}장 선택 완료` };
-    }
-
-    const char = CHARACTERS_BY_ID[cardId];
-    if (!char) return { canSelect: false, reason: '카드를 찾을 수 없음' };
-
-    // Phase 5.3: 샐러리캡 검증
-    const cardSalary = BASE_SALARY[char.grade as LegacyGrade] || 0;
-    if (selectedTotalSalary + cardSalary > SALARY_CAP) {
-      return {
-        canSelect: false,
-        reason: `샐러리캡 초과 (${(selectedTotalSalary + cardSalary).toLocaleString()} > ${SALARY_CAP.toLocaleString()} CP)`
-      };
-    }
-
-    return { canSelect: true };
-  };
-
-  // 카드 선택 토글
-  const toggleCardSelection = (cardId: string) => {
-    if (selectedCards.includes(cardId)) {
-      setSelectedCards(prev => prev.filter(id => id !== cardId));
-    } else {
-      const { canSelect } = canSelectCard(cardId);
-      if (canSelect) {
-        setSelectedCards(prev => [...prev, cardId]);
-      }
-    }
-  };
-
-  // 게임 시작 (크루 선택 완료)
-  const handleStartGame = () => {
-    if (selectedCards.length !== ROSTER_SIZE) return;
-
-    // 선택한 카드들 중 아직 소유하지 않은 카드를 ownedCards에 추가
-    const playerStore = usePlayerStore.getState();
-    for (const cardId of selectedCards) {
-      if (!playerStore.isCardOwned(cardId)) {
-        playerStore.addOwnedCard(cardId);
-      }
-    }
-
-    // playerStore 크루도 동기화
-    playerStore.setCurrentCrew(selectedCards);
-    initializeGame(selectedCards);
-    startNewSeason();
   };
 
   // 크루 클릭 - 크루 카드 모달 표시
@@ -226,7 +151,6 @@ export function SeasonHub({
     // playerStore도 함께 리셋 (ownedCards, currentCrew 초기화)
     usePlayerStore.getState().resetPlayer();
     resetGame();
-    setSelectedCards([]);
     setShowResetConfirm(false);
   };
 
@@ -239,120 +163,35 @@ export function SeasonHub({
   };
 
   // ================================
-  // 1. 첫 게임 - 크루 선택 화면
+  // 1. 첫 게임 - 드래프트로 이동
   // ================================
   if (!isInitialized) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8" style={bgStyle}>
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8" style={bgStyle}>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-6"
+          className="text-center mb-8"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-accent mb-2">영역전개</h1>
-          <p className="text-text-secondary">주술회전 카드 배틀 리그</p>
+          <h1 className="text-5xl md:text-6xl font-bold text-accent mb-3">영역전개</h1>
+          <p className="text-lg text-text-secondary">주술회전 카드 배틀 리그</p>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
-          className="w-full max-w-5xl"
+          className="bg-bg-card rounded-xl p-8 max-w-md w-full text-center border border-white/10"
         >
-          <div className="bg-bg-card rounded-xl p-6 border border-white/10 mb-6">
-            <h2 className="text-xl font-bold text-text-primary mb-2">크루 선택</h2>
-            <p className="text-text-secondary mb-2">
-              시즌에서 사용할 {ROSTER_SIZE}장의 카드를 선택하세요. ({selectedCards.length}/{ROSTER_SIZE})
-            </p>
-
-            {/* Phase 5.3: 샐러리캡 안내 */}
-            <div className="flex flex-wrap gap-2 mb-4 text-xs">
-              <span className={`px-2 py-1 rounded border ${
-                selectedTotalSalary > SALARY_CAP
-                  ? 'bg-lose/20 text-lose border-lose/30'
-                  : 'bg-accent/20 text-accent border-accent/30'
-              }`}>
-                총 연봉: {selectedTotalSalary.toLocaleString()} / {SALARY_CAP.toLocaleString()} CP
-              </span>
-              <span className="px-2 py-1 rounded bg-white/10 text-text-secondary border border-white/20">
-                등급별: 특급 {selectedGradeCounts['특급'] || 0}명, 준특급 {selectedGradeCounts['준특급'] || 0}명, 1급 {selectedGradeCounts['1급'] || 0}명
-              </span>
-            </div>
-
-            {/* 선택된 카드 미리보기 */}
-            <div className="flex gap-2 mb-6 p-3 bg-black/20 rounded-lg overflow-x-auto">
-              {selectedCards.map((cardId) => {
-                const char = CHARACTERS_BY_ID[cardId];
-                return char ? (
-                  <motion.div
-                    key={cardId}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="cursor-pointer flex-shrink-0"
-                    onClick={() => toggleCardSelection(cardId)}
-                  >
-                    <CardDisplay character={char} size="xs" isSelected statsDisplayMode="gradeTotal" showSkill={false} />
-                  </motion.div>
-                ) : null;
-              })}
-              {Array.from({ length: ROSTER_SIZE - selectedCards.length }).map((_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  className="w-28 h-auto min-h-[140px] rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
-                >
-                  <span className="text-text-secondary text-xs">?</span>
-                </div>
-              ))}
-            </div>
-
-            {/* 전체 카드 목록 */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 max-h-[500px] overflow-y-auto p-2">
-              {ALL_CHARACTERS.map(char => {
-                const isSelected = selectedCards.includes(char.id);
-                const { canSelect, reason } = canSelectCard(char.id);
-                const isDisabled = !canSelect && !isSelected;
-
-                return (
-                  <motion.div
-                    key={char.id}
-                    whileHover={!isDisabled ? { scale: 1.02 } : undefined}
-                    whileTap={!isDisabled ? { scale: 0.98 } : undefined}
-                    className={`relative cursor-pointer transition-all ${
-                      isSelected ? 'ring-2 ring-accent ring-offset-1 ring-offset-bg-primary' : ''
-                    } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    onClick={() => !isDisabled && toggleCardSelection(char.id)}
-                    title={reason}
-                  >
-                    <CardDisplay
-                      character={char}
-                      size="xs"
-                      isSelected={isSelected}
-                      statsDisplayMode="gradeTotal"
-                      showSkill={false}
-                    />
-                    {isDisabled && reason && (
-                      <div className="absolute inset-0 flex items-end justify-center pb-1 bg-black/30">
-                        <span className="text-[9px] bg-black/80 px-1 rounded text-red-400">
-                          {reason.includes('샐러리캡') ? '연봉초과' : reason}
-                        </span>
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex justify-center gap-4">
-            <Button
-              onClick={handleStartGame}
-              disabled={selectedCards.length !== ROSTER_SIZE}
-              variant="primary"
-              size="lg"
-            >
-              시즌 1 시작! ({selectedCards.length}/{ROSTER_SIZE})
-            </Button>
-          </div>
+          <div className="text-6xl mb-4">🎯</div>
+          <h2 className="text-2xl font-bold text-text-primary mb-2">스네이크 드래프트</h2>
+          <p className="text-text-secondary mb-6 text-sm">
+            10팀이 스네이크 드래프트로 각 6장의 카드를 선택합니다.<br />
+            총 71장 중 60장이 배분되고, 11장은 비계약 카드로 남습니다.
+          </p>
+          <Button onClick={handleGoToDraft} variant="primary" size="lg" className="w-full">
+            시즌 1 드래프트 시작
+          </Button>
         </motion.div>
       </div>
     );
@@ -404,8 +243,8 @@ export function SeasonHub({
             </div>
           )}
 
-          <Button onClick={startNewSeason} variant="primary" size="lg" className="w-full mb-3">
-            시즌 시작하기
+          <Button onClick={handleGoToDraft} variant="primary" size="lg" className="w-full mb-3">
+            시즌 드래프트 시작
           </Button>
 
           <Button
@@ -534,8 +373,8 @@ export function SeasonHub({
               )}
             </>
           ) : (
-            <Button onClick={startNewSeason} variant="primary" size="lg" className="w-full mb-3">
-              다음 시즌 시작
+            <Button onClick={handleGoToDraft} variant="primary" size="lg" className="w-full mb-3">
+              다음 시즌 드래프트
             </Button>
           )}
 

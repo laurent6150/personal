@@ -72,7 +72,7 @@ interface SeasonState {
 
   // 액션
   initializeGame: (playerCrew: string[]) => void;
-  startNewSeason: () => void;
+  startNewSeason: (draftCrews?: AICrew[]) => void;
   playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => void;
   getNextMatch: () => LeagueMatch | null;
   getCurrentStandings: () => LeagueStanding[];
@@ -347,8 +347,9 @@ export const useSeasonStore = create<SeasonState>()(
         });
       },
 
-      // 시즌 시작 (첫 시즌 또는 다음 시즌)
-      startNewSeason: () => {
+      // 시즌 시작 (드래프트 결과 기반)
+      // draftCrews: 드래프트로 결정된 AI 크루 배열 (없으면 자동 생성 - 레거시 호환)
+      startNewSeason: (draftCrews?: AICrew[]) => {
         const { isInitialized, seasonHistory, teamLeagueCompleted, individualLeagueCompleted } = get();
 
         if (!isInitialized) {
@@ -356,21 +357,23 @@ export const useSeasonStore = create<SeasonState>()(
           return;
         }
 
-        // 시즌 2 이상부터: 이전 시즌의 양쪽 리그가 finalizeSeason으로 정산된 후에만 시작 가능
-        // finalizeSeason()이 completed 플래그를 false로 리셋하므로,
-        // 아직 true인 상태 = finalizeSeason 미호출 = 다음 시즌 시작 불가
-        // 단, 첫 시즌(seasonHistory.length === 0)은 체크 불필요
+        // 시즌 2 이상부터: finalizeSeason 후에만 시작 가능
         if (seasonHistory.length > 0 && (teamLeagueCompleted || individualLeagueCompleted)) {
           console.warn('[startNewSeason] 이전 시즌의 finalizeSeason이 완료되지 않았습니다');
           return;
         }
 
-        // Phase 5.1: 플레이어 소유 카드 조회 (크루간 카드 중복 방지)
-        const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
-        console.log(`[Season] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
-
-        // AI 크루 랜덤 재배정 (플레이어 소유 카드 제외하여 중복 방지)
-        const aiCrews = generateAICrewsForSeason(playerOwnedCards);
+        let aiCrews: AICrew[];
+        if (draftCrews && draftCrews.length > 0) {
+          // 드래프트 결과로 크루 구성
+          aiCrews = draftCrews;
+          console.log(`[Season] 드래프트 크루 사용: ${aiCrews.length}팀`);
+        } else {
+          // 레거시 호환: 자동 생성
+          const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
+          aiCrews = generateAICrewsForSeason(playerOwnedCards);
+          console.log(`[Season] 자동 생성 크루 사용: ${aiCrews.length}팀`);
+        }
         setAICrews(aiCrews);
 
         const newSeasonNumber = seasonHistory.length + 1;
@@ -389,7 +392,7 @@ export const useSeasonStore = create<SeasonState>()(
         set({
           currentSeason: newSeason,
           currentAICrews: aiCrews,
-          seasonStartLevels: {} // TODO: playerStore에서 레벨 스냅샷
+          seasonStartLevels: {}
         });
       },
 

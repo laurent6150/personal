@@ -1,9 +1,9 @@
 // ========================================
-// 드래프트 화면 (Phase 5D → 스네이크 드래프트)
-// 멀티 라운드 스네이크 드래프트 지원
+// 드래프트 화면 - 스네이크 드래프트
+// 10팀 × 6라운드 = 60픽, 나머지 비계약(FA)
 // ========================================
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useDraftStore } from '../stores/draftStore';
@@ -19,10 +19,10 @@ interface DraftScreenProps {
   onComplete: () => void;
   standings: Array<{ crewId: string; points: number; goalDifference: number }>;
   seasonNumber: number;
-  rounds?: number;  // 스네이크 드래프트 라운드 수 (기본 1)
+  rounds?: number;
 }
 
-export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }: DraftScreenProps) {
+export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }: DraftScreenProps) {
   const {
     draftPool,
     isDraftInProgress,
@@ -30,10 +30,10 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
     draftOrder,
     draftRounds,
     teamsPerRound,
+    crewDraftResults,
     startDraft,
     makePlayerPick,
     makeAIPick,
-    finishDraft,
   } = useDraftStore(useShallow(state => ({
     draftPool: state.draftPool,
     isDraftInProgress: state.isDraftInProgress,
@@ -41,16 +41,18 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
     draftOrder: state.draftOrder,
     draftRounds: state.draftRounds,
     teamsPerRound: state.teamsPerRound,
+    crewDraftResults: state.crewDraftResults,
     startDraft: state.startDraft,
     makePlayerPick: state.makePlayerPick,
     makeAIPick: state.makeAIPick,
-    finishDraft: state.finishDraft,
   })));
 
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [aiPickingAnimation, setAiPickingAnimation] = useState(false);
   const [lastPickedCard, setLastPickedCard] = useState<{ crewId: string; cardId: string } | null>(null);
   const [draftComplete, setDraftComplete] = useState(false);
+  const [fastMode, setFastMode] = useState(false);
+  const draftStartedRef = useRef(false);
 
   // 현재 픽하는 크루
   const currentCrewId = draftOrder[currentPickIndex] || null;
@@ -61,7 +63,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
   const isReverseRound = currentRound % 2 === 0;
   const pickInRound = teamsPerRound > 0 ? (currentPickIndex % teamsPerRound) + 1 : currentPickIndex + 1;
 
-  // 드래프트 풀 카드 정보
+  // 드래프트 풀 카드 정보 (등급순 정렬)
   const poolCards = useMemo(() => {
     return draftPool
       .map(poolCard => ({
@@ -77,12 +79,20 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
       });
   }, [draftPool]);
 
-  // 드래프트 시작
+  // 내 크루 카드 (드래프트 중 실시간 표시)
+  const myDraftedCards = useMemo(() => {
+    return (crewDraftResults[PLAYER_CREW_ID] || [])
+      .map(id => CHARACTERS_BY_ID[id])
+      .filter(Boolean) as CharacterCard[];
+  }, [crewDraftResults]);
+
+  // 드래프트 시작 (마운트 시 1회)
   useEffect(() => {
-    if (!isDraftInProgress && draftPool.length > 0) {
+    if (!draftStartedRef.current && !isDraftInProgress) {
+      draftStartedRef.current = true;
       startDraft(seasonNumber, standings, rounds);
     }
-  }, [isDraftInProgress, draftPool.length, seasonNumber, standings, startDraft, rounds]);
+  }, [isDraftInProgress, seasonNumber, standings, startDraft, rounds]);
 
   // AI 턴 자동 처리
   useEffect(() => {
@@ -93,16 +103,17 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
     }
 
     setAiPickingAnimation(true);
+    const delay = fastMode ? 150 : 500;
     const timer = setTimeout(() => {
       const pickedCardId = makeAIPick(currentCrewId!);
       if (pickedCardId) {
         setLastPickedCard({ crewId: currentCrewId!, cardId: pickedCardId });
       }
       setAiPickingAnimation(false);
-    }, draftRounds > 1 ? 800 : 1500); // 멀티라운드는 더 빠르게
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, aiPickingAnimation, draftComplete, makeAIPick, draftRounds]);
+  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, aiPickingAnimation, draftComplete, makeAIPick, fastMode]);
 
   // 드래프트 완료 체크
   useEffect(() => {
@@ -121,9 +132,8 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
 
   // 드래프트 종료
   const handleFinishDraft = useCallback(() => {
-    finishDraft();
     onComplete();
-  }, [finishDraft, onComplete]);
+  }, [onComplete]);
 
   // 크루 이름 가져오기
   const getCrewName = (crewId: string) => {
@@ -143,38 +153,76 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
       {/* 헤더 */}
       <div className="max-w-6xl mx-auto mb-4">
         <div className="bg-black/60 rounded-xl p-4 backdrop-blur-sm border border-accent/30">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-2xl font-bold text-accent">
-              🎯 시즌 {seasonNumber} {draftRounds > 1 ? '스네이크 ' : ''}드래프트
+              🎯 시즌 {seasonNumber} 스네이크 드래프트
             </h1>
-            <div className="flex items-center gap-4 text-sm">
-              {draftRounds > 1 && (
-                <span className="px-3 py-1 bg-accent/20 text-accent rounded-full border border-accent/30">
-                  라운드 {currentRound}/{draftRounds}
-                  {isReverseRound ? ' ↩️' : ' ➡️'}
-                </span>
-              )}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="px-3 py-1 bg-accent/20 text-accent rounded-full border border-accent/30">
+                라운드 {Math.min(currentRound, draftRounds)}/{draftRounds}
+                {isReverseRound ? ' ↩️' : ' ➡️'}
+              </span>
               <span className="text-text-secondary">
-                가용 카드: {poolCards.length}장
+                가용: {poolCards.length}장
               </span>
               <span className="text-text-secondary">
                 픽: {currentPickIndex}/{draftOrder.length}
               </span>
+              {/* 빨리감기 토글 */}
+              {!draftComplete && (
+                <button
+                  onClick={() => setFastMode(!fastMode)}
+                  className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                    fastMode
+                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                      : 'bg-white/10 text-text-secondary border-white/20'
+                  }`}
+                >
+                  {fastMode ? '⚡ 빨리감기' : '▶ 보통속도'}
+                </button>
+              )}
             </div>
           </div>
 
-          {/* 스네이크 드래프트 진행 바 */}
-          {draftRounds > 1 && (
-            <div className="mt-3">
-              <div className="h-2 bg-black/40 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-accent to-blue-500 rounded-full"
-                  animate={{ width: `${(currentPickIndex / draftOrder.length) * 100}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
+          {/* 진행 바 */}
+          <div className="mt-3">
+            <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-accent to-blue-500 rounded-full"
+                animate={{ width: `${(currentPickIndex / Math.max(draftOrder.length, 1)) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
             </div>
-          )}
+          </div>
+        </div>
+      </div>
+
+      {/* 내 크루 현황 */}
+      <div className="max-w-6xl mx-auto mb-4">
+        <div className="bg-bg-card rounded-xl p-3 border border-accent/30">
+          <h3 className="text-xs text-accent mb-2">내 크루 ({myDraftedCards.length}/{rounds})</h3>
+          <div className="flex gap-2 overflow-x-auto">
+            {myDraftedCards.map(card => (
+              <div key={card.id} className="flex-shrink-0 text-center">
+                <div className="w-12 h-16 rounded overflow-hidden border border-accent/30">
+                  <img
+                    src={getCharacterImage(card.id, card.name.ko, card.attribute)}
+                    alt={card.name.ko}
+                    className="w-full h-full object-cover object-top"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getPlaceholderImage(card.name.ko, card.attribute);
+                    }}
+                  />
+                </div>
+                <div className="text-[9px] text-text-primary mt-0.5 truncate w-12">{card.name.ko}</div>
+              </div>
+            ))}
+            {Array.from({ length: rounds - myDraftedCards.length }).map((_, i) => (
+              <div key={`empty-${i}`} className="flex-shrink-0 w-12 h-16 rounded border-2 border-dashed border-white/20 flex items-center justify-center">
+                <span className="text-text-secondary text-[10px]">?</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -182,15 +230,11 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
       <div className="max-w-6xl mx-auto mb-4">
         <div className="bg-bg-card rounded-xl p-3 border border-white/10">
           <h3 className="text-xs text-text-secondary mb-2">
-            {draftRounds > 1
-              ? `라운드 ${currentRound} 순서 ${isReverseRound ? '(역방향 🔄)' : '(정방향 ➡️)'}`
-              : '드래프트 순서 (역순위)'
-            }
+            라운드 {Math.min(currentRound, draftRounds)} 순서 {isReverseRound ? '(역방향 🔄)' : '(정방향 ➡️)'}
           </h3>
           <div className="flex flex-wrap gap-1.5">
             {(() => {
-              // 현재 라운드의 팀 순서만 표시
-              const roundStart = (currentRound - 1) * teamsPerRound;
+              const roundStart = (Math.min(currentRound, draftRounds) - 1) * teamsPerRound;
               const roundEnd = Math.min(roundStart + teamsPerRound, draftOrder.length);
               const roundTeams = draftOrder.slice(roundStart, roundEnd);
 
@@ -198,7 +242,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
                 const globalIndex = roundStart + index;
                 return (
                   <div
-                    key={`${currentRound}-${crewId}`}
+                    key={`${currentRound}-${index}`}
                     className={`px-2.5 py-1.5 rounded-lg text-xs transition-all ${
                       globalIndex === currentPickIndex
                         ? 'bg-accent text-white font-bold scale-110 ring-2 ring-accent/50'
@@ -265,11 +309,11 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
               <div className="text-2xl font-bold text-win mb-2">
                 🎉 드래프트 완료!
               </div>
-              <div className="text-text-secondary mb-4">
-                {draftRounds > 1
-                  ? `${draftRounds}라운드 스네이크 드래프트가 완료되었습니다.`
-                  : '모든 팀이 선택을 완료했습니다.'
-                }
+              <div className="text-text-secondary mb-2">
+                {draftRounds}라운드 스네이크 드래프트가 완료되었습니다.
+              </div>
+              <div className="text-sm text-text-secondary mb-4">
+                비계약(FA) 카드: {poolCards.length}장
               </div>
               <Button onClick={handleFinishDraft} variant="primary" size="lg">
                 시즌 시작하기
@@ -281,7 +325,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
 
       {/* 마지막 픽 알림 */}
       <AnimatePresence>
-        {lastPickedCard && (
+        {lastPickedCard && !fastMode && (
           <motion.div
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
@@ -312,7 +356,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
             <h3 className="text-lg font-bold text-text-primary mb-3">
               드래프트 풀 ({poolCards.length}장)
             </h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2 max-h-[50vh] overflow-y-auto">
               {poolCards.map(({ cardId, character }) => (
                 <DraftCard
                   key={cardId}
@@ -342,6 +386,25 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }:
                 </Button>
               </motion.div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 드래프트 완료 시 비계약 카드 표시 */}
+      {draftComplete && poolCards.length > 0 && (
+        <div className="max-w-6xl mx-auto mt-4">
+          <div className="bg-bg-card rounded-xl p-4 border border-yellow-500/20">
+            <h3 className="text-sm font-bold text-yellow-400 mb-3">
+              비계약(FA) 카드 ({poolCards.length}장) - 추후 구매/교환 가능
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {poolCards.map(({ cardId, character }) => (
+                <div key={cardId} className="text-xs bg-black/30 px-2 py-1 rounded flex items-center gap-1">
+                  <GradeBadge grade={character!.grade as LegacyGrade} size="sm" />
+                  <span>{character!.name.ko}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -399,9 +462,9 @@ function DraftCard({ cardId, character, isSelected, isSelectable, onClick }: Dra
           </div>
         )}
       </div>
-      <div className="h-1/3 p-2 bg-black/60 flex flex-col justify-center">
+      <div className="h-1/3 p-1.5 bg-black/60 flex flex-col justify-center">
         <GradeBadge grade={character.grade as LegacyGrade} size="sm" />
-        <div className="text-xs font-bold mt-1 truncate text-center">
+        <div className="text-[10px] font-bold mt-0.5 truncate text-center">
           {character.name.ko}
         </div>
       </div>

@@ -20,11 +20,14 @@ import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
 import { useSeasonStore } from './stores/seasonStore';
+import { useDraftStore } from './stores/draftStore';
 import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useIndividualLeagueStore } from './stores/individualLeagueStore';
 import { CHARACTERS_BY_ID } from './data/characters';
-import { ROSTER_SIZE } from './data/constants';
+import { BATTLE_SIZE, DRAFT_ROUNDS } from './data/constants';
+import { PLAYER_CREW_ID, AI_CREW_TEMPLATES, setAICrews } from './data/aiCrews';
+import type { AICrew } from './types';
 
 type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague' | 'individualBattle' | 'draft';
 
@@ -51,13 +54,12 @@ function App() {
   }, []);
 
   const { startGameWithBanPick } = useBattle();
-  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById, getCurrentStandings, startNewSeason } = useSeasonStore(useShallow(state => ({
+  const { currentSeason, playMatch, playPlayoffMatch, getAICrewById, getCurrentStandings } = useSeasonStore(useShallow(state => ({
     currentSeason: state.currentSeason,
     playMatch: state.playMatch,
     playPlayoffMatch: state.playPlayoffMatch,
     getAICrewById: state.getAICrewById,
-    getCurrentStandings: state.getCurrentStandings,
-    startNewSeason: state.startNewSeason
+    getCurrentStandings: state.getCurrentStandings
   })));
   const addMatchResultNews = useNewsFeedStore(state => state.addMatchResultNews);
   const player = usePlayerStore(state => state.player);
@@ -83,12 +85,12 @@ function App() {
     const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
-    // 로스터가 7장이면 라인업 선택 모달 표시
-    if (player.currentCrew.length > 6) {
+    // 로스터가 배틀 사이즈보다 크면 라인업 선택 모달 표시
+    if (player.currentCrew.length > BATTLE_SIZE) {
       setPendingOpponent(opponentCrewId);
     } else {
-      // 6장 이하면 바로 전투
-      const success = startGameWithBanPick(opponent.crew.slice(0, 6), opponent.difficulty);
+      // BATTLE_SIZE 이하면 바로 전투
+      const success = startGameWithBanPick(opponent.crew.slice(0, BATTLE_SIZE), opponent.difficulty);
       if (success) {
         setCurrentOpponent(opponentCrewId);
         setCurrentPage('battle');
@@ -102,7 +104,7 @@ function App() {
     const opponent = getAICrewById(pendingOpponent);
     if (!opponent) return;
 
-    // AI도 6장 선택
+    // AI도 BATTLE_SIZE장 선택
     const aiLineup = aiSelectLineup(opponent.crew);
 
     const success = startGameWithBanPick(aiLineup, opponent.difficulty, lineup);
@@ -115,6 +117,43 @@ function App() {
 
   const handleLineupCancel = useCallback(() => {
     setPendingOpponent(null);
+  }, []);
+
+  // 드래프트 완료 → 크루 구성 → 시즌 시작
+  const handleDraftComplete = useCallback(() => {
+    const draftState = useDraftStore.getState();
+    const crewResults = draftState.crewDraftResults;
+
+    // 플레이어 크루 설정
+    const playerCards = crewResults[PLAYER_CREW_ID] || [];
+    const pStore = usePlayerStore.getState();
+    for (const cardId of playerCards) {
+      if (!pStore.isCardOwned(cardId)) {
+        pStore.addOwnedCard(cardId);
+      }
+    }
+    pStore.setCurrentCrew(playerCards);
+
+    // AI 크루 생성 (드래프트 결과 기반)
+    const aiCrews: AICrew[] = AI_CREW_TEMPLATES.map(template => ({
+      ...template,
+      crew: crewResults[template.id] || [],
+    }));
+    setAICrews(aiCrews);
+
+    // 게임 초기화 (첫 시즌인 경우)
+    const seasonState = useSeasonStore.getState();
+    if (!seasonState.isInitialized) {
+      seasonState.initializeGame(playerCards);
+    }
+
+    // 드래프트 종료 처리
+    draftState.finishDraft();
+
+    // 새 시즌 시작 (드래프트 크루 전달)
+    useSeasonStore.getState().startNewSeason(aiCrews);
+
+    setCurrentPage('seasonHub');
   }, []);
 
   // 개인 리그 매치 시작 (새로운 1:1 배틀 시스템 사용)
@@ -386,7 +425,7 @@ function App() {
           </motion.div>
         )}
 
-        {currentPage === 'draft' && currentSeason && (
+        {currentPage === 'draft' && (
           <motion.div
             key="draft"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -395,17 +434,14 @@ function App() {
             className="flex-1 w-full"
           >
             <DraftScreen
-              seasonNumber={currentSeason.number + 1}
-              rounds={ROSTER_SIZE}
-              standings={getCurrentStandings().map(s => ({
+              seasonNumber={currentSeason ? currentSeason.number + 1 : 1}
+              rounds={DRAFT_ROUNDS}
+              standings={currentSeason ? getCurrentStandings().map(s => ({
                 crewId: s.crewId,
                 points: s.points,
                 goalDifference: s.goalDifference
-              }))}
-              onComplete={() => {
-                startNewSeason();
-                setCurrentPage('seasonHub');
-              }}
+              })) : []}
+              onComplete={handleDraftComplete}
             />
           </motion.div>
         )}

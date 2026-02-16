@@ -1,23 +1,17 @@
 // ========================================
-// 드래프트 시스템 스토어 (Phase 5.1)
-// NBA 스타일 드래프트 + 픽 트레이드
-// playerStore 연동: 드래프트로 획득한 카드가 ownedCards에 추가됨
+// 드래프트 시스템 스토어
+// 스네이크 드래프트: 10팀 × 6라운드 = 60픽
+// 71캐릭터 중 11장은 비계약(FA) 카드로 남음
 // ========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { CHARACTERS_BY_ID, ALL_CHARACTERS } from '../data/characters';
-import { PLAYER_CREW_ID } from '../data/aiCrews';
-import {
-  DRAFT_POOL_MIN,
-  DRAFT_POOL_MAX,
-  STEFAN_RULE_CONSECUTIVE_SEASONS
-} from '../data/constants';
+import { ALL_CHARACTERS, CHARACTERS_BY_ID } from '../data/characters';
+import { PLAYER_CREW_ID, AI_CREW_TEMPLATES } from '../data/aiCrews';
+import { DRAFT_ROUNDS } from '../data/constants';
 import type {
   DraftPoolCard,
-  DraftPick,
   DraftResult,
-  CooldownCard,
   LegacyGrade,
   DraftSource
 } from '../types';
@@ -32,66 +26,20 @@ function getPlayerStore() {
 }
 
 // ========================================
-// 드래프트 스토어 인터페이스
+// 유틸리티
 // ========================================
 
-interface DraftState {
-  // 드래프트 풀 (무소속 카드들)
-  draftPool: DraftPoolCard[];
-
-  // 각 크루의 드래프트 픽 보유 현황
-  draftPicks: Record<string, DraftPick[]>;
-
-  // 드래프트 히스토리
-  draftHistory: DraftResult[];
-
-  // 은퇴 후 쿨다운 중인 카드
-  cooldownCards: CooldownCard[];
-
-  // 드래프트 진행 상태
-  isDraftInProgress: boolean;
-  currentDraftSeason: number | null;
-  currentPickIndex: number;
-  draftOrder: string[];  // 크루 ID 순서 (스네이크 드래프트: 전체 픽 순서)
-  draftRounds: number;   // 드래프트 라운드 수
-  teamsPerRound: number; // 라운드당 팀 수
-
-  // 액션
-  addToDraftPool: (cardId: string, source: DraftSource, season: number, isResetCard?: boolean) => void;
-  removeFromDraftPool: (cardId: string) => void;
-  initializeDraftPool: (seasonNumber: number, allCrewCards: string[]) => void;
-  startDraft: (seasonNumber: number, standings: Array<{ crewId: string; points: number; goalDifference: number }>, rounds?: number) => void;
-  makePlayerPick: (cardId: string) => void;
-  makeAIPick: (crewId: string) => string | null;
-  executeDraftPick: (crewId: string, cardId: string) => void;
-  finishDraft: () => DraftResult | null;
-  processCooldowns: () => string[];  // 복귀한 카드 ID 반환
-  tradePick: (fromCrewId: string, toCrewId: string, pick: DraftPick) => boolean;
-  canTradePick: (crewId: string, pickSeason: number) => boolean;
-  initializePicksForSeason: (seasonNumber: number, crewIds: string[]) => void;
-  getCrewPicks: (crewId: string) => DraftPick[];
-  getDraftPoolCards: () => DraftPoolCard[];
-
-  // 초기화
-  reset: () => void;
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
-// 초기 상태
-const initialState = {
-  draftPool: [],
-  draftPicks: {},
-  draftHistory: [],
-  cooldownCards: [],
-  isDraftInProgress: false,
-  currentDraftSeason: null,
-  currentPickIndex: 0,
-  draftOrder: [],
-  draftRounds: 1,
-  teamsPerRound: 10,
-};
-
 // ========================================
-// 드래프트 순서 결정 (역순위 + 스네이크)
+// 드래프트 순서 결정 (역순위)
 // ========================================
 
 function determineDraftOrder(
@@ -99,10 +47,9 @@ function determineDraftOrder(
 ): string[] {
   return [...standings]
     .sort((a, b) => {
-      // 포인트 오름차순 (적은 포인트 = 약한 팀 = 먼저 선택)
       if (a.points !== b.points) return a.points - b.points;
-      // 동점 시: 골득실 오름차순
-      return a.goalDifference - b.goalDifference;
+      if (a.goalDifference !== b.goalDifference) return a.goalDifference - b.goalDifference;
+      return Math.random() - 0.5; // 동점 시 랜덤
     })
     .map(s => s.crewId);
 }
@@ -116,10 +63,8 @@ function generateSnakeDraftOrder(baseOrder: string[], rounds: number): string[] 
   const fullOrder: string[] = [];
   for (let round = 0; round < rounds; round++) {
     if (round % 2 === 0) {
-      // 홀수 라운드 (1, 3, 5, 7): 정방향
       fullOrder.push(...baseOrder);
     } else {
-      // 짝수 라운드 (2, 4, 6): 역방향
       fullOrder.push(...[...baseOrder].reverse());
     }
   }
@@ -127,8 +72,7 @@ function generateSnakeDraftOrder(baseOrder: string[], rounds: number): string[] 
 }
 
 // ========================================
-// AI 카드 선택 로직
-// Phase 5.3: CP 가치 기반으로 변경
+// AI 카드 선택 로직 (CP 가치 기반)
 // ========================================
 
 import { calculateCardValue, determineCareerPhase } from '../utils/salarySystem';
@@ -139,30 +83,78 @@ function selectBestCardForAI(
 ): string | null {
   if (availableCards.length === 0) return null;
 
-  // Phase 5.3: CP 가치 기반 선택
-  // 각 카드의 CP 가치 계산
   const cardsWithValue = availableCards.map(card => {
     const char = CHARACTERS_BY_ID[card.cardId];
     if (!char) return { card, value: 0 };
-
-    const careerPhase = determineCareerPhase(char.grade as LegacyGrade, 0);  // 신규 카드는 시즌 0
+    const careerPhase = determineCareerPhase(char.grade as LegacyGrade, 0);
     const value = calculateCardValue(char.grade as LegacyGrade, 1, careerPhase);
     return { card, value };
   });
 
-  // CP 가치 내림차순 정렬
   cardsWithValue.sort((a, b) => b.value - a.value);
 
-  // 가장 높은 가치 그룹 (상위 20% 이내 또는 최고 가치와 동등한 것들)
   const maxValue = cardsWithValue[0].value;
   const topCandidates = cardsWithValue.filter(
-    c => c.value >= maxValue * 0.9  // 최고 가치의 90% 이상
+    c => c.value >= maxValue * 0.9
   );
 
-  // 상위 그룹 중 랜덤 선택 (약간의 변동성)
   const randomIndex = Math.floor(Math.random() * topCandidates.length);
   return topCandidates[randomIndex].card.cardId;
 }
+
+// ========================================
+// 드래프트 스토어 인터페이스
+// ========================================
+
+interface DraftState {
+  // 드래프트 풀
+  draftPool: DraftPoolCard[];
+
+  // 드래프트 진행 상태
+  isDraftInProgress: boolean;
+  currentDraftSeason: number | null;
+  currentPickIndex: number;
+  draftOrder: string[];
+  draftRounds: number;
+  teamsPerRound: number;
+
+  // 드래프트 결과
+  crewDraftResults: Record<string, string[]>; // crewId → 드래프트된 카드 ID 배열
+  freeAgentCards: string[]; // 미선택(비계약) 카드 ID 배열
+
+  // 드래프트 히스토리
+  draftHistory: DraftResult[];
+
+  // 액션
+  startDraft: (
+    seasonNumber: number,
+    standings: Array<{ crewId: string; points: number; goalDifference: number }>,
+    rounds?: number
+  ) => void;
+  makePlayerPick: (cardId: string) => void;
+  makeAIPick: (crewId: string) => string | null;
+  executeDraftPick: (crewId: string, cardId: string) => void;
+  finishDraft: () => { crews: Record<string, string[]>; freeAgents: string[] } | null;
+  getDraftCrewResults: () => Record<string, string[]>;
+  getFreeAgentCards: () => string[];
+
+  // 초기화
+  reset: () => void;
+}
+
+// 초기 상태
+const initialState = {
+  draftPool: [] as DraftPoolCard[],
+  isDraftInProgress: false,
+  currentDraftSeason: null as number | null,
+  currentPickIndex: 0,
+  draftOrder: [] as string[],
+  draftRounds: DRAFT_ROUNDS,
+  teamsPerRound: 10,
+  crewDraftResults: {} as Record<string, string[]>,
+  freeAgentCards: [] as string[],
+  draftHistory: [] as DraftResult[],
+};
 
 // ========================================
 // 스토어 구현
@@ -173,87 +165,55 @@ export const useDraftStore = create<DraftState>()(
     (set, get) => ({
       ...initialState,
 
-      // 드래프트 풀에 카드 추가
-      addToDraftPool: (cardId: string, source: DraftSource, season: number, isResetCard = false) => {
-        const { draftPool } = get();
+      // ========================================
+      // 드래프트 시작 (전체 카드 풀 초기화 + 스네이크 순서 생성)
+      // ========================================
+      startDraft: (seasonNumber, standings, rounds) => {
+        const effectiveRounds = rounds || DRAFT_ROUNDS;
 
-        // 중복 체크
-        if (draftPool.some(c => c.cardId === cardId)) {
-          console.warn(`[Draft] 이미 드래프트 풀에 있는 카드: ${cardId}`);
-          return;
-        }
-
-        const newCard: DraftPoolCard = {
-          cardId,
-          source,
-          addedSeason: season,
-          isResetCard,
-        };
-
-        set({ draftPool: [...draftPool, newCard] });
-        console.log(`[Draft] 드래프트 풀에 추가: ${cardId} (${source})`);
-      },
-
-      // 드래프트 풀에서 카드 제거
-      removeFromDraftPool: (cardId: string) => {
-        set(state => ({
-          draftPool: state.draftPool.filter(c => c.cardId !== cardId)
+        // 1. 전체 캐릭터를 드래프트 풀에 투입
+        const allCards: DraftPoolCard[] = ALL_CHARACTERS.map(c => ({
+          cardId: c.id,
+          source: 'INITIAL_POOL' as DraftSource,
+          addedSeason: seasonNumber,
+          isResetCard: false,
         }));
-      },
 
-      // 드래프트 풀 초기화 (시즌 시작 시)
-      initializeDraftPool: (seasonNumber: number, allCrewCards: string[]) => {
-        const { cooldownCards, draftPool, addToDraftPool, processCooldowns } = get();
-
-        // 1. 쿨다운 완료 카드 복귀
-        const returnedCards = processCooldowns();
-        console.log(`[Draft] 쿨다운 완료 복귀 카드: ${returnedCards.length}장`);
-
-        // 2. 미배정 카드 찾기 (전체 캐릭터 - 크루 보유 카드)
-        const unassignedCards = ALL_CHARACTERS
-          .map(c => c.id)
-          .filter(id => !allCrewCards.includes(id))
-          .filter(id => !draftPool.some(p => p.cardId === id))
-          .filter(id => !cooldownCards.some(c => c.cardId === id));
-
-        // 3. 드래프트 풀 최소 보장 (시즌 1~3에서 은퇴 카드 없을 때)
-        const currentPoolSize = draftPool.length;
-        const neededCards = Math.max(0, DRAFT_POOL_MIN - currentPoolSize);
-
-        if (neededCards > 0 && unassignedCards.length > 0) {
-          // 랜덤으로 미배정 카드 추가
-          const shuffled = [...unassignedCards].sort(() => Math.random() - 0.5);
-          const toAdd = shuffled.slice(0, Math.min(neededCards, DRAFT_POOL_MAX - currentPoolSize));
-
-          for (const cardId of toAdd) {
-            addToDraftPool(cardId, 'INITIAL_POOL', seasonNumber);
-          }
+        // 2. 드래프트 순서 결정
+        let baseOrder: string[];
+        if (standings.length === 0) {
+          // 시즌 1: 랜덤 순서
+          const allCrewIds = [PLAYER_CREW_ID, ...AI_CREW_TEMPLATES.map(t => t.id)];
+          baseOrder = shuffleArray(allCrewIds);
+        } else {
+          // 시즌 2+: 역순위 (약한 팀 먼저)
+          baseOrder = determineDraftOrder(standings);
         }
 
-        console.log(`[Draft] 시즌 ${seasonNumber} 드래프트 풀 초기화 완료. 총 ${get().draftPool.length}장`);
-      },
-
-      // 드래프트 시작 (rounds: 스네이크 드래프트 라운드 수, 기본 1)
-      startDraft: (seasonNumber: number, standings, rounds = 1) => {
-        const baseOrder = determineDraftOrder(standings);
-        const draftOrder = rounds > 1
-          ? generateSnakeDraftOrder(baseOrder, rounds)
-          : baseOrder;
+        // 3. 스네이크 드래프트 순서 생성
+        const draftOrder = generateSnakeDraftOrder(baseOrder, effectiveRounds);
 
         set({
+          draftPool: allCards,
           isDraftInProgress: true,
           currentDraftSeason: seasonNumber,
           currentPickIndex: 0,
           draftOrder,
-          draftRounds: rounds,
+          draftRounds: effectiveRounds,
           teamsPerRound: baseOrder.length,
+          crewDraftResults: {},
+          freeAgentCards: [],
         });
 
-        console.log(`[Draft] 시즌 ${seasonNumber} 스네이크 드래프트 시작 (${rounds}라운드, ${draftOrder.length}픽)`);
-        console.log(`[Draft] 기본 순서: ${baseOrder.join(' -> ')}`);
+        console.log(`[Draft] 시즌 ${seasonNumber} 스네이크 드래프트 시작`);
+        console.log(`[Draft] ${effectiveRounds}라운드 × ${baseOrder.length}팀 = ${draftOrder.length}픽`);
+        console.log(`[Draft] 풀: ${allCards.length}장 (비계약 예상: ${allCards.length - draftOrder.length}장)`);
+        console.log(`[Draft] 기본 순서: ${baseOrder.join(' → ')}`);
       },
 
+      // ========================================
       // 플레이어 픽
+      // ========================================
       makePlayerPick: (cardId: string) => {
         const { draftPool, currentPickIndex, draftOrder, executeDraftPick } = get();
 
@@ -271,23 +231,11 @@ export const useDraftStore = create<DraftState>()(
         executeDraftPick(PLAYER_CREW_ID, cardId);
       },
 
+      // ========================================
       // AI 픽
+      // ========================================
       makeAIPick: (crewId: string) => {
-        const { draftPool, draftRounds, executeDraftPick } = get();
-
-        // 스네이크 드래프트에서는 픽 보유 여부 체크 스킵 (멀티 라운드)
-        if (draftRounds <= 1) {
-          const { draftPicks, currentDraftSeason } = get();
-          const crewPickList = draftPicks[crewId] || [];
-          const hasPick = crewPickList.some(
-            p => p.season === currentDraftSeason && !p.used && p.currentOwner === crewId
-          );
-
-          if (!hasPick) {
-            console.log(`[Draft] ${crewId}는 픽을 트레이드로 넘겼으므로 스킵`);
-            return null;
-          }
-        }
+        const { draftPool, executeDraftPick } = get();
 
         const selectedCardId = selectBestCardForAI(draftPool, crewId);
 
@@ -298,62 +246,60 @@ export const useDraftStore = create<DraftState>()(
         return selectedCardId;
       },
 
+      // ========================================
       // 드래프트 픽 실행
+      // ========================================
       executeDraftPick: (crewId: string, cardId: string) => {
-        const { currentPickIndex, draftPicks, currentDraftSeason } = get();
+        const { currentPickIndex, crewDraftResults } = get();
 
-        // 풀에서 제거
-        set(state => ({
-          draftPool: state.draftPool.filter(c => c.cardId !== cardId)
-        }));
-
-        // 픽 사용 처리
-        const crewPickList = draftPicks[crewId] || [];
-        const updatedPicks = crewPickList.map(p => {
-          if (p.season === currentDraftSeason && !p.used && p.currentOwner === crewId) {
-            return { ...p, used: true, pickOrder: currentPickIndex + 1 };
-          }
-          return p;
-        });
+        // 크루 결과에 카드 추가
+        const crewCards = crewDraftResults[crewId] || [];
 
         set(state => ({
-          draftPicks: { ...state.draftPicks, [crewId]: updatedPicks },
+          draftPool: state.draftPool.filter(c => c.cardId !== cardId),
+          crewDraftResults: {
+            ...state.crewDraftResults,
+            [crewId]: [...crewCards, cardId],
+          },
           currentPickIndex: state.currentPickIndex + 1,
         }));
 
         const charName = CHARACTERS_BY_ID[cardId]?.name.ko || cardId;
-        console.log(`[Draft] ${crewId}가 ${charName} 선택 (${currentPickIndex + 1}순위)`);
+        const pickNum = currentPickIndex + 1;
+        console.log(`[Draft] ${crewId}가 ${charName} 선택 (${pickNum}번째 픽)`);
 
-        // Phase 5.1: 플레이어 크루인 경우 ownedCards에 카드 추가
+        // 플레이어 크루인 경우 ownedCards에 카드 추가
         if (crewId === PLAYER_CREW_ID) {
           getPlayerStore().then(({ usePlayerStore }) => {
             const { addOwnedCard } = usePlayerStore.getState();
             const success = addOwnedCard(cardId);
             if (success) {
               console.log(`[Draft] 플레이어 ownedCards에 ${charName} 추가 완료`);
-            } else {
-              console.error(`[Draft] 플레이어 ownedCards에 ${charName} 추가 실패`);
             }
           });
         }
       },
 
+      // ========================================
       // 드래프트 종료
+      // ========================================
       finishDraft: () => {
-        const { currentDraftSeason, draftOrder, draftHistory, currentPickIndex } = get();
+        const { currentDraftSeason, draftPool, crewDraftResults, draftHistory } = get();
 
         if (!currentDraftSeason) return null;
 
-        // 드래프트 결과 생성
-        const picks: DraftResult['picks'] = [];
+        // 남은 풀 카드 → 비계약(FA) 카드
+        const freeAgents = draftPool.map(c => c.cardId);
 
+        // 드래프트 결과 기록
+        const picks: DraftResult['picks'] = [];
+        const { draftOrder, currentPickIndex } = get();
         for (let i = 0; i < Math.min(currentPickIndex, draftOrder.length); i++) {
-          const crewId = draftOrder[i];
           picks.push({
             pickOrder: i + 1,
-            crewId,
-            cardId: '',
-            isPlayerPick: crewId === PLAYER_CREW_ID,
+            crewId: draftOrder[i],
+            cardId: '', // 간소화
+            isPlayerPick: draftOrder[i] === PLAYER_CREW_ID,
           });
         }
 
@@ -362,153 +308,31 @@ export const useDraftStore = create<DraftState>()(
           picks,
         };
 
+        // 크루별 드래프트 결과 로그
+        console.log(`[Draft] 시즌 ${currentDraftSeason} 드래프트 종료`);
+        Object.entries(crewDraftResults).forEach(([crewId, cards]) => {
+          const names = cards.map(id => CHARACTERS_BY_ID[id]?.name.ko || id).join(', ');
+          console.log(`[Draft]   ${crewId}: ${cards.length}장 [${names}]`);
+        });
+        console.log(`[Draft]   비계약(FA): ${freeAgents.length}장`);
+
         set({
           draftHistory: [...draftHistory, result],
           isDraftInProgress: false,
           currentDraftSeason: null,
           currentPickIndex: 0,
           draftOrder: [],
-          draftRounds: 1,
-          teamsPerRound: 10,
+          draftPool: [],
+          freeAgentCards: freeAgents,
+          // crewDraftResults는 유지 (App.tsx에서 읽어야 함)
         });
 
-        console.log(`[Draft] 시즌 ${currentDraftSeason} 드래프트 종료 (${picks.length}픽 완료)`);
-        return result;
+        return { crews: crewDraftResults, freeAgents };
       },
 
-      // 쿨다운 처리 (시즌 종료 시)
-      processCooldowns: () => {
-        const { cooldownCards, addToDraftPool } = get();
-        const returnedCards: string[] = [];
-
-        const updatedCooldowns = cooldownCards
-          .map(card => ({
-            ...card,
-            cooldownRemaining: card.cooldownRemaining - 1
-          }))
-          .filter(card => {
-            if (card.cooldownRemaining <= 0) {
-              // 쿨다운 완료 → 드래프트 풀로
-              addToDraftPool(card.cardId, 'RETIREMENT_RESET', card.retiredSeason + card.cooldownRemaining + 1, true);
-              returnedCards.push(card.cardId);
-              return false;
-            }
-            return true;
-          });
-
-        set({ cooldownCards: updatedCooldowns });
-        return returnedCards;
-      },
-
-      // 픽 트레이드
-      tradePick: (fromCrewId: string, toCrewId: string, pick: DraftPick) => {
-        const { draftPicks, canTradePick } = get();
-
-        // 스테판 규칙 체크
-        if (!canTradePick(fromCrewId, pick.season)) {
-          console.warn('[Draft] 스테판 규칙 위반: 연속 2시즌 픽을 모두 트레이드할 수 없습니다.');
-          return false;
-        }
-
-        // 픽 소유권 이전
-        const fromPicks = draftPicks[fromCrewId] || [];
-        const toPicks = draftPicks[toCrewId] || [];
-
-        const updatedFromPicks = fromPicks.filter(
-          p => !(p.season === pick.season && p.originalOwner === pick.originalOwner)
-        );
-
-        const updatedToPicks = [...toPicks, { ...pick, currentOwner: toCrewId }];
-
-        set({
-          draftPicks: {
-            ...draftPicks,
-            [fromCrewId]: updatedFromPicks,
-            [toCrewId]: updatedToPicks,
-          }
-        });
-
-        console.log(`[Draft] 픽 트레이드: ${fromCrewId} -> ${toCrewId} (시즌 ${pick.season})`);
-        return true;
-      },
-
-      // 스테판 규칙 체크
-      canTradePick: (crewId: string, pickSeason: number) => {
-        const { draftPicks } = get();
-        const crewPickList = draftPicks[crewId] || [];
-
-        // 연속 시즌 픽 확인
-        for (let i = 1; i <= STEFAN_RULE_CONSECUTIVE_SEASONS; i++) {
-          const adjacentSeason = pickSeason + i;
-          const hasAdjacentPick = crewPickList.some(
-            p => p.season === adjacentSeason && p.currentOwner === crewId && !p.used
-          );
-
-          if (hasAdjacentPick) {
-            return true;  // 인접 시즌 픽이 있으면 OK
-          }
-
-          const prevSeason = pickSeason - i;
-          const hasPrevPick = crewPickList.some(
-            p => p.season === prevSeason && p.currentOwner === crewId && !p.used
-          );
-
-          if (hasPrevPick) {
-            return true;  // 이전 시즌 픽이 있으면 OK
-          }
-        }
-
-        // 모든 인접 시즌 픽을 이미 트레이드했으면 불가
-        return false;
-      },
-
-      // 시즌별 픽 초기화
-      initializePicksForSeason: (seasonNumber: number, crewIds: string[]) => {
-        const { draftPicks } = get();
-        const updatedPicks = { ...draftPicks };
-
-        for (const crewId of crewIds) {
-          const existingPicks = updatedPicks[crewId] || [];
-
-          // 해당 시즌 픽이 없으면 추가
-          const hasSeasonPick = existingPicks.some(p => p.season === seasonNumber);
-          if (!hasSeasonPick) {
-            existingPicks.push({
-              season: seasonNumber,
-              originalOwner: crewId,
-              currentOwner: crewId,
-              used: false,
-            });
-          }
-
-          // 다음 시즌 픽도 미리 생성 (트레이드용)
-          const nextSeason = seasonNumber + 1;
-          const hasNextSeasonPick = existingPicks.some(p => p.season === nextSeason);
-          if (!hasNextSeasonPick) {
-            existingPicks.push({
-              season: nextSeason,
-              originalOwner: crewId,
-              currentOwner: crewId,
-              used: false,
-            });
-          }
-
-          updatedPicks[crewId] = existingPicks;
-        }
-
-        set({ draftPicks: updatedPicks });
-        console.log(`[Draft] 시즌 ${seasonNumber} 픽 초기화 완료. ${crewIds.length}개 크루`);
-      },
-
-      // 크루별 픽 조회
-      getCrewPicks: (crewId: string) => {
-        return get().draftPicks[crewId] || [];
-      },
-
-      // 드래프트 풀 카드 조회
-      getDraftPoolCards: () => {
-        return get().draftPool;
-      },
+      // 드래프트 결과 조회
+      getDraftCrewResults: () => get().crewDraftResults,
+      getFreeAgentCards: () => get().freeAgentCards,
 
       // 초기화
       reset: () => {
@@ -518,48 +342,7 @@ export const useDraftStore = create<DraftState>()(
     }),
     {
       name: 'jjk-draft',
-      version: 1,
+      version: 2, // v2: 스네이크 드래프트 전면 재설계
     }
   )
 );
-
-// ========================================
-// 유틸리티 함수
-// ========================================
-
-/**
- * 드래프트 풀 카드 정보 (UI용)
- */
-export function getDraftPoolCardInfo(card: DraftPoolCard): {
-  cardId: string;
-  name: string;
-  grade: LegacyGrade;
-  isResetCard: boolean;
-  source: DraftSource;
-} {
-  const character = CHARACTERS_BY_ID[card.cardId];
-  return {
-    cardId: card.cardId,
-    name: character?.name.ko || card.cardId,
-    grade: (character?.grade as LegacyGrade) || '3급',
-    isResetCard: card.isResetCard,
-    source: card.source,
-  };
-}
-
-/**
- * 드래프트 픽 Trade Value 계산
- */
-export function calculatePickTV(
-  pick: DraftPick,
-  currentSeason: number
-): number {
-  // 기본 픽 가치
-  const BASE_PICK_TV = 1200;
-
-  // 미래 시즌 픽은 불확실성 프리미엄
-  const isFuturePick = pick.season > currentSeason;
-  const multiplier = isFuturePick ? 1.3 : 1.0;
-
-  return Math.floor(BASE_PICK_TV * multiplier);
-}
