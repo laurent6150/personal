@@ -4,9 +4,9 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PlayerCard, CharacterCard, Arena, Attribute } from '../../types';
+import type { PlayerCard, CharacterCard, Attribute } from '../../types';
 import { CHARACTERS_BY_ID } from '../../data/characters';
-import { ALL_ARENAS, ARENAS_BY_ID } from '../../data/arenas';
+import { ALL_ARENAS } from '../../data/arenas';
 import { ATTRIBUTES } from '../../data/constants';
 import {
   analyzeCrewComposition,
@@ -19,7 +19,6 @@ import {
   type CrewAnalysis,
   type MatchupAnalysis,
   type BanRecommendation,
-  type PlacementRecommendation,
   type CardAnalysis
 } from '../../utils/strategyAdvisor';
 
@@ -164,7 +163,7 @@ interface CrewAnalysisTabProps {
   playerCards: PlayerCard[];
 }
 
-function CrewAnalysisTab({ analysis, playerCards }: CrewAnalysisTabProps) {
+function CrewAnalysisTab({ analysis, playerCards: _playerCards }: CrewAnalysisTabProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -482,7 +481,7 @@ function ArenasTab({ banRecommendations, playerCards }: ArenasTabProps) {
           <span>📍</span> 최적 배치 추천
         </h3>
         <div className="space-y-3">
-          {placementRecommendations.map((rec, i) => (
+          {placementRecommendations.map((rec, _i) => (
             <div key={rec.arenaId} className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-white font-medium">{rec.arenaName}</span>

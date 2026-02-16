@@ -196,6 +196,7 @@ export interface SkillEffect {
   range?: 'SHORT' | 'MEDIUM' | 'LONG'; // 사거리
   count?: number;             // 분신 수
   gaugeBonus?: number;        // 게이지 보너스
+  ceBonus?: number;           // CE 보너스
   extra?: string;             // 추가 효과
 
   // 레거시 호환용 (기존 전투 시스템)

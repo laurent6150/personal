@@ -4,7 +4,7 @@
 
 import type { CharacterCard, Difficulty, Arena, Attribute } from '../types';
 import { CHARACTERS_BY_GRADE } from '../data/characters';
-import { GRADES, CREW_SIZE } from '../data/constants';
+import { CREW_SIZE } from '../data/constants';
 import {
   getAttributeMultiplier,
   getArenaAttributeBonus,

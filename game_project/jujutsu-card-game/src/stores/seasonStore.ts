@@ -19,7 +19,7 @@ import type {
   CrewPolicy
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
-import { CHARACTERS_BY_ID } from '../data/characters';
+// CHARACTERS_BY_ID removed (unused)
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
