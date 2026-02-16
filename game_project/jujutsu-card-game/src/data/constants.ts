@@ -32,6 +32,7 @@ export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
 // Phase 5.3: 등급 제한 제거 → CP 샐러리캡으로 대체 (maxInDeck은 레거시 호환용으로 유지, 실제 제한 없음)
 export const GRADES: Record<LegacyGrade, GradeInfo> = {
   '특급': { bg: '#FF6B6B', text: '#FFFFFF', maxInDeck: 8 },  // CP 샐러리캡으로 제한
+  '준특급': { bg: '#FF8C42', text: '#FFFFFF', maxInDeck: 8 }, // CP 샐러리캡으로 제한
   '1급': { bg: '#FFD93D', text: '#000000', maxInDeck: 8 },   // CP 샐러리캡으로 제한
   '준1급': { bg: '#6BCB77', text: '#FFFFFF', maxInDeck: 8 },
   '2급': { bg: '#4D96FF', text: '#FFFFFF', maxInDeck: 8 },
@@ -55,15 +56,18 @@ export const EXP_REWARDS = {
 export const MAX_LEVEL = 10;
 
 // 크루 시스템
-export const CREW_SIZE = 6;          // 크루당 카드 수 (5 → 6)
-export const CREW_COUNT = 8;         // 총 크루 수 (4 → 8)
-export const REGULAR_SEASON_GAMES = 7; // 정규시즌 경기 수
+export const ROSTER_SIZE = 6;        // 기본 로스터 카드 수 (드래프트 시 팀당 선택 수)
+export const BATTLE_SIZE = 6;        // 배틀 참가 카드 수
+export const CREW_SIZE = BATTLE_SIZE; // 레거시 호환 (= BATTLE_SIZE)
+export const DRAFT_ROUNDS = 6;       // 스네이크 드래프트 라운드 수 (= ROSTER_SIZE)
+export const CREW_COUNT = 10;        // 총 크루 수 (플레이어 1 + AI 9)
+export const REGULAR_SEASON_GAMES = 9; // 정규시즌 반기당 경기 수 (9팀 × 2회전 / 2반기)
 
 // 승리 조건
 export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
 
 // 최대 라운드
-export const MAX_ROUNDS = 5;         // 6장 크루 중 5장 사용 (1장 미사용)
+export const MAX_ROUNDS = 5;         // 6장 배틀 카드 중 5장 사용 (1장 미사용)
 
 // 스탯 아이콘 (8스탯 시스템)
 export const STAT_ICONS = {
@@ -135,14 +139,14 @@ export const DIFFICULTY_INFO = {
 // 시즌 반기 수
 export const SEASON_HALVES = 2;
 
-// 총 정규시즌 경기 수 (전반기 7 + 후반기 7 = 14경기)
+// 총 정규시즌 경기 수 (전반기 9 + 후반기 9 = 18경기)
 export const TOTAL_SEASON_GAMES = REGULAR_SEASON_GAMES * SEASON_HALVES;
 
 // 트레이드 윈도우 오픈 시점 (전반기 종료 후)
-export const TRADE_WINDOW_OPEN_AT = 7;
+export const TRADE_WINDOW_OPEN_AT = REGULAR_SEASON_GAMES;
 
-// 트레이드 마감 경기 (후반기 5경기째 = 전체 12경기째)
-export const TRADE_DEADLINE_GAME = 12;
+// 트레이드 마감 경기 (후반기 5경기째 = 전체 14경기째)
+export const TRADE_DEADLINE_GAME = REGULAR_SEASON_GAMES + 5;
 
 // ========================================
 // Phase 5: 드래프트 상수
@@ -172,10 +176,10 @@ export const MAX_CREW_SIZE = 8;
 // ========================================
 
 // 샐러리 캡 (크루 총 연봉 한도) - 하드캡
-export const SALARY_CAP = 15000;
+export const SALARY_CAP = 18000;
 
-// 소프트 캡 (경고 표시 기준)
-export const SOFT_SALARY_CAP = 12000;
+// 소프트 캡 (럭셔리 택스 기준)
+export const SOFT_SALARY_CAP = 15000;
 
 // ========================================
 // Phase 5.3: 소프트캡 초과 페널티 (럭셔리 택스)
@@ -189,9 +193,9 @@ export const SOFT_CAP_REWARD_PENALTY = 0.2;  // 20% 감소
 
 // 소프트캡 초과 구간별 페널티 (심각도에 따라)
 export const LUXURY_TAX_BRACKETS = [
-  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~1000: 50%
-  { threshold: 1000, rate: 0.75 },  // 소프트캡 초과 1000~2000: 75%
-  { threshold: 2000, rate: 1.0 },   // 소프트캡 초과 2000~: 100%
+  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~2000: 50%
+  { threshold: 2000, rate: 0.75 },  // 소프트캡 초과 2000~4000: 75%
+  { threshold: 4000, rate: 1.0 },   // 소프트캡 초과 4000~: 100%
 ];
 
 // ========================================
@@ -201,6 +205,7 @@ export const LUXURY_TAX_BRACKETS = [
 // 등급별 기본 카드 가치 (CP)
 export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
   '특급': 8000,   // 최상위 등급
+  '준특급': 6500,
   '1급': 5000,
   '준1급': 3000,
   '2급': 2000,
@@ -211,6 +216,7 @@ export const CARD_BASE_VALUE: Record<LegacyGrade, number> = {
 // 레벨당 가치 증가 (CP)
 export const CARD_VALUE_PER_LEVEL: Record<LegacyGrade, number> = {
   '특급': 500,
+  '준특급': 400,
   '1급': 300,
   '준1급': 200,
   '2급': 150,

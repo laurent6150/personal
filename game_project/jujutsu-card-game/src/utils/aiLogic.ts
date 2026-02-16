@@ -4,7 +4,7 @@
 
 import type { CharacterCard, Difficulty, Arena, Attribute } from '../types';
 import { CHARACTERS_BY_GRADE } from '../data/characters';
-import { GRADES } from '../data/constants';
+import { ROSTER_SIZE } from '../data/constants';
 import {
   getAttributeMultiplier,
   getArenaAttributeBonus,
@@ -75,6 +75,7 @@ function calculateCardScore(
 
   // 4. 등급 가중치 (높은 등급 카드는 중요한 라운드에 아끼려고 약간 패널티)
   if (card.grade === '특급') score -= 10;
+  if (card.grade === '준특급') score -= 7;
   if (card.grade === '1급') score -= 5;
 
   return score;
@@ -90,13 +91,34 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
   switch (difficulty) {
     case 'EASY':
       // 2급, 준1급 등급 위주 (약한 크루)
-      while (crew.length < 5) {
-        const pool = [...CHARACTERS_BY_GRADE['2급'], ...CHARACTERS_BY_GRADE['준1급']];
+      while (crew.length < ROSTER_SIZE) {
+        const pool = [...(CHARACTERS_BY_GRADE['2급'] || []), ...(CHARACTERS_BY_GRADE['준1급'] || [])];
         const card = randomPick(pool);
         if (!usedIds.has(card.id)) {
-          // 등급 제한 체크
-          const gradeCount = crew.filter(c => c.grade === card.grade).length;
-          if (gradeCount < GRADES[card.grade].maxInDeck) {
+          crew.push(card);
+          usedIds.add(card.id);
+        }
+      }
+      break;
+
+    case 'NORMAL':
+      // 1급 1-2장 + 준1급/2급으로 채움
+      {
+        const grade1Cards = [...(CHARACTERS_BY_GRADE['1급'] || [])];
+        const grade1Count = Math.floor(Math.random() * 2) + 1;
+
+        for (let i = 0; i < grade1Count && crew.length < ROSTER_SIZE; i++) {
+          const card = randomPick(grade1Cards);
+          if (!usedIds.has(card.id)) {
+            crew.push(card);
+            usedIds.add(card.id);
+          }
+        }
+
+        while (crew.length < ROSTER_SIZE) {
+          const pool = [...(CHARACTERS_BY_GRADE['준1급'] || []), ...(CHARACTERS_BY_GRADE['2급'] || [])];
+          const card = randomPick(pool);
+          if (!usedIds.has(card.id)) {
             crew.push(card);
             usedIds.add(card.id);
           }
@@ -104,53 +126,42 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
       }
       break;
 
-    case 'NORMAL':
-      // 준1급, 1급 등급 혼합
-      // 1급 1-2장, 나머지 준1급
-      const grade1Cards = [...CHARACTERS_BY_GRADE['1급']];
-      const grade1Count = Math.floor(Math.random() * 2) + 1; // 1-2장
-
-      for (let i = 0; i < grade1Count && crew.length < 5; i++) {
-        const card = randomPick(grade1Cards);
-        if (!usedIds.has(card.id)) {
-          crew.push(card);
-          usedIds.add(card.id);
-        }
-      }
-
-      while (crew.length < 5) {
-        const pool = [...CHARACTERS_BY_GRADE['준1급'], ...CHARACTERS_BY_GRADE['2급']];
-        const card = randomPick(pool);
-        if (!usedIds.has(card.id)) {
-          crew.push(card);
-          usedIds.add(card.id);
-        }
-      }
-      break;
-
     case 'HARD':
-      // 특급 1장 + 1급 2장 + 준1급 2장
-      // 특급
-      const specialCard = randomPick(CHARACTERS_BY_GRADE['특급']);
-      crew.push(specialCard);
-      usedIds.add(specialCard.id);
+      // 특급 1장 + 준특급 1장 + 1급 2장 + 나머지
+      {
+        // 특급
+        const specialPool = CHARACTERS_BY_GRADE['특급'] || [];
+        if (specialPool.length > 0) {
+          const specialCard = randomPick(specialPool);
+          crew.push(specialCard);
+          usedIds.add(specialCard.id);
+        }
 
-      // 1급 2장
-      const grade1Pool = CHARACTERS_BY_GRADE['1급'].filter(c => !usedIds.has(c.id));
-      for (let i = 0; i < 2 && grade1Pool.length > 0; i++) {
-        const card = randomPick(grade1Pool);
-        crew.push(card);
-        usedIds.add(card.id);
-        grade1Pool.splice(grade1Pool.indexOf(card), 1);
-      }
+        // 준특급
+        const semiSpecialPool = (CHARACTERS_BY_GRADE['준특급'] || []).filter(c => !usedIds.has(c.id));
+        if (semiSpecialPool.length > 0) {
+          const semiCard = randomPick(semiSpecialPool);
+          crew.push(semiCard);
+          usedIds.add(semiCard.id);
+        }
 
-      // 준1급으로 채우기
-      while (crew.length < 5) {
-        const pool = CHARACTERS_BY_GRADE['준1급'].filter(c => !usedIds.has(c.id));
-        if (pool.length === 0) break;
-        const card = randomPick(pool);
-        crew.push(card);
-        usedIds.add(card.id);
+        // 1급 2장
+        const grade1Pool = (CHARACTERS_BY_GRADE['1급'] || []).filter(c => !usedIds.has(c.id));
+        for (let i = 0; i < 2 && grade1Pool.length > 0; i++) {
+          const card = randomPick(grade1Pool);
+          crew.push(card);
+          usedIds.add(card.id);
+          grade1Pool.splice(grade1Pool.indexOf(card), 1);
+        }
+
+        // 나머지를 준1급으로 채우기
+        while (crew.length < ROSTER_SIZE) {
+          const pool = (CHARACTERS_BY_GRADE['준1급'] || []).filter(c => !usedIds.has(c.id));
+          if (pool.length === 0) break;
+          const card = randomPick(pool);
+          crew.push(card);
+          usedIds.add(card.id);
+        }
       }
       break;
   }
@@ -229,27 +240,27 @@ function hardAISelectCard(
 
   // 지고 있으면 강한 카드 투입
   if (scoreDiff < 0) {
-    // 등급이 높은 카드에 보너스
     for (const cs of cardScores) {
       if (cs.card.grade === '특급') cs.score += 30;
+      if (cs.card.grade === '준특급') cs.score += 22;
       if (cs.card.grade === '1급') cs.score += 15;
     }
   }
 
   // 이기고 있으면 카드 아끼기
   if (scoreDiff > 0 && roundNumber < 4) {
-    // 등급이 높은 카드에 패널티
     for (const cs of cardScores) {
       if (cs.card.grade === '특급') cs.score -= 20;
+      if (cs.card.grade === '준특급') cs.score -= 15;
       if (cs.card.grade === '1급') cs.score -= 10;
     }
   }
 
   // 마지막 라운드 (에이스전)
   if (roundNumber === 5 || availableCards.length === 1) {
-    // 가장 강한 카드 선택
     for (const cs of cardScores) {
       if (cs.card.grade === '특급') cs.score += 50;
+      if (cs.card.grade === '준특급') cs.score += 35;
       if (cs.card.grade === '1급') cs.score += 25;
     }
   }

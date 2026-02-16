@@ -502,8 +502,9 @@ function simulateSingleGame(card1: CharacterCard, card2: CharacterCard): 1 | 2 {
   const totalStat1 = calculateTotalStat(card1);
   const totalStat2 = calculateTotalStat(card2);
 
-  // 스탯 기반 승률 계산
-  const winChance1 = totalStat1 / (totalStat1 + totalStat2);
+  // 스탯 기반 승률 계산 (양쪽 모두 0인 경우 50:50)
+  const totalSum = totalStat1 + totalStat2;
+  const winChance1 = totalSum > 0 ? totalStat1 / totalSum : 0.5;
 
   // 약간의 랜덤 요소 추가 (완전 결정론적이지 않게)
   const adjustedChance = winChance1 * 0.7 + Math.random() * 0.3;
@@ -665,7 +666,8 @@ export function processQuarterResults(
 ): { brackets: IndividualBrackets; participants: LeagueParticipant[] } {
   const semiParticipants: string[] = [];
 
-  // 8강 승자 수집 및 탈락자 처리
+  // 8강 승자 수집 및 탈락자 ID 수집
+  const eliminatedIds: string[] = [];
   for (const match of brackets.quarter) {
     if (match.winner) {
       semiParticipants.push(match.winner);
@@ -673,13 +675,16 @@ export function processQuarterResults(
       const loserId = match.winner === match.participant1
         ? match.participant2
         : match.participant1;
-      const loser = participants.find(p => p.odId === loserId);
-      if (loser) {
-        loser.status = 'ELIMINATED';
-        loser.eliminatedAt = 'QUARTER';
-      }
+      if (loserId) eliminatedIds.push(loserId);
     }
   }
+
+  // 불변 업데이트로 탈락자 처리
+  participants = participants.map(p =>
+    eliminatedIds.includes(p.odId)
+      ? { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'QUARTER' as const }
+      : p
+  );
 
   // 4강 대진 생성 (2경기)
   const semiMatches: IndividualMatch[] = [];
@@ -787,11 +792,13 @@ export function processFinalResult(
       ? finalMatch.participant2
       : finalMatch.participant1;
 
-    // 준우승자 탈락 처리
-    const loser = participants.find(p => p.odId === runnerUp);
-    if (loser) {
-      loser.status = 'ELIMINATED';
-      loser.eliminatedAt = 'FINAL';
+    // 준우승자 탈락 처리 (불변 업데이트)
+    if (runnerUp) {
+      participants = participants.map(p =>
+        p.odId === runnerUp
+          ? { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'FINAL' as const }
+          : p
+      );
     }
   }
 
@@ -802,20 +809,17 @@ export function processFinalResult(
       ? thirdPlaceMatch.participant2
       : thirdPlaceMatch.participant1;
 
-    // 4위 탈락 처리
-    const loser4th = participants.find(p => p.odId === fourthPlace);
-    if (loser4th) {
-      loser4th.status = 'ELIMINATED';
-      loser4th.eliminatedAt = 'SEMI';  // 4위는 SEMI 탈락으로 처리 (보상 기준)
-    }
-
-    // 3위도 탈락 처리 (토너먼트 종료)
-    const third = participants.find(p => p.odId === thirdPlace);
-    if (third) {
-      third.status = 'ELIMINATED';
-      // 3위는 별도 처리 필요 - 기존 IndividualLeagueStatus에 THIRD_PLACE 없음
-      // 임시로 SEMI로 처리하되, thirdPlace 필드로 구분
-    }
+    // 4위, 3위 탈락 처리 (불변 업데이트)
+    const finalEliminatedIds = [fourthPlace, thirdPlace].filter(Boolean) as string[];
+    participants = participants.map(p => {
+      if (p.odId === fourthPlace) {
+        return { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'SEMI' as const };
+      }
+      if (p.odId === thirdPlace) {
+        return { ...p, status: 'ELIMINATED' as const };
+      }
+      return p;
+    });
   }
 
   console.log('[processFinalResult] 최종 결과:', {

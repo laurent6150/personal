@@ -1,10 +1,10 @@
 // ========================================
-// AI 크루 데이터 - 54명 캐릭터 / 8팀 체계
+// AI 크루 데이터 - 71명 캐릭터 / 10팀 체계
 // ========================================
 
 import type { AICrew, Difficulty, LegacyGrade } from '../types';
 import { ALL_CHARACTERS } from './characters';
-import { CREW_SIZE, CREW_COUNT, SALARY_CAP } from './constants';
+import { ROSTER_SIZE, CREW_COUNT, SALARY_CAP } from './constants';
 import { calculateSalary } from '../utils/salarySystem';
 
 // AI 팀 기본 정보 (크루 카드는 시즌 시작 시 랜덤 배정)
@@ -15,18 +15,7 @@ export interface AICrewTemplate {
   description: string;
 }
 
-// 등급별 최대 장수 (크루당) - DEPRECATED: Phase 5.3에서 CP 샐러리캡으로 대체
-// 레거시 호환을 위해 유지하지만, 실제 제한은 샐러리캡으로 적용됨
-const GRADE_LIMITS: Record<LegacyGrade, number> = {
-  '특급': 8,  // CP 샐러리캡으로 자연스럽게 제한됨
-  '1급': 8,   // CP 샐러리캡으로 자연스럽게 제한됨
-  '준1급': 8,
-  '2급': 8,
-  '준2급': 8,
-  '3급': 8
-};
-
-// AI 팀 템플릿 - 주술회전 세계관 영감 (7팀 = 8팀 - 플레이어 1팀)
+// AI 팀 템플릿 - 주술회전 세계관 영감 (9팀 = 10팀 - 플레이어 1팀)
 export const AI_CREW_TEMPLATES: AICrewTemplate[] = [
   {
     id: 'heukseom',
@@ -69,6 +58,18 @@ export const AI_CREW_TEMPLATES: AICrewTemplate[] = [
     name: '원령',
     difficulty: 'EASY',
     description: '사랑이 낳은 복수의 혼령'
+  },
+  {
+    id: 'chimok',
+    name: '침묵의 결계',
+    difficulty: 'NORMAL',
+    description: '소리 없이 조이는 영역'
+  },
+  {
+    id: 'myeolmun',
+    name: '멸문',
+    difficulty: 'HARD',
+    description: '모든 것을 멸하는 참극의 일족'
   }
 ];
 
@@ -88,14 +89,15 @@ function getCharacterGrade(characterId: string): LegacyGrade | null {
   return (char?.grade as LegacyGrade) || null;
 }
 
-// 등급을 고려하여 캐릭터를 크루에 배치 (등급 제한 준수)
-function distributeCharactersWithGradeLimits(
+// CP 기반으로 캐릭터를 크루에 균등 배치
+function distributeCharactersByCp(
   availableCharacters: string[],
   crewCount: number
 ): string[][] {
   // 등급별로 캐릭터 분류
   const byGrade: Record<string, string[]> = {
     '특급': [],
+    '준특급': [],
     '1급': [],
     '준1급': [],
     '2급': [],
@@ -117,36 +119,71 @@ function distributeCharactersWithGradeLimits(
 
   // 크루 초기화
   const crews: string[][] = Array.from({ length: crewCount }, () => []);
+  const crewSalaries: number[] = Array.from({ length: crewCount }, () => 0);
 
-  // 1. 특급 배분 (각 크루 최대 1명)
-  let specialIndex = 0;
-  for (let i = 0; i < crewCount && specialIndex < byGrade['특급'].length; i++) {
-    crews[i].push(byGrade['특급'][specialIndex++]);
-  }
+  // 1. 고등급 카드 라운드 로빈 배분 (특급 → 준특급 → 1급 순서)
+  const highGrades = ['특급', '준특급', '1급'];
+  for (const grade of highGrades) {
+    let charIndex = 0;
+    for (let i = 0; i < crewCount && charIndex < byGrade[grade].length; i++) {
+      // 가장 연봉이 적은 크루에 우선 배정
+      const sortedCrewIndices = [...Array(crewCount).keys()]
+        .sort((a, b) => crewSalaries[a] - crewSalaries[b]);
 
-  // 2. 1급 배분 (각 크루 최대 3명)
-  let firstGradeIndex = 0;
-  for (let round = 0; round < 3; round++) {
-    for (let i = 0; i < crewCount && firstGradeIndex < byGrade['1급'].length; i++) {
-      crews[i].push(byGrade['1급'][firstGradeIndex++]);
+      for (const ci of sortedCrewIndices) {
+        if (charIndex >= byGrade[grade].length) break;
+        if (crews[ci].length < ROSTER_SIZE) {
+          const cardId = byGrade[grade][charIndex];
+          const salary = getCardBaseSalary(cardId);
+          if (crewSalaries[ci] + salary <= SALARY_CAP) {
+            crews[ci].push(cardId);
+            crewSalaries[ci] += salary;
+            charIndex++;
+          }
+        }
+      }
+    }
+    // 남은 카드 추가 배분
+    while (charIndex < byGrade[grade].length) {
+      const sortedCrewIndices = [...Array(crewCount).keys()]
+        .filter(ci => crews[ci].length < ROSTER_SIZE)
+        .sort((a, b) => crewSalaries[a] - crewSalaries[b]);
+      if (sortedCrewIndices.length === 0) break;
+      const ci = sortedCrewIndices[0];
+      const cardId = byGrade[grade][charIndex];
+      const salary = getCardBaseSalary(cardId);
+      if (crewSalaries[ci] + salary <= SALARY_CAP) {
+        crews[ci].push(cardId);
+        crewSalaries[ci] += salary;
+      }
+      charIndex++;
     }
   }
 
-  // 3. 나머지 등급 배분 (준1급, 2급, 준2급, 3급)
-  const remainingCharacters = [
+  // 2. 나머지 등급 배분 (준1급, 2급, 준2급, 3급)
+  const remainingCharacters = shuffleArray([
     ...byGrade['준1급'],
     ...byGrade['2급'],
     ...byGrade['준2급'],
     ...byGrade['3급']
-  ];
+  ]);
 
-  const shuffledRemaining = shuffleArray(remainingCharacters);
-  let remainingIndex = 0;
+  // 각 크루를 CREW_SIZE까지 채움 (연봉 적은 크루 우선)
+  for (const cardId of remainingCharacters) {
+    // 이미 배정된 카드인지 확인
+    if (crews.some(crew => crew.includes(cardId))) continue;
 
-  // 각 크루를 CREW_SIZE까지 채움
-  for (let i = 0; i < crewCount; i++) {
-    while (crews[i].length < CREW_SIZE && remainingIndex < shuffledRemaining.length) {
-      crews[i].push(shuffledRemaining[remainingIndex++]);
+    const sortedCrewIndices = [...Array(crewCount).keys()]
+      .filter(ci => crews[ci].length < ROSTER_SIZE)
+      .sort((a, b) => crewSalaries[a] - crewSalaries[b]);
+
+    if (sortedCrewIndices.length === 0) break;
+
+    const ci = sortedCrewIndices[0];
+    const salary = getCardBaseSalary(cardId);
+    if (crewSalaries[ci] + salary <= SALARY_CAP) {
+      crews[ci].push(cardId);
+      crewSalaries[ci] += salary;
     }
   }
 
@@ -166,15 +203,15 @@ export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICre
   const aiCrewCount = Math.min(CREW_COUNT - 1, AI_CREW_TEMPLATES.length);
 
   // 필요한 총 카드 수
-  const totalCardsNeeded = aiCrewCount * CREW_SIZE;
+  const totalCardsNeeded = aiCrewCount * ROSTER_SIZE;
 
   console.log(`[AI Crews] 총 캐릭터: ${ALL_CHARACTERS.length}장`);
   console.log(`[AI Crews] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
   console.log(`[AI Crews] 가용 캐릭터: ${availableCards.length}장`);
   console.log(`[AI Crews] AI 크루 수: ${aiCrewCount}팀, 필요 카드: ${totalCardsNeeded}장`);
 
-  // 등급 제한을 고려한 캐릭터 배분
-  const distributedCrews = distributeCharactersWithGradeLimits(
+  // CP 기반 캐릭터 배분
+  const distributedCrews = distributeCharactersByCp(
     availableCards,
     aiCrewCount
   );
@@ -208,8 +245,8 @@ export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICre
 
 // 플레이어 크루 유효성 검사 (Phase 5.3: CP 샐러리캡 기반)
 export function validatePlayerCrew(crew: string[]): { valid: boolean; error?: string } {
-  if (crew.length !== CREW_SIZE) {
-    return { valid: false, error: `크루는 ${CREW_SIZE}장이어야 합니다 (현재: ${crew.length}장)` };
+  if (crew.length !== ROSTER_SIZE) {
+    return { valid: false, error: `크루는 ${ROSTER_SIZE}장이어야 합니다 (현재: ${crew.length}장)` };
   }
 
   // 캐릭터 존재 여부 확인
@@ -250,9 +287,6 @@ export const AI_CREWS_BY_ID: Record<string, AICrew> = {};
 // 플레이어 크루 ID (고정)
 export const PLAYER_CREW_ID = 'player';
 
-// 등급 제한 정보 내보내기 (레거시 호환)
-export { GRADE_LIMITS };
-
 // ========================================
 // Phase 5: 샐러리 캡 기반 크루 배분
 // ========================================
@@ -275,6 +309,7 @@ export function distributeCharactersWithSalaryCap(
   // 등급별로 캐릭터 분류
   const byGrade: Record<string, string[]> = {
     '특급': [],
+    '준특급': [],
     '1급': [],
     '준1급': [],
     '2급': [],
@@ -310,7 +345,19 @@ export function distributeCharactersWithSalaryCap(
     }
   }
 
-  // 2. 1급 배분 (샐러리 캡 고려, 라운드 로빈)
+  // 2. 준특급 배분 (샐러리 캡 고려, 라운드 로빈)
+  let semiSpecialIndex = 0;
+  for (let i = 0; i < crewCount && semiSpecialIndex < byGrade['준특급'].length; i++) {
+    const cardId = byGrade['준특급'][semiSpecialIndex];
+    const salary = getCardBaseSalary(cardId);
+    if (crewSalaries[i] + salary <= salaryCap) {
+      crews[i].push(cardId);
+      crewSalaries[i] += salary;
+      semiSpecialIndex++;
+    }
+  }
+
+  // 3. 1급 배분 (샐러리 캡 고려, 라운드 로빈)
   let firstGradeIndex = 0;
   for (let round = 0; round < 3 && firstGradeIndex < byGrade['1급'].length; round++) {
     for (let i = 0; i < crewCount && firstGradeIndex < byGrade['1급'].length; i++) {
@@ -324,7 +371,7 @@ export function distributeCharactersWithSalaryCap(
     }
   }
 
-  // 3. 나머지 등급 배분 (샐러리 캡 고려)
+  // 4. 나머지 등급 배분 (샐러리 캡 고려)
   const remainingCharacters = [
     ...byGrade['준1급'],
     ...byGrade['2급'],
@@ -337,7 +384,7 @@ export function distributeCharactersWithSalaryCap(
   // 각 크루를 CREW_SIZE까지 채움 (샐러리 캡 고려)
   for (let i = 0; i < crewCount; i++) {
     for (const cardId of shuffledRemaining) {
-      if (crews[i].length >= CREW_SIZE) break;
+      if (crews[i].length >= ROSTER_SIZE) break;
 
       // 이미 다른 크루에 배정되었는지 확인
       if (crews.some(crew => crew.includes(cardId))) continue;

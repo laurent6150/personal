@@ -35,12 +35,13 @@ export const LIFECYCLE_TABLE: Record<LegacyGrade, {
   declineStart: number;
   retirementStart: number;
 }> = {
-  '특급':  { peakStart: 2, declineStart: 5, retirementStart: 8 },
-  '1급':   { peakStart: 3, declineStart: 6, retirementStart: 9 },
-  '준1급': { peakStart: 3, declineStart: 7, retirementStart: 10 },
-  '2급':   { peakStart: 3, declineStart: 7, retirementStart: 10 },
-  '준2급': { peakStart: 4, declineStart: 8, retirementStart: 11 },
-  '3급':   { peakStart: 4, declineStart: 8, retirementStart: 11 },
+  '특급':   { peakStart: 2, declineStart: 5, retirementStart: 8 },
+  '준특급': { peakStart: 2, declineStart: 5, retirementStart: 8 },
+  '1급':    { peakStart: 3, declineStart: 6, retirementStart: 9 },
+  '준1급':  { peakStart: 3, declineStart: 7, retirementStart: 10 },
+  '2급':    { peakStart: 3, declineStart: 7, retirementStart: 10 },
+  '준2급':  { peakStart: 4, declineStart: 8, retirementStart: 11 },
+  '3급':    { peakStart: 4, declineStart: 8, retirementStart: 11 },
 };
 
 // ========================================

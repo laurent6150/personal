@@ -22,14 +22,14 @@ import type {
 // ========================================
 
 export const GRADES: GradeDefinition[] = [
-  { id: 'S',  name: '특급',   minStat: 150, color: '#FFD700', textColor: '#000000', maxInDeck: 1 },
-  { id: 'S-', name: '준특급', minStat: 135, color: '#FFA500', textColor: '#000000', maxInDeck: 1 },
-  { id: 'A',  name: '1급',    minStat: 120, color: '#FF6B6B', textColor: '#FFFFFF', maxInDeck: 2 },
-  { id: 'A-', name: '준1급',  minStat: 105, color: '#FF8E8E', textColor: '#000000', maxInDeck: 2 },
-  { id: 'B',  name: '2급',    minStat: 90,  color: '#4ECDC4', textColor: '#000000', maxInDeck: 3 },
-  { id: 'B-', name: '준2급',  minStat: 75,  color: '#7ED4CD', textColor: '#000000', maxInDeck: 3 },
-  { id: 'C',  name: '3급',    minStat: 60,  color: '#95A5A6', textColor: '#FFFFFF', maxInDeck: 5 },
-  { id: 'C-', name: '준3급',  minStat: 45,  color: '#BDC3C7', textColor: '#000000', maxInDeck: 5 },
+  { id: 'S',  name: '특급',   minStat: 222, color: '#FFD700', textColor: '#000000', maxInDeck: 1 },
+  { id: 'S-', name: '준특급', minStat: 205, color: '#FFA500', textColor: '#000000', maxInDeck: 1 },
+  { id: 'A',  name: '1급',    minStat: 180, color: '#FF6B6B', textColor: '#FFFFFF', maxInDeck: 2 },
+  { id: 'A-', name: '준1급',  minStat: 165, color: '#FF8E8E', textColor: '#000000', maxInDeck: 2 },
+  { id: 'B',  name: '2급',    minStat: 150, color: '#4ECDC4', textColor: '#000000', maxInDeck: 3 },
+  { id: 'B-', name: '준2급',  minStat: 140, color: '#7ED4CD', textColor: '#000000', maxInDeck: 3 },
+  { id: 'C',  name: '3급',    minStat: 130, color: '#95A5A6', textColor: '#FFFFFF', maxInDeck: 5 },
+  { id: 'C-', name: '준3급',  minStat: 115, color: '#BDC3C7', textColor: '#000000', maxInDeck: 5 },
   { id: 'D',  name: '비술사', minStat: 0,   color: '#7F8C8D', textColor: '#FFFFFF', maxInDeck: 5 }
 ];
 
@@ -329,7 +329,7 @@ export function addExpAndLevelUp(
   levelsGained: number;
   statIncreases: Partial<Stats>;
 } {
-  const newTotalExp = currentProgress.totalExp + expToAdd;
+  const newTotalExp = Math.max(0, currentProgress.totalExp + expToAdd);
   const newLevel = calculateLevelFromExp(newTotalExp);
   const levelsGained = newLevel - currentProgress.level;
   const leveledUp = levelsGained > 0;
@@ -396,7 +396,7 @@ export function calculateExpChange(details: ExpChangeDetails, formExpBonus: numb
 }
 
 /**
- * 총 경험치로 레벨 계산
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 calculateLevelFromExp(EXP_TABLE) 사용
  */
 export function getLevelFromTotalExp(totalExp: number): number {
   let level = 1;
@@ -410,19 +410,21 @@ export function getLevelFromTotalExp(totalExp: number): number {
 }
 
 /**
- * 현재 레벨 내 경험치 계산
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 getExpProgress(EXP_TABLE) 사용
  */
 export function getExpInCurrentLevel(totalExp: number, level: number): number {
   if (level <= 1) return totalExp;
+  if (level > LEVEL_THRESHOLDS.length) return 0;
   const prevThreshold = LEVEL_THRESHOLDS[level - 1];
   return totalExp - prevThreshold;
 }
 
 /**
- * 다음 레벨까지 필요한 경험치
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 getExpForNextLevel(EXP_TABLE) 사용
  */
 export function getExpToNextLevel(level: number): number {
   if (level >= MAX_LEVEL) return 0;
+  if (level < 1 || level >= LEVEL_THRESHOLDS.length) return 0;
   return LEVEL_THRESHOLDS[level] - LEVEL_THRESHOLDS[level - 1];
 }
 

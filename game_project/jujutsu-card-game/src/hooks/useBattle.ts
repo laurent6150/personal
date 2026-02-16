@@ -9,7 +9,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import { CREW_SIZE } from '../data/constants';
+import { BATTLE_SIZE, ROSTER_SIZE } from '../data/constants';
 import type { Difficulty, CharacterCard, RoundResult, CardAssignment, Arena } from '../types';
 
 // 안정적인 참조를 위한 상수 (React 19 호환)
@@ -175,11 +175,11 @@ export function useBattle() {
     console.log('받은 파라미터:', { aiCrewLen: aiCrew?.length, difficulty, customPlayerCrewLen: customPlayerCrew?.length });
 
     // 커스텀 플레이어 크루가 있으면 사용 (개인 리그 1v1)
-    const crew = customPlayerCrew || (playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew);
-    console.log('사용할 crew:', crew?.length, 'CREW_SIZE:', CREW_SIZE);
+    const crew = customPlayerCrew || (playerCrew.length === BATTLE_SIZE ? playerCrew : player.currentCrew.slice(0, BATTLE_SIZE));
+    console.log('사용할 crew:', crew?.length, 'BATTLE_SIZE:', BATTLE_SIZE);
 
-    if (crew.length !== CREW_SIZE || aiCrew.length !== CREW_SIZE) {
-      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', CREW_SIZE);
+    if (crew.length !== BATTLE_SIZE || aiCrew.length !== BATTLE_SIZE) {
+      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', BATTLE_SIZE);
       return false;
     }
     console.log('✅ initBanPick 호출');
@@ -214,13 +214,13 @@ export function useBattle() {
   // 게임 시작 (시즌에서 배정된 AI 크루 사용) - 레거시 모드 (밴픽 없이)
   const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
     // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
-    const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
-    if (crew.length !== CREW_SIZE) {
-      console.error(`크루가 ${CREW_SIZE}장이 아닙니다: ${crew.length}장`);
+    const crew = playerCrew.length === BATTLE_SIZE ? playerCrew : player.currentCrew.slice(0, BATTLE_SIZE);
+    if (crew.length !== BATTLE_SIZE) {
+      console.error(`크루가 ${BATTLE_SIZE}장이 아닙니다: ${crew.length}장`);
       return false;
     }
-    if (aiCrew.length !== CREW_SIZE) {
-      console.error(`AI 크루가 ${CREW_SIZE}장이 아닙니다: ${aiCrew.length}장`);
+    if (aiCrew.length !== BATTLE_SIZE) {
+      console.error(`AI 크루가 ${BATTLE_SIZE}장이 아닙니다: ${aiCrew.length}장`);
       return false;
     }
     startGame(crew, aiCrew, difficulty);
@@ -244,30 +244,8 @@ export function useBattle() {
 
     const result = executeRound();
 
-    // 카드 개인 기록 저장 (승패가 있을 때만)
-    if (result && result.winner !== 'DRAW' && currentSeason) {
-      const isPlayerWinner = result.winner === 'PLAYER';
-      const winnerCardId = isPlayerWinner ? result.playerCardId : result.aiCardId;
-      const loserCardId = isPlayerWinner ? result.aiCardId : result.playerCardId;
-
-      // 확장 통계 데이터 추출
-      const { playerDamage, aiDamage, skillActivated } = result.calculation;
-      const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
-      const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
-      const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
-      const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
-
-      recordBattle({
-        seasonNumber: currentSeason.number,
-        winnerCardId,
-        loserCardId,
-        arenaId: result.arena.id,
-        winnerDamage,
-        loserDamage,
-        winnerSkillActivated,
-        loserSkillActivated
-      });
-    }
+    // 카드 개인 기록은 TurnBattleModal 완료 후 실제 승자 기준으로 기록
+    // (recordBattleWithActualWinner에서 처리)
 
     // 결과 표시 후 애니메이션 종료
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -275,14 +253,41 @@ export function useBattle() {
     setAnimating(false);
 
     return result;
-  }, [selectedCardId, isAnimating, setAnimating, executeRound, currentSeason, recordBattle]);
+  }, [selectedCardId, isAnimating, setAnimating, executeRound]);
+
+  // 실제 전투 결과(TurnBattleModal 완료)로 카드 개인 기록 저장
+  const recordBattleWithActualWinner = useCallback((actualWinner: 'PLAYER' | 'AI' | 'DRAW') => {
+    if (!lastRoundResult || actualWinner === 'DRAW' || !currentSeason) return;
+
+    const isPlayerWinner = actualWinner === 'PLAYER';
+    const winnerCardId = isPlayerWinner ? lastRoundResult.playerCardId : lastRoundResult.aiCardId;
+    const loserCardId = isPlayerWinner ? lastRoundResult.aiCardId : lastRoundResult.playerCardId;
+
+    // 확장 통계 데이터 추출
+    const { playerDamage, aiDamage, skillActivated } = lastRoundResult.calculation;
+    const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
+    const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
+    const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
+    const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
+
+    recordBattle({
+      seasonNumber: currentSeason.number,
+      winnerCardId,
+      loserCardId,
+      arenaId: lastRoundResult.arena.id,
+      winnerDamage,
+      loserDamage,
+      winnerSkillActivated,
+      loserSkillActivated
+    });
+  }, [lastRoundResult, currentSeason, recordBattle]);
 
   // 결과 확인 후 다음 진행
   const handleContinue = useCallback(() => {
     clearLastResult();
 
-    // 게임 종료 체크
-    if (isGameOver && session) {
+    // 게임 종료 체크 (이미 처리된 경우 중복 호출 방지)
+    if (isGameOver && session && !gameEndResult) {
       const won = session.status === 'PLAYER_WIN';
       const result = processGameResult(
         won,
@@ -297,11 +302,13 @@ export function useBattle() {
         newAchievements: result.newAchievements
       });
     }
-  }, [clearLastResult, isGameOver, session, processGameResult]);
+  }, [clearLastResult, isGameOver, session, gameEndResult, processGameResult]);
 
   // 게임 종료 및 결과 처리
   const handleEndGame = useCallback(() => {
     if (!session) return null;
+    // 이미 처리된 경우 중복 호출 방지
+    if (gameEndResult) return null;
 
     const result = endGame();
 
@@ -323,7 +330,7 @@ export function useBattle() {
     }
 
     return result;
-  }, [session, endGame, processGameResult]);
+  }, [session, gameEndResult, endGame, processGameResult]);
 
   // 재대전 (같은 AI 크루와 재대전)
   const handleRematch = useCallback((difficulty?: Difficulty) => {
@@ -331,7 +338,7 @@ export function useBattle() {
     const aiCrew = session?.ai.crew ?? [];
     setGameEndResult(null);
     resetGame();
-    if (aiCrew.length === 5) {
+    if (aiCrew.length === BATTLE_SIZE) {
       handleStartGame(aiCrew, diff);
     }
   }, [session?.ai.difficulty, session?.ai.crew, resetGame, handleStartGame]);
@@ -396,6 +403,7 @@ export function useBattle() {
     selectCard: handleSelectCard,
     executeRound: handleExecuteRound,
     updateRoundWinner,
+    recordBattleWithActualWinner,
     continueGame: handleContinue,
     endGame: handleEndGame,
     rematch: handleRematch,
@@ -456,7 +464,7 @@ export function useCrewManagement() {
 
   // 등급별 카드 수
   const gradeCount = useMemo(() => {
-    const counts: Record<string, number> = { '특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
+    const counts: Record<string, number> = { '특급': 0, '준특급': 0, '1급': 0, '준1급': 0, '2급': 0, '준2급': 0, '3급': 0 };
     for (const cardId of player.currentCrew) {
       const char = CHARACTERS_BY_ID[cardId];
       if (char) counts[char.grade]++;
@@ -469,7 +477,7 @@ export function useCrewManagement() {
     availableCards,
     gradeCount,
     crewSize: player.currentCrew.length,
-    maxCrewSize: CREW_SIZE,
+    maxCrewSize: ROSTER_SIZE,
     setCurrentCrew,
     addCardToCrew,
     removeCardFromCrew,

@@ -30,12 +30,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("maki_zenin_awakened", "젠인 마키 (각성)", "BODY"),
-    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85 },
+    // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
+    baseStats: { atk: 23, def: 15, spd: 24, ce: 0, hp: 88, crt: 23, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천여함수 완성", description: "토지와 동등한 경지", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 } },
     basicSkills: [
       { id: "maki_aw_1", name: "혼폭도 (魂爆刀)", type: "ATTACK", description: "영혼을 베는 특급 저주도구", effect: { type: "DAMAGE", value: 130, ignoreBarrier: true } },
-      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 60 } },
+      { id: "maki_aw_2", name: "천여함수의 동체시력", type: "DEFENSE", description: "모든 움직임을 포착", effect: { type: "DODGE", chance: 55 } },
       { id: "maki_aw_3", name: "연속 참격", type: "ATTACK", description: "빠른 연속 베기", effect: { type: "MULTI_HIT", hits: 4, value: 40 } }
     ],
     ultimateSkill: { id: "maki_aw_ult", name: "천여함수 완성", description: "토지와 동등한 경지에 도달", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 }, gaugeRequired: 100 },
@@ -64,7 +65,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("jogo", "죠고", "CONVERT"),
-    baseStats: { atk: 20, def: 12, spd: 16, ce: 22, hp: 85 },
+    baseStats: { atk: 22, def: 13, spd: 17, ce: 23, hp: 88 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "개문돈갑", description: "태양 온도의 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 20, damage: 230 } },
     basicSkills: [
@@ -81,7 +82,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("hanami", "하나미", "CONVERT"),
-    baseStats: { atk: 16, def: 20, spd: 14, ce: 20, hp: 95 },
+    baseStats: { atk: 16, def: 19, spd: 14, ce: 20, hp: 92 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: { name: "재앙의 꽃", description: "모든 생물의 저주력을 강제 흡수", effect: { type: "DRAIN", value: 160, healPercent: 60 } },
     basicSkills: [
@@ -103,7 +104,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     skill: { name: "투사호법 - 극", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true } },
     basicSkills: [
       { id: "naobito_1", name: "투사호법", type: "ATTACK", description: "프레임 단위의 빠른 공격", effect: { type: "DAMAGE", value: 110, guaranteed_first: true } },
-      { id: "naobito_2", name: "프레임 이동", type: "DEFENSE", description: "프레임 사이로 회피", effect: { type: "DODGE", chance: 65 } },
+      { id: "naobito_2", name: "프레임 이동", type: "DEFENSE", description: "프레임 사이로 회피", effect: { type: "DODGE", chance: 55 } },
       { id: "naobito_3", name: "연속 타격", type: "ATTACK", description: "빠른 연속 공격", effect: { type: "MULTI_HIT", hits: 3, value: 45 } }
     ],
     ultimateSkill: { id: "naobito_ult", name: "투사호법 - 극 (極)", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true }, gaugeRequired: 100 },
@@ -132,7 +133,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("hiromi_higuruma", "히구루마 히로미", "BARRIER"),
-    baseStats: { atk: 16, def: 18, spd: 15, ce: 22, hp: 85 },
+    baseStats: { atk: 17, def: 18, spd: 16, ce: 23, hp: 86 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "사법암흑계 - 사형선고", description: "영역 내 재판에서 유죄 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 240 } },
     basicSkills: [
@@ -149,7 +150,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("hajime_kashimo", "카시모 하지메", "CONVERT"),
-    baseStats: { atk: 21, def: 14, spd: 21, ce: 20, hp: 82 },
+    baseStats: { atk: 22, def: 15, spd: 22, ce: 21, hp: 86 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "환상의 수", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 230, spdBonus: 60, duration: 3 } },
     basicSkills: [
@@ -200,7 +201,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("kinji_hakari", "하카리 킨지", "BARRIER"),
-    baseStats: { atk: 19, def: 16, spd: 18, ce: 21, hp: 85 },
+    baseStats: { atk: 21, def: 16, spd: 20, ce: 22, hp: 87 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "좌살박도", description: "잭팟! 무한 저주력 + 불사", effect: { type: "TRANSFORM", damage: 200, duration: 3 } },
     basicSkills: [
@@ -288,7 +289,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("mahito", "마히토", "SOUL"),
-    baseStats: { atk: 17, def: 14, spd: 18, ce: 20, hp: 80 },
+    baseStats: { atk: 19, def: 15, spd: 19, ce: 22, hp: 83 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "자폐원둔리득체기", description: "영역 내 모든 영혼을 만진다", effect: { type: "DOMAIN", damage: 200, ignoreDefense: true } },
     basicSkills: [
@@ -325,7 +326,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("dagon", "다곤", "CONVERT"),
-    baseStats: { atk: 18, def: 18, spd: 14, ce: 22, hp: 92 },
+    baseStats: { atk: 17, def: 17, spd: 14, ce: 21, hp: 90 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "사미세유도", description: "열대의 해변 영역전개, 필중 물고기떼", effect: { type: "DOMAIN", damage: 210 } },
     basicSkills: [
@@ -427,12 +428,13 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("tsurugi_okkotsu", "옷코츠 츠루기", "BODY"),
-    baseStats: { atk: 22, def: 14, spd: 23, ce: 0, hp: 85 },
+    // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
+    baseStats: { atk: 23, def: 15, spd: 23, ce: 0, hp: 87, crt: 23, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [
       { id: "tsurugi_1", name: "검영류 발도", type: "ATTACK", description: "호노야기의 화염 발도술", effect: { type: "DAMAGE", value: 130, element: "FIRE" } },
-      { id: "tsurugi_2", name: "초인적 반사", type: "DEFENSE", description: "천여체의 초인적 동체시력", effect: { type: "DODGE", chance: 65 } },
+      { id: "tsurugi_2", name: "초인적 반사", type: "DEFENSE", description: "천여체의 초인적 동체시력", effect: { type: "DODGE", chance: 55 } },
       { id: "tsurugi_3", name: "연속 참격", type: "ATTACK", description: "고속 연속 베기", effect: { type: "MULTI_HIT", hits: 3, value: 50 } }
     ],
     ultimateSkill: { id: "tsurugi_ult", name: "리카 융합 (里香融合)", description: "할아버지의 반지를 통해 리카와 융합", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 }, gaugeRequired: 100 },

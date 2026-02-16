@@ -51,9 +51,9 @@ import {
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
  */
 function ensureFullStats(baseStats: BaseStats): Stats {
-  // 이미 8스탯이면 그대로 반환
+  // 이미 8스탯이면 복사본 반환 (원본 뮤테이션 방지)
   if ('crt' in baseStats) {
-    return baseStats as Stats;
+    return { ...baseStats } as Stats;
   }
   // 5스탯이면 기본값으로 신규 스탯 추가
   return {
@@ -84,8 +84,17 @@ export function calculateCombatStats(
   stats[baseCard.growthStats.primary] += levelBonus;
   stats[baseCard.growthStats.secondary] += levelBonus;
 
+  // 레벨업 누적 보너스 스탯 적용 (시즌 종료 시 등급별 랜덤 분배)
+  if (playerCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerCard.bonusStats)) {
+      if (stat in stats && value) {
+        stats[stat as keyof Stats] += value;
+      }
+    }
+  }
+
   // 장비 보너스 적용
-  for (const equipId of playerCard.equipment) {
+  for (const equipId of (playerCard.equipment || [])) {
     if (equipId) {
       const item = ITEMS_BY_ID[equipId];
       if (item) {

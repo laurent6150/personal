@@ -11,8 +11,8 @@ import type {
   Stats,
   LegacyGrade
 } from '../types';
-import { CHARACTERS_BY_ID, ALL_CHARACTERS } from '../data/characters';
-import { ALL_ARENAS, ARENAS_BY_ID, ARENA_FAVORED_STATS } from '../data/arenas';
+import { CHARACTERS_BY_ID } from '../data/characters';
+import { ALL_ARENAS, ARENA_FAVORED_STATS } from '../data/arenas';
 import { ITEMS_BY_ID } from '../data/items';
 import {
   ATTRIBUTE_ADVANTAGE,
@@ -21,14 +21,12 @@ import {
   ATTRIBUTES
 } from '../data/constants';
 import {
-  getAttributeMultiplier,
   getArenaAttributeBonus,
   isAttributeNullifiedArena,
   isSpeedReversedArena,
   getSkillSealProbability,
   getArenaStatModifier
 } from './attributeSystem';
-import { calculateCombatStats, calculateDamage } from './battleCalculator';
 
 // ========================================
 // 타입 정의
@@ -136,7 +134,7 @@ export function getEffectiveStats(playerCard: PlayerCard): Stats {
       if (item) {
         for (const [stat, value] of Object.entries(item.statBonus)) {
           if (stat in stats && value !== undefined) {
-            (stats as Record<string, number>)[stat] += value;
+            (stats as unknown as Record<string, number>)[stat] += value;
           }
         }
       }
@@ -275,7 +273,7 @@ export function calculateArenaScore(
   const favoredStat = ARENA_FAVORED_STATS[arena.id];
   if (favoredStat) {
     const stats = getEffectiveStats(playerCard);
-    const statValue = (stats as Record<string, number>)[favoredStat.stat] || 0;
+    const statValue = (stats as unknown as Record<string, number>)[favoredStat.stat] || 0;
     if (statValue >= favoredStat.threshold) {
       score += 15;
       reasons.push(`${favoredStat.stat.toUpperCase()} ${favoredStat.threshold}+ → ${favoredStat.bonusType} 보너스`);

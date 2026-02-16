@@ -16,7 +16,7 @@ import {
   getRecommendedCardsForArena
 } from '../../utils/banPickSystem';
 import { analyzeArenaEffects } from '../../utils/arenaEffectAnalyzer';
-import { recommendOptimalPlacement, type PlacementRecommendation } from '../../utils/strategyAdvisor';
+import { recommendOptimalPlacement } from '../../utils/strategyAdvisor';
 import { SelectedCardPanel } from './SelectedCardPanel';
 import type { Arena, CardAssignment, ArenaEffect, PlayerCard } from '../../types';
 
@@ -64,8 +64,15 @@ export function CardPlacementScreen({
       level: 1,
       exp: 0,
       totalExp: 0,
-      equipment: [null, null],
-      condition: 'STABLE' as const
+      equipment: [null, null] as [string | null, string | null],
+      stats: { totalWins: 0, totalLosses: 0, vsRecord: {}, arenaRecord: {} },
+      unlockedAchievements: [],
+      bonusStats: { atk: 0, def: 0, spd: 0, ce: 0, hp: 0, crt: 0, tec: 0, mnt: 0 },
+      condition: { value: 80, consecutiveBattles: 0, lastRestRound: 0 },
+      currentForm: 'STABLE' as const,
+      recentResults: [],
+      currentWinStreak: 0,
+      maxWinStreak: 0
     }));
     return recommendOptimalPlacement(playerCards, arenas.slice(0, REQUIRED_ASSIGNMENTS));
   }, [playerCrew, arenas]);

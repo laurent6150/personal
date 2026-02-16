@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PlayerData, PlayerCard, RoundResult, Grade, CharacterProgress, FormState, CareerPhase, LegacyGrade } from '../types';
 import { STARTER_CREW, CHARACTERS_BY_ID } from '../data/characters';
-import { CREW_SIZE, SALARY_CAP } from '../data/constants';
+import { BATTLE_SIZE, MAX_CREW_SIZE, SALARY_CAP } from '../data/constants';
 import { calculateExpReward, checkLevelUp } from '../utils/battleCalculator';
 import { initializeGrowthData, addExpAndLevelUp } from '../data/growthSystem';
 import { calculateSalary, validateCrewSalary } from '../utils/salarySystem';
@@ -109,6 +109,7 @@ interface PlayerState {
   addOwnedCard: (cardId: string) => boolean;
   releaseCard: (cardId: string) => boolean;
   getOwnedCardIds: () => string[];
+  resetForDraft: () => void;
 
   // 헬퍼
   getPlayerCard: (cardId: string) => PlayerCard | undefined;
@@ -142,7 +143,7 @@ export const usePlayerStore = create<PlayerState>()(
       player: createInitialPlayerData(),
 
       setCurrentCrew: (crew: string[]) => {
-        if (crew.length !== CREW_SIZE) return false;
+        if (crew.length < BATTLE_SIZE || crew.length > MAX_CREW_SIZE) return false;
 
         // 모든 카드가 소유 중인지 확인
         const { player, getCardSalary } = get();
@@ -177,7 +178,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       addCardToCrew: (cardId: string) => {
         const { player, canAddToCrew, getCardSalary } = get();
-        if (player.currentCrew.length >= CREW_SIZE) return false;
+        if (player.currentCrew.length >= MAX_CREW_SIZE) return false;
         if (!canAddToCrew(cardId)) return false;
 
         // 샐러리캡 검증
@@ -501,7 +502,7 @@ export const usePlayerStore = create<PlayerState>()(
         if (isCardInCrew(cardId)) return false;
 
         // 크루가 가득 찼는지 확인
-        if (player.currentCrew.length >= CREW_SIZE) return false;
+        if (player.currentCrew.length >= MAX_CREW_SIZE) return false;
 
         // 캐릭터 존재 확인
         const char = CHARACTERS_BY_ID[cardId];
@@ -588,6 +589,19 @@ export const usePlayerStore = create<PlayerState>()(
       // 소유 카드 ID 목록 조회
       getOwnedCardIds: () => {
         return Object.keys(get().player.ownedCards);
+      },
+
+      // 드래프트 시작 전 보유 카드 초기화 (이전 시즌 카드 제거)
+      resetForDraft: () => {
+        const { player } = get();
+        console.log(`[Player] 드래프트 초기화: 기존 ${Object.keys(player.ownedCards).length}장 제거`);
+        set({
+          player: {
+            ...player,
+            ownedCards: {},
+            currentCrew: [],
+          }
+        });
       },
 
       // ========================================
@@ -781,7 +795,7 @@ export const usePlayerStore = create<PlayerState>()(
         const needsOwnedCardsSync = ownedCardCount !== currentCrew.length;
         const totalSalary = currentCrew.reduce((sum, cardId) => sum + getCardSalary(cardId), 0);
 
-        if (!needsOwnedCardsSync && currentCrew.length <= CREW_SIZE && totalSalary <= SALARY_CAP) {
+        if (!needsOwnedCardsSync && currentCrew.length <= MAX_CREW_SIZE && totalSalary <= SALARY_CAP) {
           return { fixed: false, removedCards: [] };
         }
 
@@ -791,7 +805,7 @@ export const usePlayerStore = create<PlayerState>()(
         let currentSalary = 0;
 
         for (const cardId of currentCrew) {
-          if (validatedCrew.length >= CREW_SIZE) {
+          if (validatedCrew.length >= MAX_CREW_SIZE) {
             removedCards.push(cardId);
             continue;
           }

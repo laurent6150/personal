@@ -1,11 +1,12 @@
 // ========================================
-// 캐릭터 데이터 통합 (70명)
-// 특급 12 / 1급 25 / 준1급 17 / 2급 12 / 3급 4
+// 캐릭터 데이터 통합 (71명)
+// 특급 6 / 준특급 7 / 1급 25 / 준1급 17 / 2급 12 / 3급 4
 // 8각형 스탯 시스템 적용
 // ========================================
 
-import type { CharacterCard, Stats, LegacyGrade } from '../../types';
+import type { CharacterCard, Stats, LegacyGrade, Grade } from '../../types';
 import { SPECIAL_GRADE as RAW_SPECIAL_GRADE } from './special-grade';
+import { SEMI_SPECIAL_GRADE as RAW_SEMI_SPECIAL_GRADE } from './semi-special-grade';
 import { FIRST_GRADE as RAW_FIRST_GRADE } from './first-grade';
 import { SEMI_FIRST_GRADE as RAW_SEMI_FIRST_GRADE } from './semi-first-grade';
 import { SECOND_GRADE as RAW_SECOND_GRADE } from './second-grade';
@@ -20,13 +21,13 @@ import { GRADE_BASE_NEW_STATS } from '../growthSystem';
 function migrateCharacterStats(character: CharacterCard): CharacterCard {
   const legacyStats = character.baseStats as { atk: number; def: number; spd: number; ce: number; hp: number };
 
-  // 이미 8스탯이면 그대로 반환
+  // 이미 8스탯이면 그대로 반환 (CE 0 캐릭터 등 직접 지정된 경우)
   if ('crt' in character.baseStats) {
     return character;
   }
 
-  // 등급에 따른 신규 스탯 가져오기
-  const newStats = GRADE_BASE_NEW_STATS[character.grade as LegacyGrade] || GRADE_BASE_NEW_STATS['3급'];
+  // 등급에 따른 신규 스탯 가져오기 (준특급 포함)
+  const newStats = GRADE_BASE_NEW_STATS[character.grade as LegacyGrade | Grade] || GRADE_BASE_NEW_STATS['3급'];
 
   // 8스탯으로 확장
   const fullStats: Stats = {
@@ -53,6 +54,7 @@ function migrateAllCharacters(characters: CharacterCard[]): CharacterCard[] {
 
 // 마이그레이션된 등급별 캐릭터
 export const SPECIAL_GRADE = migrateAllCharacters(RAW_SPECIAL_GRADE);
+export const SEMI_SPECIAL_GRADE = migrateAllCharacters(RAW_SEMI_SPECIAL_GRADE);
 export const FIRST_GRADE = migrateAllCharacters(RAW_FIRST_GRADE);
 export const SEMI_FIRST_GRADE = migrateAllCharacters(RAW_SEMI_FIRST_GRADE);
 export const SECOND_GRADE = migrateAllCharacters(RAW_SECOND_GRADE);
@@ -61,6 +63,7 @@ export const THIRD_GRADE = migrateAllCharacters(RAW_THIRD_GRADE);
 // 전체 캐릭터 배열 (8스탯 적용됨)
 export const ALL_CHARACTERS: CharacterCard[] = [
   ...SPECIAL_GRADE,
+  ...SEMI_SPECIAL_GRADE,
   ...FIRST_GRADE,
   ...SEMI_FIRST_GRADE,
   ...SECOND_GRADE,
@@ -79,6 +82,7 @@ export const CHARACTERS_BY_ID = ALL_CHARACTERS.reduce((acc, char) => {
 // 등급별 캐릭터
 export const CHARACTERS_BY_GRADE = {
   '특급': SPECIAL_GRADE,
+  '준특급': SEMI_SPECIAL_GRADE,
   '1급': FIRST_GRADE,
   '준1급': SEMI_FIRST_GRADE,
   '2급': SECOND_GRADE,
@@ -96,4 +100,4 @@ export const STARTER_CREW = [
 ];
 
 // 등급별 캐릭터는 이미 위에서 export됨
-// SPECIAL_GRADE, FIRST_GRADE, SEMI_FIRST_GRADE, SECOND_GRADE, THIRD_GRADE
+// SPECIAL_GRADE, SEMI_SPECIAL_GRADE, FIRST_GRADE, SEMI_FIRST_GRADE, SECOND_GRADE, THIRD_GRADE

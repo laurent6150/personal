@@ -24,6 +24,7 @@ export const TV_TOLERANCE = 0.2;
 // 등급별 기본 TV
 export const BASE_TV: Record<LegacyGrade, number> = {
   '특급': 5000,
+  '준특급': 4000,
   '1급': 3000,
   '준1급': 2000,
   '2급': 1200,
@@ -92,7 +93,7 @@ export function calculateCardTV(
   const grade = character.grade as LegacyGrade;
   const baseSalary = BASE_SALARY[grade];
   const levelModifier = getLevelModifier(level);
-  const phaseModifier = PHASE_TV_MODIFIER[careerPhase];
+  const phaseModifier = PHASE_TV_MODIFIER[careerPhase] ?? 1.0;
 
   const baseTV = BASE_TV[grade];
   const levelBonus = Math.floor(baseTV * (levelModifier - 1));

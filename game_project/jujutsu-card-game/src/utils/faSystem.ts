@@ -69,7 +69,8 @@ export function renewContract(card: OwnedCard): OwnedCard {
   return {
     ...card,
     faStatus: 'RENEWED',
-    consecutiveSeasons: 0 // 재계약 시 카운트 리셋
+    // 재계약 시 커리어 진행 유지 (0으로 리셋하면 ROOKIE로 퇴행)
+    consecutiveSeasons: card.consecutiveSeasons ?? 0
   };
 }
 

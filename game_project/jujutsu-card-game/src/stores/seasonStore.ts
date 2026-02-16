@@ -19,7 +19,7 @@ import type {
   CrewPolicy
 } from '../types';
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
-import { CHARACTERS_BY_ID } from '../data/characters';
+// CHARACTERS_BY_ID removed (unused)
 import { useTradeStore } from './tradeStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
@@ -72,7 +72,7 @@ interface SeasonState {
 
   // 액션
   initializeGame: (playerCrew: string[]) => void;
-  startNewSeason: () => void;
+  startNewSeason: (draftCrews?: AICrew[]) => void;
   playMatch: (opponentCrewId: string, playerScore: number, opponentScore: number) => void;
   getNextMatch: () => LeagueMatch | null;
   getCurrentStandings: () => LeagueStanding[];
@@ -347,8 +347,9 @@ export const useSeasonStore = create<SeasonState>()(
         });
       },
 
-      // 시즌 시작 (첫 시즌 또는 다음 시즌)
-      startNewSeason: () => {
+      // 시즌 시작 (드래프트 결과 기반)
+      // draftCrews: 드래프트로 결정된 AI 크루 배열 (없으면 자동 생성 - 레거시 호환)
+      startNewSeason: (draftCrews?: AICrew[]) => {
         const { isInitialized, seasonHistory, teamLeagueCompleted, individualLeagueCompleted } = get();
 
         if (!isInitialized) {
@@ -356,21 +357,23 @@ export const useSeasonStore = create<SeasonState>()(
           return;
         }
 
-        // 시즌 2 이상부터: 이전 시즌의 양쪽 리그가 finalizeSeason으로 정산된 후에만 시작 가능
-        // finalizeSeason()이 completed 플래그를 false로 리셋하므로,
-        // 아직 true인 상태 = finalizeSeason 미호출 = 다음 시즌 시작 불가
-        // 단, 첫 시즌(seasonHistory.length === 0)은 체크 불필요
+        // 시즌 2 이상부터: finalizeSeason 후에만 시작 가능
         if (seasonHistory.length > 0 && (teamLeagueCompleted || individualLeagueCompleted)) {
           console.warn('[startNewSeason] 이전 시즌의 finalizeSeason이 완료되지 않았습니다');
           return;
         }
 
-        // Phase 5.1: 플레이어 소유 카드 조회 (크루간 카드 중복 방지)
-        const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
-        console.log(`[Season] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
-
-        // AI 크루 랜덤 재배정 (플레이어 소유 카드 제외하여 중복 방지)
-        const aiCrews = generateAICrewsForSeason(playerOwnedCards);
+        let aiCrews: AICrew[];
+        if (draftCrews && draftCrews.length > 0) {
+          // 드래프트 결과로 크루 구성
+          aiCrews = draftCrews;
+          console.log(`[Season] 드래프트 크루 사용: ${aiCrews.length}팀`);
+        } else {
+          // 레거시 호환: 자동 생성
+          const playerOwnedCards = usePlayerStore.getState().getOwnedCardIds();
+          aiCrews = generateAICrewsForSeason(playerOwnedCards);
+          console.log(`[Season] 자동 생성 크루 사용: ${aiCrews.length}팀`);
+        }
         setAICrews(aiCrews);
 
         const newSeasonNumber = seasonHistory.length + 1;
@@ -389,7 +392,7 @@ export const useSeasonStore = create<SeasonState>()(
         set({
           currentSeason: newSeason,
           currentAICrews: aiCrews,
-          seasonStartLevels: {} // TODO: playerStore에서 레벨 스냅샷
+          seasonStartLevels: {}
         });
       },
 
@@ -1045,20 +1048,19 @@ export const useSeasonStore = create<SeasonState>()(
           // 2. 노화/생애주기 처리 (seasonsInCrew 증가, careerPhase 재계산, 쇠퇴 적용)
           const agingResult = processSeasonEnd();
           console.log(`[finalizeSeason] 노화 처리 완료 - 노화: ${agingResult.agedCards.length}명, 쇠퇴: ${agingResult.declinedCards.length}명`);
-        });
 
-        // 3. 상태 초기화
-        set({
-          teamLeagueCompleted: false,
-          individualLeagueCompleted: false,
-          pendingExp: {},
-          // Phase 5: 다음 시즌을 위해 전반기로 리셋
-          currentHalf: 'FIRST',
-          firstHalfStandings: null,
-          isTransitionPeriod: false,
-        });
+          // 3. 상태 초기화 (비동기 작업 완료 후 실행하여 레이스 컨디션 방지)
+          set({
+            teamLeagueCompleted: false,
+            individualLeagueCompleted: false,
+            pendingExp: {},
+            currentHalf: 'FIRST',
+            firstHalfStandings: null,
+            isTransitionPeriod: false,
+          });
 
-        console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
+          console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
+        });
       },
 
       // 올킬 시즌 판정 (3의 배수 시즌)
@@ -1203,67 +1205,24 @@ export const useSeasonStore = create<SeasonState>()(
     }),
     {
       name: 'jujutsu-season-storage',
-      version: 10, // v10: 등급 제한 통일 - 크루 6장, 1급 2장 제한
+      version: 11, // v11: 10팀 리그 + CP캡 20000 + 등급 제한 완전 제거
       migrate: (persistedState: unknown, version: number) => {
-        console.log('[Season Store] 마이그레이션:', version, '->', 10);
+        console.log('[Season Store] 마이그레이션:', version, '->', 11);
         const state = persistedState as SeasonState;
 
-        if (version < 7) {
-          console.log('[Season Store] v7 업그레이드: 14경기 2회전 체계 - 진행 중 시즌 리셋');
+        if (version < 11) {
+          console.log('[Season Store] v11 업그레이드: 10팀 리그 + CP 20000 + 등급 제한 완전 제거 - 시즌 리셋');
           return {
             ...state,
             currentSeason: null,
+            currentAICrews: [],
             pendingExp: {},
             teamLeagueCompleted: false,
             individualLeagueCompleted: false,
-          };
-        }
-
-        if (version < 8) {
-          console.log('[Season Store] v8 업그레이드: Phase 4 경험치 누적 시스템 추가');
-          return {
-            ...state,
-            pendingExp: {},
-            teamLeagueCompleted: false,
-            individualLeagueCompleted: false,
-          };
-        }
-
-        if (version < 9) {
-          console.log('[Season Store] v9 업그레이드: Phase 5 전/후반기 시스템 추가');
-          state.currentHalf = 'FIRST' as SeasonHalf;
-          state.firstHalfStandings = null;
-          state.isTransitionPeriod = false;
-          state.crewPolicy = 'BALANCED' as CrewPolicy;
-        }
-
-        if (version < 10) {
-          console.log('[Season Store] v10 업그레이드: 크루 크기 및 등급 제한 정리');
-          const playerCrew = state.playerCrew || [];
-
-          // 등급 제한에 맞게 크루 정리 (CREW_SIZE = 6)
-          const validatedCrew: string[] = [];
-          const gradeCounts: Record<string, number> = { '특급': 0, '1급': 0 };
-
-          for (const cardId of playerCrew) {
-            if (validatedCrew.length >= 6) break;
-
-            const char = CHARACTERS_BY_ID[cardId];
-            if (!char) continue;
-
-            if (char.grade === '특급' && gradeCounts['특급'] >= 1) continue;
-            if (char.grade === '1급' && gradeCounts['1급'] >= 2) continue;
-
-            validatedCrew.push(cardId);
-            if (char.grade === '특급') gradeCounts['특급']++;
-            if (char.grade === '1급') gradeCounts['1급']++;
-          }
-
-          console.log(`[Season Store] 크루 정리: ${playerCrew.length}장 → ${validatedCrew.length}장`);
-
-          return {
-            ...state,
-            playerCrew: validatedCrew,
+            currentHalf: 'FIRST' as SeasonHalf,
+            firstHalfStandings: null,
+            isTransitionPeriod: false,
+            crewPolicy: 'BALANCED' as CrewPolicy,
           };
         }
 
