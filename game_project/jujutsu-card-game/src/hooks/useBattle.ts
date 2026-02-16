@@ -244,30 +244,8 @@ export function useBattle() {
 
     const result = executeRound();
 
-    // 카드 개인 기록 저장 (승패가 있을 때만)
-    if (result && result.winner !== 'DRAW' && currentSeason) {
-      const isPlayerWinner = result.winner === 'PLAYER';
-      const winnerCardId = isPlayerWinner ? result.playerCardId : result.aiCardId;
-      const loserCardId = isPlayerWinner ? result.aiCardId : result.playerCardId;
-
-      // 확장 통계 데이터 추출
-      const { playerDamage, aiDamage, skillActivated } = result.calculation;
-      const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
-      const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
-      const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
-      const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
-
-      recordBattle({
-        seasonNumber: currentSeason.number,
-        winnerCardId,
-        loserCardId,
-        arenaId: result.arena.id,
-        winnerDamage,
-        loserDamage,
-        winnerSkillActivated,
-        loserSkillActivated
-      });
-    }
+    // 카드 개인 기록은 TurnBattleModal 완료 후 실제 승자 기준으로 기록
+    // (recordBattleWithActualWinner에서 처리)
 
     // 결과 표시 후 애니메이션 종료
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -275,7 +253,34 @@ export function useBattle() {
     setAnimating(false);
 
     return result;
-  }, [selectedCardId, isAnimating, setAnimating, executeRound, currentSeason, recordBattle]);
+  }, [selectedCardId, isAnimating, setAnimating, executeRound]);
+
+  // 실제 전투 결과(TurnBattleModal 완료)로 카드 개인 기록 저장
+  const recordBattleWithActualWinner = useCallback((actualWinner: 'PLAYER' | 'AI' | 'DRAW') => {
+    if (!lastRoundResult || actualWinner === 'DRAW' || !currentSeason) return;
+
+    const isPlayerWinner = actualWinner === 'PLAYER';
+    const winnerCardId = isPlayerWinner ? lastRoundResult.playerCardId : lastRoundResult.aiCardId;
+    const loserCardId = isPlayerWinner ? lastRoundResult.aiCardId : lastRoundResult.playerCardId;
+
+    // 확장 통계 데이터 추출
+    const { playerDamage, aiDamage, skillActivated } = lastRoundResult.calculation;
+    const winnerDamage = isPlayerWinner ? playerDamage : aiDamage;
+    const loserDamage = isPlayerWinner ? aiDamage : playerDamage;
+    const winnerSkillActivated = isPlayerWinner ? skillActivated.player : skillActivated.ai;
+    const loserSkillActivated = isPlayerWinner ? skillActivated.ai : skillActivated.player;
+
+    recordBattle({
+      seasonNumber: currentSeason.number,
+      winnerCardId,
+      loserCardId,
+      arenaId: lastRoundResult.arena.id,
+      winnerDamage,
+      loserDamage,
+      winnerSkillActivated,
+      loserSkillActivated
+    });
+  }, [lastRoundResult, currentSeason, recordBattle]);
 
   // 결과 확인 후 다음 진행
   const handleContinue = useCallback(() => {
@@ -396,6 +401,7 @@ export function useBattle() {
     selectCard: handleSelectCard,
     executeRound: handleExecuteRound,
     updateRoundWinner,
+    recordBattleWithActualWinner,
     continueGame: handleContinue,
     endGame: handleEndGame,
     rematch: handleRematch,

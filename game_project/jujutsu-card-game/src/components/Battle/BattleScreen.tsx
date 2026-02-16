@@ -61,6 +61,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     selectCard,
     executeRound,
     updateRoundWinner,
+    recordBattleWithActualWinner,
     continueGame,
     returnToMenu,
     // 밴/픽 관련
@@ -260,6 +261,9 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
 
   // 턴제 전투 완료 - 실제 승자로 점수 업데이트
   const handleTurnBattleComplete = (winner: 'PLAYER' | 'AI' | 'DRAW', finalHp?: number) => {
+    // 실제 전투 결과로 카드 개인 기록 저장 (승패 반전 버그 수정)
+    recordBattleWithActualWinner(winner);
+
     // 실제 전투 결과로 점수 업데이트
     updateRoundWinner(winner);
 

@@ -985,8 +985,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           crewId: p1Data.crewId,
           crewName: p1Data.crewName,
           isPlayerCrew: p1Data.isPlayerCrew,
-          totalStats: p1Card ? calculateTotalStat(p1Card) : 0,
+          totalStats: p1Data.totalStats ?? (p1Card ? calculateTotalStat(p1Card) : 0),
           attribute: p1Card?.attribute,
+          equipment: p1Data.equipment,
+          level: p1Data.level,
+          statBonus: p1Data.statBonus,
         };
 
         const participant2: Participant = {
@@ -995,8 +998,11 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
           crewId: p2Data.crewId,
           crewName: p2Data.crewName,
           isPlayerCrew: p2Data.isPlayerCrew,
-          totalStats: p2Card ? calculateTotalStat(p2Card) : 0,
+          totalStats: p2Data.totalStats ?? (p2Card ? calculateTotalStat(p2Card) : 0),
           attribute: p2Card?.attribute,
+          equipment: p2Data.equipment,
+          level: p2Data.level,
+          statBonus: p2Data.statBonus,
         };
 
         // bestOf 값 결정 (3/4위전은 별도 처리)
