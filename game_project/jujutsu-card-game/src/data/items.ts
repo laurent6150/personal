@@ -16,7 +16,7 @@ const ITEMS: Item[] = [
     price: 5000,
     statBonus: { ce: 5, spd: 3 },
     specialEffect: { type: "CE_EFFICIENCY", value: 20, description: "CE 효율 +20%" },
-    unlockCondition: { characterId: "gojo_satoru", achievementId: "gojo_1" }
+    unlockCondition: { characterId: "any", achievementId: "gojo_1" }
   },
   {
     id: "infinity_ring",
@@ -26,7 +26,7 @@ const ITEMS: Item[] = [
     price: 4500,
     statBonus: { def: 5, ce: 3 },
     specialEffect: { type: "DAMAGE_REDUCTION", value: 10, description: "받는 데미지 -10%" },
-    unlockCondition: { characterId: "gojo_satoru", achievementId: "gojo_2" }
+    unlockCondition: { characterId: "any", achievementId: "gojo_2" }
   },
   {
     id: "malevolent_shrine_talisman",
@@ -36,7 +36,7 @@ const ITEMS: Item[] = [
     price: 4800,
     statBonus: { atk: 5, ce: 3 },
     specialEffect: { type: "IGNORE_DEFENSE", value: 5, description: "상대 DEF 5 무시" },
-    unlockCondition: { characterId: "ryomen_sukuna", achievementId: "sukuna_1" }
+    unlockCondition: { characterId: "any", achievementId: "sukuna_1" }
   },
   {
     id: "cursed_manipulation",
@@ -46,7 +46,7 @@ const ITEMS: Item[] = [
     price: 4200,
     statBonus: { ce: 6, hp: 2 },
     specialEffect: { type: "SKILL_BOOST", value: 15, description: "스킬 효과 +15%" },
-    unlockCondition: { characterId: "kenjaku", achievementId: "kenjaku_1" }
+    unlockCondition: { characterId: "any", achievementId: "kenjaku_1" }
   },
 
   // ===== EPIC (A등급 관련) =====
@@ -59,7 +59,7 @@ const ITEMS: Item[] = [
     price: 3000,
     statBonus: { atk: 4, spd: 2 },
     specialEffect: { type: "SKILL_CANCEL", value: 25, description: "25% 확률로 상대 스킬 무효화" },
-    unlockCondition: { characterId: "fushiguro_toji", achievementId: "toji_1" }
+    unlockCondition: { characterId: "any", achievementId: "toji_1" }
   },
   {
     id: "ratio_blade",
@@ -69,7 +69,7 @@ const ITEMS: Item[] = [
     price: 2500,
     statBonus: { atk: 3, ce: 2 },
     specialEffect: { type: "CRITICAL_RATE", value: 10, description: "크리티컬 확률 +10%" },
-    unlockCondition: { characterId: "nanami_kento", achievementId: "nanami_1" }
+    unlockCondition: { characterId: "any", achievementId: "nanami_1" }
   },
   {
     id: "ember_insect",
@@ -79,7 +79,7 @@ const ITEMS: Item[] = [
     price: 2800,
     statBonus: { atk: 3, ce: 3 },
     specialEffect: { type: "BURN_DAMAGE", value: 3, description: "추가 고정 데미지 +3" },
-    unlockCondition: { characterId: "jogo", achievementId: "jogo_1" }
+    unlockCondition: { characterId: "any", achievementId: "jogo_1" }
   },
 
   // ===== RARE (B등급 관련) =====
@@ -92,7 +92,7 @@ const ITEMS: Item[] = [
     price: 1500,
     statBonus: { atk: 3, spd: 2 },
     specialEffect: { type: "DOUBLE_STRIKE", value: 20, description: "20% 확률로 추가 타격" },
-    unlockCondition: { characterId: "itadori_yuji", achievementId: "itadori_1" }
+    unlockCondition: { characterId: "any", achievementId: "itadori_1" }
   },
   {
     id: "soul_guard",
