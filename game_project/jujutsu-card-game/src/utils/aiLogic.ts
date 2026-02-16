@@ -4,7 +4,7 @@
 
 import type { CharacterCard, Difficulty, Arena, Attribute } from '../types';
 import { CHARACTERS_BY_GRADE } from '../data/characters';
-import { CREW_SIZE } from '../data/constants';
+import { ROSTER_SIZE } from '../data/constants';
 import {
   getAttributeMultiplier,
   getArenaAttributeBonus,
@@ -91,7 +91,7 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
   switch (difficulty) {
     case 'EASY':
       // 2급, 준1급 등급 위주 (약한 크루)
-      while (crew.length < CREW_SIZE) {
+      while (crew.length < ROSTER_SIZE) {
         const pool = [...(CHARACTERS_BY_GRADE['2급'] || []), ...(CHARACTERS_BY_GRADE['준1급'] || [])];
         const card = randomPick(pool);
         if (!usedIds.has(card.id)) {
@@ -107,7 +107,7 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
         const grade1Cards = [...(CHARACTERS_BY_GRADE['1급'] || [])];
         const grade1Count = Math.floor(Math.random() * 2) + 1;
 
-        for (let i = 0; i < grade1Count && crew.length < CREW_SIZE; i++) {
+        for (let i = 0; i < grade1Count && crew.length < ROSTER_SIZE; i++) {
           const card = randomPick(grade1Cards);
           if (!usedIds.has(card.id)) {
             crew.push(card);
@@ -115,7 +115,7 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
           }
         }
 
-        while (crew.length < CREW_SIZE) {
+        while (crew.length < ROSTER_SIZE) {
           const pool = [...(CHARACTERS_BY_GRADE['준1급'] || []), ...(CHARACTERS_BY_GRADE['2급'] || [])];
           const card = randomPick(pool);
           if (!usedIds.has(card.id)) {
@@ -155,7 +155,7 @@ export function generateAICrew(difficulty: Difficulty): CharacterCard[] {
         }
 
         // 나머지를 준1급으로 채우기
-        while (crew.length < CREW_SIZE) {
+        while (crew.length < ROSTER_SIZE) {
           const pool = (CHARACTERS_BY_GRADE['준1급'] || []).filter(c => !usedIds.has(c.id));
           if (pool.length === 0) break;
           const card = randomPick(pool);

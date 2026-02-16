@@ -52,13 +52,15 @@ interface DraftState {
   isDraftInProgress: boolean;
   currentDraftSeason: number | null;
   currentPickIndex: number;
-  draftOrder: string[];  // 크루 ID 순서
+  draftOrder: string[];  // 크루 ID 순서 (스네이크 드래프트: 전체 픽 순서)
+  draftRounds: number;   // 드래프트 라운드 수
+  teamsPerRound: number; // 라운드당 팀 수
 
   // 액션
   addToDraftPool: (cardId: string, source: DraftSource, season: number, isResetCard?: boolean) => void;
   removeFromDraftPool: (cardId: string) => void;
   initializeDraftPool: (seasonNumber: number, allCrewCards: string[]) => void;
-  startDraft: (seasonNumber: number, standings: Array<{ crewId: string; points: number; goalDifference: number }>) => void;
+  startDraft: (seasonNumber: number, standings: Array<{ crewId: string; points: number; goalDifference: number }>, rounds?: number) => void;
   makePlayerPick: (cardId: string) => void;
   makeAIPick: (crewId: string) => string | null;
   executeDraftPick: (crewId: string, cardId: string) => void;
@@ -84,10 +86,12 @@ const initialState = {
   currentDraftSeason: null,
   currentPickIndex: 0,
   draftOrder: [],
+  draftRounds: 1,
+  teamsPerRound: 10,
 };
 
 // ========================================
-// 드래프트 순서 결정 (역순위)
+// 드래프트 순서 결정 (역순위 + 스네이크)
 // ========================================
 
 function determineDraftOrder(
@@ -101,6 +105,25 @@ function determineDraftOrder(
       return a.goalDifference - b.goalDifference;
     })
     .map(s => s.crewId);
+}
+
+/**
+ * 스네이크 드래프트 순서 생성
+ * 홀수 라운드: 정방향 (약한 팀 → 강한 팀)
+ * 짝수 라운드: 역방향 (강한 팀 → 약한 팀)
+ */
+function generateSnakeDraftOrder(baseOrder: string[], rounds: number): string[] {
+  const fullOrder: string[] = [];
+  for (let round = 0; round < rounds; round++) {
+    if (round % 2 === 0) {
+      // 홀수 라운드 (1, 3, 5, 7): 정방향
+      fullOrder.push(...baseOrder);
+    } else {
+      // 짝수 라운드 (2, 4, 6): 역방향
+      fullOrder.push(...[...baseOrder].reverse());
+    }
+  }
+  return fullOrder;
 }
 
 // ========================================
@@ -210,18 +233,24 @@ export const useDraftStore = create<DraftState>()(
         console.log(`[Draft] 시즌 ${seasonNumber} 드래프트 풀 초기화 완료. 총 ${get().draftPool.length}장`);
       },
 
-      // 드래프트 시작
-      startDraft: (seasonNumber: number, standings) => {
-        const draftOrder = determineDraftOrder(standings);
+      // 드래프트 시작 (rounds: 스네이크 드래프트 라운드 수, 기본 1)
+      startDraft: (seasonNumber: number, standings, rounds = 1) => {
+        const baseOrder = determineDraftOrder(standings);
+        const draftOrder = rounds > 1
+          ? generateSnakeDraftOrder(baseOrder, rounds)
+          : baseOrder;
 
         set({
           isDraftInProgress: true,
           currentDraftSeason: seasonNumber,
           currentPickIndex: 0,
           draftOrder,
+          draftRounds: rounds,
+          teamsPerRound: baseOrder.length,
         });
 
-        console.log(`[Draft] 시즌 ${seasonNumber} 드래프트 시작. 순서: ${draftOrder.join(' -> ')}`);
+        console.log(`[Draft] 시즌 ${seasonNumber} 스네이크 드래프트 시작 (${rounds}라운드, ${draftOrder.length}픽)`);
+        console.log(`[Draft] 기본 순서: ${baseOrder.join(' -> ')}`);
       },
 
       // 플레이어 픽
@@ -244,17 +273,20 @@ export const useDraftStore = create<DraftState>()(
 
       // AI 픽
       makeAIPick: (crewId: string) => {
-        const { draftPool, draftPicks, currentDraftSeason, executeDraftPick } = get();
+        const { draftPool, draftRounds, executeDraftPick } = get();
 
-        // 이 크루가 해당 시즌 픽을 보유하고 있는지 확인
-        const crewPickList = draftPicks[crewId] || [];
-        const hasPick = crewPickList.some(
-          p => p.season === currentDraftSeason && !p.used && p.currentOwner === crewId
-        );
+        // 스네이크 드래프트에서는 픽 보유 여부 체크 스킵 (멀티 라운드)
+        if (draftRounds <= 1) {
+          const { draftPicks, currentDraftSeason } = get();
+          const crewPickList = draftPicks[crewId] || [];
+          const hasPick = crewPickList.some(
+            p => p.season === currentDraftSeason && !p.used && p.currentOwner === crewId
+          );
 
-        if (!hasPick) {
-          console.log(`[Draft] ${crewId}는 픽을 트레이드로 넘겼으므로 스킵`);
-          return null;
+          if (!hasPick) {
+            console.log(`[Draft] ${crewId}는 픽을 트레이드로 넘겼으므로 스킵`);
+            return null;
+          }
         }
 
         const selectedCardId = selectBestCardForAI(draftPool, crewId);
@@ -308,30 +340,21 @@ export const useDraftStore = create<DraftState>()(
 
       // 드래프트 종료
       finishDraft: () => {
-        const { currentDraftSeason, draftOrder, draftPicks, draftHistory } = get();
+        const { currentDraftSeason, draftOrder, draftHistory, currentPickIndex } = get();
 
         if (!currentDraftSeason) return null;
 
         // 드래프트 결과 생성
         const picks: DraftResult['picks'] = [];
 
-        for (let i = 0; i < draftOrder.length; i++) {
+        for (let i = 0; i < Math.min(currentPickIndex, draftOrder.length); i++) {
           const crewId = draftOrder[i];
-          const crewPickList = draftPicks[crewId] || [];
-          const usedPick = crewPickList.find(
-            p => p.season === currentDraftSeason && p.used && p.pickOrder === i + 1
-          );
-
-          if (usedPick) {
-            // 실제 선택된 카드는 별도로 추적해야 함
-            // 여기서는 픽 순서만 기록
-            picks.push({
-              pickOrder: i + 1,
-              crewId,
-              cardId: '', // 실제 카드 ID는 executeDraftPick에서 기록해야 함
-              isPlayerPick: crewId === PLAYER_CREW_ID,
-            });
-          }
+          picks.push({
+            pickOrder: i + 1,
+            crewId,
+            cardId: '',
+            isPlayerPick: crewId === PLAYER_CREW_ID,
+          });
         }
 
         const result: DraftResult = {
@@ -345,9 +368,11 @@ export const useDraftStore = create<DraftState>()(
           currentDraftSeason: null,
           currentPickIndex: 0,
           draftOrder: [],
+          draftRounds: 1,
+          teamsPerRound: 10,
         });
 
-        console.log(`[Draft] 시즌 ${currentDraftSeason} 드래프트 종료`);
+        console.log(`[Draft] 시즌 ${currentDraftSeason} 드래프트 종료 (${picks.length}픽 완료)`);
         return result;
       },
 

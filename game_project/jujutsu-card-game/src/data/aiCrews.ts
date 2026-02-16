@@ -4,7 +4,7 @@
 
 import type { AICrew, Difficulty, LegacyGrade } from '../types';
 import { ALL_CHARACTERS } from './characters';
-import { CREW_SIZE, CREW_COUNT, SALARY_CAP } from './constants';
+import { ROSTER_SIZE, CREW_COUNT, SALARY_CAP } from './constants';
 import { calculateSalary } from '../utils/salarySystem';
 
 // AI 팀 기본 정보 (크루 카드는 시즌 시작 시 랜덤 배정)
@@ -132,7 +132,7 @@ function distributeCharactersByCp(
 
       for (const ci of sortedCrewIndices) {
         if (charIndex >= byGrade[grade].length) break;
-        if (crews[ci].length < CREW_SIZE) {
+        if (crews[ci].length < ROSTER_SIZE) {
           const cardId = byGrade[grade][charIndex];
           const salary = getCardBaseSalary(cardId);
           if (crewSalaries[ci] + salary <= SALARY_CAP) {
@@ -146,7 +146,7 @@ function distributeCharactersByCp(
     // 남은 카드 추가 배분
     while (charIndex < byGrade[grade].length) {
       const sortedCrewIndices = [...Array(crewCount).keys()]
-        .filter(ci => crews[ci].length < CREW_SIZE)
+        .filter(ci => crews[ci].length < ROSTER_SIZE)
         .sort((a, b) => crewSalaries[a] - crewSalaries[b]);
       if (sortedCrewIndices.length === 0) break;
       const ci = sortedCrewIndices[0];
@@ -174,7 +174,7 @@ function distributeCharactersByCp(
     if (crews.some(crew => crew.includes(cardId))) continue;
 
     const sortedCrewIndices = [...Array(crewCount).keys()]
-      .filter(ci => crews[ci].length < CREW_SIZE)
+      .filter(ci => crews[ci].length < ROSTER_SIZE)
       .sort((a, b) => crewSalaries[a] - crewSalaries[b]);
 
     if (sortedCrewIndices.length === 0) break;
@@ -203,7 +203,7 @@ export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICre
   const aiCrewCount = Math.min(CREW_COUNT - 1, AI_CREW_TEMPLATES.length);
 
   // 필요한 총 카드 수
-  const totalCardsNeeded = aiCrewCount * CREW_SIZE;
+  const totalCardsNeeded = aiCrewCount * ROSTER_SIZE;
 
   console.log(`[AI Crews] 총 캐릭터: ${ALL_CHARACTERS.length}장`);
   console.log(`[AI Crews] 플레이어 소유 카드: ${playerOwnedCards.length}장`);
@@ -245,8 +245,8 @@ export function generateAICrewsForSeason(playerOwnedCards: string[] = []): AICre
 
 // 플레이어 크루 유효성 검사 (Phase 5.3: CP 샐러리캡 기반)
 export function validatePlayerCrew(crew: string[]): { valid: boolean; error?: string } {
-  if (crew.length !== CREW_SIZE) {
-    return { valid: false, error: `크루는 ${CREW_SIZE}장이어야 합니다 (현재: ${crew.length}장)` };
+  if (crew.length !== ROSTER_SIZE) {
+    return { valid: false, error: `크루는 ${ROSTER_SIZE}장이어야 합니다 (현재: ${crew.length}장)` };
   }
 
   // 캐릭터 존재 여부 확인
@@ -384,7 +384,7 @@ export function distributeCharactersWithSalaryCap(
   // 각 크루를 CREW_SIZE까지 채움 (샐러리 캡 고려)
   for (let i = 0; i < crewCount; i++) {
     for (const cardId of shuffledRemaining) {
-      if (crews[i].length >= CREW_SIZE) break;
+      if (crews[i].length >= ROSTER_SIZE) break;
 
       // 이미 다른 크루에 배정되었는지 확인
       if (crews.some(crew => crew.includes(cardId))) continue;

@@ -1,6 +1,6 @@
 // ========================================
-// 드래프트 화면 (Phase 5D)
-// NBA 스타일 역순위 드래프트
+// 드래프트 화면 (Phase 5D → 스네이크 드래프트)
+// 멀티 라운드 스네이크 드래프트 지원
 // ========================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -19,14 +19,17 @@ interface DraftScreenProps {
   onComplete: () => void;
   standings: Array<{ crewId: string; points: number; goalDifference: number }>;
   seasonNumber: number;
+  rounds?: number;  // 스네이크 드래프트 라운드 수 (기본 1)
 }
 
-export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreenProps) {
+export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 1 }: DraftScreenProps) {
   const {
     draftPool,
     isDraftInProgress,
     currentPickIndex,
     draftOrder,
+    draftRounds,
+    teamsPerRound,
     startDraft,
     makePlayerPick,
     makeAIPick,
@@ -36,6 +39,8 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
     isDraftInProgress: state.isDraftInProgress,
     currentPickIndex: state.currentPickIndex,
     draftOrder: state.draftOrder,
+    draftRounds: state.draftRounds,
+    teamsPerRound: state.teamsPerRound,
     startDraft: state.startDraft,
     makePlayerPick: state.makePlayerPick,
     makeAIPick: state.makeAIPick,
@@ -51,6 +56,11 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
   const currentCrewId = draftOrder[currentPickIndex] || null;
   const isPlayerTurn = currentCrewId === PLAYER_CREW_ID;
 
+  // 현재 라운드 & 방향 계산
+  const currentRound = teamsPerRound > 0 ? Math.floor(currentPickIndex / teamsPerRound) + 1 : 1;
+  const isReverseRound = currentRound % 2 === 0;
+  const pickInRound = teamsPerRound > 0 ? (currentPickIndex % teamsPerRound) + 1 : currentPickIndex + 1;
+
   // 드래프트 풀 카드 정보
   const poolCards = useMemo(() => {
     return draftPool
@@ -60,7 +70,6 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
       }))
       .filter(item => item.character)
       .sort((a, b) => {
-        // 등급 순으로 정렬
         const gradeOrder: LegacyGrade[] = ['특급', '준특급', '1급', '준1급', '2급', '준2급', '3급'];
         const aIndex = gradeOrder.indexOf(a.character!.grade as LegacyGrade);
         const bIndex = gradeOrder.indexOf(b.character!.grade as LegacyGrade);
@@ -71,9 +80,9 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
   // 드래프트 시작
   useEffect(() => {
     if (!isDraftInProgress && draftPool.length > 0) {
-      startDraft(seasonNumber, standings);
+      startDraft(seasonNumber, standings, rounds);
     }
-  }, [isDraftInProgress, draftPool.length, seasonNumber, standings, startDraft]);
+  }, [isDraftInProgress, draftPool.length, seasonNumber, standings, startDraft, rounds]);
 
   // AI 턴 자동 처리
   useEffect(() => {
@@ -83,7 +92,6 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
       return;
     }
 
-    // AI 픽 애니메이션
     setAiPickingAnimation(true);
     const timer = setTimeout(() => {
       const pickedCardId = makeAIPick(currentCrewId!);
@@ -91,10 +99,10 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
         setLastPickedCard({ crewId: currentCrewId!, cardId: pickedCardId });
       }
       setAiPickingAnimation(false);
-    }, 1500);
+    }, draftRounds > 1 ? 800 : 1500); // 멀티라운드는 더 빠르게
 
     return () => clearTimeout(timer);
-  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, aiPickingAnimation, draftComplete, makeAIPick]);
+  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, aiPickingAnimation, draftComplete, makeAIPick, draftRounds]);
 
   // 드래프트 완료 체크
   useEffect(() => {
@@ -123,7 +131,6 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
     return AI_CREWS_BY_ID[crewId]?.name || crewId;
   };
 
-  // 배경 스타일
   const bgStyle = {
     backgroundImage: 'url(/images/backgrounds/menu_bg.jpg)',
     backgroundSize: 'cover',
@@ -134,45 +141,84 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
   return (
     <div className="min-h-screen p-4" style={bgStyle}>
       {/* 헤더 */}
-      <div className="max-w-6xl mx-auto mb-6">
+      <div className="max-w-6xl mx-auto mb-4">
         <div className="bg-black/60 rounded-xl p-4 backdrop-blur-sm border border-accent/30">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-accent">
-              🎯 시즌 {seasonNumber} 드래프트
+              🎯 시즌 {seasonNumber} {draftRounds > 1 ? '스네이크 ' : ''}드래프트
             </h1>
-            <div className="text-text-secondary">
-              가용 카드: {poolCards.length}장
+            <div className="flex items-center gap-4 text-sm">
+              {draftRounds > 1 && (
+                <span className="px-3 py-1 bg-accent/20 text-accent rounded-full border border-accent/30">
+                  라운드 {currentRound}/{draftRounds}
+                  {isReverseRound ? ' ↩️' : ' ➡️'}
+                </span>
+              )}
+              <span className="text-text-secondary">
+                가용 카드: {poolCards.length}장
+              </span>
+              <span className="text-text-secondary">
+                픽: {currentPickIndex}/{draftOrder.length}
+              </span>
             </div>
           </div>
+
+          {/* 스네이크 드래프트 진행 바 */}
+          {draftRounds > 1 && (
+            <div className="mt-3">
+              <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-accent to-blue-500 rounded-full"
+                  animate={{ width: `${(currentPickIndex / draftOrder.length) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 드래프트 순서 표시 */}
-      <div className="max-w-6xl mx-auto mb-6">
-        <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-          <h3 className="text-sm text-text-secondary mb-3">드래프트 순서 (역순위)</h3>
-          <div className="flex flex-wrap gap-2">
-            {draftOrder.map((crewId, index) => (
-              <div
-                key={crewId}
-                className={`px-3 py-2 rounded-lg text-sm transition-all ${
-                  index === currentPickIndex
-                    ? 'bg-accent text-white font-bold scale-110'
-                    : index < currentPickIndex
-                    ? 'bg-white/10 text-text-secondary line-through'
-                    : 'bg-white/5 text-text-primary'
-                }`}
-              >
-                {index + 1}. {getCrewName(crewId)}
-                {crewId === PLAYER_CREW_ID && ' ⭐'}
-              </div>
-            ))}
+      {/* 드래프트 순서 표시 (현재 라운드) */}
+      <div className="max-w-6xl mx-auto mb-4">
+        <div className="bg-bg-card rounded-xl p-3 border border-white/10">
+          <h3 className="text-xs text-text-secondary mb-2">
+            {draftRounds > 1
+              ? `라운드 ${currentRound} 순서 ${isReverseRound ? '(역방향 🔄)' : '(정방향 ➡️)'}`
+              : '드래프트 순서 (역순위)'
+            }
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {(() => {
+              // 현재 라운드의 팀 순서만 표시
+              const roundStart = (currentRound - 1) * teamsPerRound;
+              const roundEnd = Math.min(roundStart + teamsPerRound, draftOrder.length);
+              const roundTeams = draftOrder.slice(roundStart, roundEnd);
+
+              return roundTeams.map((crewId, index) => {
+                const globalIndex = roundStart + index;
+                return (
+                  <div
+                    key={`${currentRound}-${crewId}`}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+                      globalIndex === currentPickIndex
+                        ? 'bg-accent text-white font-bold scale-110 ring-2 ring-accent/50'
+                        : globalIndex < currentPickIndex
+                        ? 'bg-white/10 text-text-secondary line-through'
+                        : 'bg-white/5 text-text-primary'
+                    }`}
+                  >
+                    {index + 1}. {getCrewName(crewId)}
+                    {crewId === PLAYER_CREW_ID && ' ⭐'}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
 
       {/* 현재 턴 표시 */}
-      <div className="max-w-6xl mx-auto mb-6">
+      <div className="max-w-6xl mx-auto mb-4">
         <AnimatePresence mode="wait">
           {!draftComplete && currentCrewId && (
             <motion.div
@@ -180,7 +226,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className={`p-6 rounded-xl text-center ${
+              className={`p-4 rounded-xl text-center ${
                 isPlayerTurn
                   ? 'bg-accent/20 border-2 border-accent'
                   : 'bg-blue-500/20 border border-blue-500/50'
@@ -188,20 +234,20 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
             >
               {isPlayerTurn ? (
                 <>
-                  <div className="text-2xl font-bold text-accent mb-2">
+                  <div className="text-xl font-bold text-accent mb-1">
                     🎯 당신의 차례입니다!
                   </div>
-                  <div className="text-text-secondary">
-                    아래에서 카드를 선택하세요 ({currentPickIndex + 1}순위 픽)
+                  <div className="text-text-secondary text-sm">
+                    카드를 선택하세요 (라운드 {currentRound}, {pickInRound}번째 픽)
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-xl font-bold text-blue-400 mb-2">
+                  <div className="text-lg font-bold text-blue-400 mb-1">
                     {aiPickingAnimation ? '🤔' : '⏳'} {getCrewName(currentCrewId)}의 차례
                   </div>
                   {aiPickingAnimation && (
-                    <div className="text-text-secondary animate-pulse">
+                    <div className="text-text-secondary text-sm animate-pulse">
                       카드를 선택하는 중...
                     </div>
                   )}
@@ -220,7 +266,10 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
                 🎉 드래프트 완료!
               </div>
               <div className="text-text-secondary mb-4">
-                모든 팀이 선택을 완료했습니다.
+                {draftRounds > 1
+                  ? `${draftRounds}라운드 스네이크 드래프트가 완료되었습니다.`
+                  : '모든 팀이 선택을 완료했습니다.'
+                }
               </div>
               <Button onClick={handleFinishDraft} variant="primary" size="lg">
                 시즌 시작하기
@@ -237,11 +286,11 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -100 }}
-            className="max-w-6xl mx-auto mb-6"
+            className="max-w-6xl mx-auto mb-4"
           >
-            <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 flex items-center gap-4">
-              <div className="text-2xl">📢</div>
-              <div>
+            <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 flex items-center gap-3">
+              <div className="text-xl">📢</div>
+              <div className="text-sm">
                 <span className="font-bold text-blue-400">
                   {getCrewName(lastPickedCard.crewId)}
                 </span>
@@ -260,10 +309,10 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
       {!draftComplete && (
         <div className="max-w-6xl mx-auto">
           <div className="bg-bg-card rounded-xl p-4 border border-white/10">
-            <h3 className="text-lg font-bold text-text-primary mb-4">
-              드래프트 풀
+            <h3 className="text-lg font-bold text-text-primary mb-3">
+              드래프트 풀 ({poolCards.length}장)
             </h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
               {poolCards.map(({ cardId, character }) => (
                 <DraftCard
                   key={cardId}
@@ -281,7 +330,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber }: DraftScreen
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-6 flex justify-center"
+                className="mt-4 flex justify-center"
               >
                 <Button
                   onClick={handlePlayerPick}
@@ -331,7 +380,6 @@ function DraftCard({ cardId, character, isSelected, isSelectable, onClick }: Dra
         }
       `}
     >
-      {/* 이미지 */}
       <div className="relative h-2/3 bg-black/20">
         {imageError ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-white/5 to-black/20">
@@ -345,15 +393,12 @@ function DraftCard({ cardId, character, isSelected, isSelectable, onClick }: Dra
             onError={() => setImageError(true)}
           />
         )}
-        {/* 선택 체크 마크 */}
         {isSelected && (
           <div className="absolute inset-0 bg-accent/30 flex items-center justify-center">
             <span className="text-4xl">✓</span>
           </div>
         )}
       </div>
-
-      {/* 정보 */}
       <div className="h-1/3 p-2 bg-black/60 flex flex-col justify-center">
         <GradeBadge grade={character.grade as LegacyGrade} size="sm" />
         <div className="text-xs font-bold mt-1 truncate text-center">

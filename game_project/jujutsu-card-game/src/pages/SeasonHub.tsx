@@ -19,7 +19,7 @@ import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
 import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
 import { StrategyDashboard, MiniStrategyPanel } from '../components/Strategy';
-import { CREW_SIZE, ATTRIBUTES, SALARY_CAP, REGULAR_SEASON_GAMES } from '../data/constants';
+import { ROSTER_SIZE, ATTRIBUTES, SALARY_CAP, REGULAR_SEASON_GAMES } from '../data/constants';
 import { BASE_SALARY } from '../utils/salarySystem';
 import { getCharacterImage } from '../utils/imageHelper';
 import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
@@ -152,8 +152,8 @@ export function SeasonHub({
     if (selectedCards.includes(cardId)) {
       return { canSelect: true }; // 이미 선택된 카드는 해제 가능
     }
-    if (selectedCards.length >= CREW_SIZE) {
-      return { canSelect: false, reason: `${CREW_SIZE}장 선택 완료` };
+    if (selectedCards.length >= ROSTER_SIZE) {
+      return { canSelect: false, reason: `${ROSTER_SIZE}장 선택 완료` };
     }
 
     const char = CHARACTERS_BY_ID[cardId];
@@ -185,7 +185,7 @@ export function SeasonHub({
 
   // 게임 시작 (크루 선택 완료)
   const handleStartGame = () => {
-    if (selectedCards.length !== CREW_SIZE) return;
+    if (selectedCards.length !== ROSTER_SIZE) return;
 
     // 선택한 카드들 중 아직 소유하지 않은 카드를 ownedCards에 추가
     const playerStore = usePlayerStore.getState();
@@ -262,7 +262,7 @@ export function SeasonHub({
           <div className="bg-bg-card rounded-xl p-6 border border-white/10 mb-6">
             <h2 className="text-xl font-bold text-text-primary mb-2">크루 선택</h2>
             <p className="text-text-secondary mb-2">
-              시즌에서 사용할 {CREW_SIZE}장의 카드를 선택하세요. ({selectedCards.length}/{CREW_SIZE})
+              시즌에서 사용할 {ROSTER_SIZE}장의 카드를 선택하세요. ({selectedCards.length}/{ROSTER_SIZE})
             </p>
 
             {/* Phase 5.3: 샐러리캡 안내 */}
@@ -295,7 +295,7 @@ export function SeasonHub({
                   </motion.div>
                 ) : null;
               })}
-              {Array.from({ length: CREW_SIZE - selectedCards.length }).map((_, i) => (
+              {Array.from({ length: ROSTER_SIZE - selectedCards.length }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
                   className="w-28 h-auto min-h-[140px] rounded-lg border-2 border-dashed border-white/20 flex items-center justify-center flex-shrink-0"
@@ -346,11 +346,11 @@ export function SeasonHub({
           <div className="flex justify-center gap-4">
             <Button
               onClick={handleStartGame}
-              disabled={selectedCards.length !== CREW_SIZE}
+              disabled={selectedCards.length !== ROSTER_SIZE}
               variant="primary"
               size="lg"
             >
-              시즌 1 시작! ({selectedCards.length}/{CREW_SIZE})
+              시즌 1 시작! ({selectedCards.length}/{ROSTER_SIZE})
             </Button>
           </div>
         </motion.div>

@@ -15,6 +15,7 @@ import { BattleScreen } from './components/Battle/BattleScreen';
 import { IndividualLeagueScreen } from './components/IndividualLeague/IndividualLeagueScreen';
 import { IndividualBattleScreen } from './components/IndividualLeague/IndividualBattleScreen';
 import { DraftScreen } from './components/DraftScreen';
+import { LineupSelectionModal, aiSelectLineup } from './components/LineupSelectionModal';
 import { LevelUpModal } from './components/UI/LevelUpModal';
 import { AchievementToast } from './components/UI/AchievementToast';
 import { useBattle } from './hooks/useBattle';
@@ -23,6 +24,7 @@ import { useNewsFeedStore } from './stores/newsFeedStore';
 import { usePlayerStore } from './stores/playerStore';
 import { useIndividualLeagueStore } from './stores/individualLeagueStore';
 import { CHARACTERS_BY_ID } from './data/characters';
+import { ROSTER_SIZE } from './data/constants';
 
 type Page = 'seasonHub' | 'crew' | 'collection' | 'cardDetail' | 'catalog' | 'items' | 'ranking' | 'trade' | 'profile' | 'settings' | 'battle' | 'individualLeague' | 'individualBattle' | 'draft';
 
@@ -39,6 +41,7 @@ function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [achievementToast, setAchievementToast] = useState<string | null>(null);
   const [currentOpponent, setCurrentOpponent] = useState<string | null>(null);
+  const [pendingOpponent, setPendingOpponent] = useState<string | null>(null);  // 라인업 선택 대기 중인 상대
 
   // 카드 상세로 이동 (반환 페이지 지정)
   const goToCardDetail = useCallback((cardId: string, returnPage: Page = 'collection') => {
@@ -75,18 +78,44 @@ function App() {
     }
   }, [validateAndFixCrew]);
 
-  // 리그 매치 시작 (시즌 시스템용) - 밴/픽 모드 활성화
+  // 리그 매치 시작 (시즌 시스템용) - 라인업 선택 → 밴/픽 모드
   const handleStartMatch = useCallback((opponentCrewId: string) => {
     const opponent = getAICrewById(opponentCrewId);
     if (!opponent) return;
 
-    // 밴/픽 모드로 게임 시작 (시즌에서 배정된 AI 크루 사용)
-    const success = startGameWithBanPick(opponent.crew, opponent.difficulty);
+    // 로스터가 7장이면 라인업 선택 모달 표시
+    if (player.currentCrew.length > 6) {
+      setPendingOpponent(opponentCrewId);
+    } else {
+      // 6장 이하면 바로 전투
+      const success = startGameWithBanPick(opponent.crew.slice(0, 6), opponent.difficulty);
+      if (success) {
+        setCurrentOpponent(opponentCrewId);
+        setCurrentPage('battle');
+      }
+    }
+  }, [startGameWithBanPick, getAICrewById, player.currentCrew.length]);
+
+  // 라인업 선택 완료 후 전투 시작
+  const handleLineupConfirm = useCallback((lineup: string[]) => {
+    if (!pendingOpponent) return;
+    const opponent = getAICrewById(pendingOpponent);
+    if (!opponent) return;
+
+    // AI도 6장 선택
+    const aiLineup = aiSelectLineup(opponent.crew);
+
+    const success = startGameWithBanPick(aiLineup, opponent.difficulty, lineup);
     if (success) {
-      setCurrentOpponent(opponentCrewId);
+      setCurrentOpponent(pendingOpponent);
+      setPendingOpponent(null);
       setCurrentPage('battle');
     }
-  }, [startGameWithBanPick, getAICrewById]);
+  }, [pendingOpponent, getAICrewById, startGameWithBanPick]);
+
+  const handleLineupCancel = useCallback(() => {
+    setPendingOpponent(null);
+  }, []);
 
   // 개인 리그 매치 시작 (새로운 1:1 배틀 시스템 사용)
   const handleStartIndividualLeagueMatch = useCallback((playerCardId: string, opponentId: string, matchId: string, format: import('./types').LeagueMatchFormat) => {
@@ -367,6 +396,7 @@ function App() {
           >
             <DraftScreen
               seasonNumber={currentSeason.number + 1}
+              rounds={ROSTER_SIZE}
               standings={getCurrentStandings().map(s => ({
                 crewId: s.crewId,
                 points: s.points,
@@ -378,6 +408,17 @@ function App() {
               }}
             />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lineup Selection Modal */}
+      <AnimatePresence>
+        {pendingOpponent && (
+          <LineupSelectionModal
+            roster={player.currentCrew}
+            onConfirm={handleLineupConfirm}
+            onCancel={handleLineupCancel}
+          />
         )}
       </AnimatePresence>
 

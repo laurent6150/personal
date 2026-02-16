@@ -56,7 +56,9 @@ export const EXP_REWARDS = {
 export const MAX_LEVEL = 10;
 
 // 크루 시스템
-export const CREW_SIZE = 6;          // 크루당 카드 수
+export const ROSTER_SIZE = 7;        // 로스터 카드 수 (스네이크 드래프트로 구성)
+export const BATTLE_SIZE = 6;        // 배틀 참가 카드 수 (로스터에서 선택)
+export const CREW_SIZE = BATTLE_SIZE; // 레거시 호환 (= BATTLE_SIZE)
 export const CREW_COUNT = 10;        // 총 크루 수 (플레이어 1 + AI 9)
 export const REGULAR_SEASON_GAMES = 9; // 정규시즌 반기당 경기 수 (9팀 × 2회전 / 2반기)
 
@@ -64,7 +66,7 @@ export const REGULAR_SEASON_GAMES = 9; // 정규시즌 반기당 경기 수 (9�
 export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
 
 // 최대 라운드
-export const MAX_ROUNDS = 5;         // 6장 크루 중 5장 사용 (1장 미사용)
+export const MAX_ROUNDS = 5;         // 6장 배틀 카드 중 5장 사용 (1장 미사용)
 
 // 스탯 아이콘 (8스탯 시스템)
 export const STAT_ICONS = {

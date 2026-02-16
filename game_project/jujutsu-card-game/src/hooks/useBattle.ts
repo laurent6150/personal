@@ -9,7 +9,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useSeasonStore } from '../stores/seasonStore';
 import { useCardRecordStore } from '../stores/cardRecordStore';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import { CREW_SIZE } from '../data/constants';
+import { BATTLE_SIZE, ROSTER_SIZE } from '../data/constants';
 import type { Difficulty, CharacterCard, RoundResult, CardAssignment, Arena } from '../types';
 
 // 안정적인 참조를 위한 상수 (React 19 호환)
@@ -175,11 +175,11 @@ export function useBattle() {
     console.log('받은 파라미터:', { aiCrewLen: aiCrew?.length, difficulty, customPlayerCrewLen: customPlayerCrew?.length });
 
     // 커스텀 플레이어 크루가 있으면 사용 (개인 리그 1v1)
-    const crew = customPlayerCrew || (playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew);
-    console.log('사용할 crew:', crew?.length, 'CREW_SIZE:', CREW_SIZE);
+    const crew = customPlayerCrew || (playerCrew.length === BATTLE_SIZE ? playerCrew : player.currentCrew.slice(0, BATTLE_SIZE));
+    console.log('사용할 crew:', crew?.length, 'BATTLE_SIZE:', BATTLE_SIZE);
 
-    if (crew.length !== CREW_SIZE || aiCrew.length !== CREW_SIZE) {
-      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', CREW_SIZE);
+    if (crew.length !== BATTLE_SIZE || aiCrew.length !== BATTLE_SIZE) {
+      console.error('❌ 크루 사이즈 불일치! player:', crew.length, 'ai:', aiCrew.length, 'expected:', BATTLE_SIZE);
       return false;
     }
     console.log('✅ initBanPick 호출');
@@ -214,13 +214,13 @@ export function useBattle() {
   // 게임 시작 (시즌에서 배정된 AI 크루 사용) - 레거시 모드 (밴픽 없이)
   const handleStartGame = useCallback((aiCrew: string[], difficulty: Difficulty) => {
     // seasonStore의 playerCrew 사용 (첫 시즌 시작 시 선택한 크루)
-    const crew = playerCrew.length === CREW_SIZE ? playerCrew : player.currentCrew;
-    if (crew.length !== CREW_SIZE) {
-      console.error(`크루가 ${CREW_SIZE}장이 아닙니다: ${crew.length}장`);
+    const crew = playerCrew.length === BATTLE_SIZE ? playerCrew : player.currentCrew.slice(0, BATTLE_SIZE);
+    if (crew.length !== BATTLE_SIZE) {
+      console.error(`크루가 ${BATTLE_SIZE}장이 아닙니다: ${crew.length}장`);
       return false;
     }
-    if (aiCrew.length !== CREW_SIZE) {
-      console.error(`AI 크루가 ${CREW_SIZE}장이 아닙니다: ${aiCrew.length}장`);
+    if (aiCrew.length !== BATTLE_SIZE) {
+      console.error(`AI 크루가 ${BATTLE_SIZE}장이 아닙니다: ${aiCrew.length}장`);
       return false;
     }
     startGame(crew, aiCrew, difficulty);
@@ -331,7 +331,7 @@ export function useBattle() {
     const aiCrew = session?.ai.crew ?? [];
     setGameEndResult(null);
     resetGame();
-    if (aiCrew.length === CREW_SIZE) {
+    if (aiCrew.length === BATTLE_SIZE) {
       handleStartGame(aiCrew, diff);
     }
   }, [session?.ai.difficulty, session?.ai.crew, resetGame, handleStartGame]);
@@ -469,7 +469,7 @@ export function useCrewManagement() {
     availableCards,
     gradeCount,
     crewSize: player.currentCrew.length,
-    maxCrewSize: CREW_SIZE,
+    maxCrewSize: ROSTER_SIZE,
     setCurrentCrew,
     addCardToCrew,
     removeCardFromCrew,
