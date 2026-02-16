@@ -51,9 +51,9 @@ import {
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
  */
 function ensureFullStats(baseStats: BaseStats): Stats {
-  // 이미 8스탯이면 그대로 반환
+  // 이미 8스탯이면 복사본 반환 (원본 뮤테이션 방지)
   if ('crt' in baseStats) {
-    return baseStats as Stats;
+    return { ...baseStats } as Stats;
   }
   // 5스탯이면 기본값으로 신규 스탯 추가
   return {
