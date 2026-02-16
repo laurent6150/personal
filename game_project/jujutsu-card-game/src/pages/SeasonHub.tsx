@@ -19,7 +19,7 @@ import { SalaryCapMini } from '../components/Phase5/SalaryCapDisplay';
 import { CPMini } from '../components/Phase5/CPDisplay';
 import { CoachingPanel } from '../components/Phase5/CoachingPanel';
 import { StrategyDashboard, MiniStrategyPanel } from '../components/Strategy';
-import { CREW_SIZE, ATTRIBUTES, SALARY_CAP } from '../data/constants';
+import { CREW_SIZE, ATTRIBUTES, SALARY_CAP, REGULAR_SEASON_GAMES } from '../data/constants';
 import { BASE_SALARY } from '../utils/salarySystem';
 import { getCharacterImage } from '../utils/imageHelper';
 import type { LeagueStanding, CharacterCard, LegacyGrade, PlayerCard } from '../types';
@@ -385,7 +385,7 @@ export function SeasonHub({
           </h2>
           <p className="text-text-secondary mb-6">
             AI 크루가 새롭게 구성됩니다!<br />
-            5팀과 대결하여 우승을 차지하세요.
+            9팀과 대결하여 우승을 차지하세요.
           </p>
 
           {seasonHistory.length > 0 && (
@@ -692,7 +692,7 @@ export function SeasonHub({
           <div>
             <h1 className="text-3xl font-bold text-accent text-shadow-strong">시즌 {currentSeason.number}</h1>
             <p className="text-text-secondary text-shadow">
-              {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / 14 경기 완료
+              {currentSeason.matches.filter(m => m.played && (m.homeCrewId === PLAYER_CREW_ID || m.awayCrewId === PLAYER_CREW_ID)).length} / {REGULAR_SEASON_GAMES * 2} 경기 완료
             </p>
           </div>
           {/* Phase 5: CP, AP, 샐러리캡 인디케이터 */}
@@ -964,6 +964,7 @@ export function SeasonHub({
                       aspect-[3/4] rounded-lg overflow-hidden relative
                       bg-gradient-to-br
                       ${card.grade === '특급' ? 'from-yellow-500/30 to-yellow-600/10 border border-yellow-500/30' : ''}
+                      ${card.grade === '준특급' ? 'from-orange-500/30 to-orange-600/10 border border-orange-500/30' : ''}
                       ${card.grade === '1급' ? 'from-purple-500/30 to-purple-600/10 border border-purple-500/30' : ''}
                       ${card.grade === '준1급' ? 'from-blue-500/30 to-blue-600/10 border border-blue-500/30' : ''}
                       ${card.grade === '2급' ? 'from-green-500/30 to-green-600/10 border border-green-500/30' : ''}
@@ -992,6 +993,7 @@ export function SeasonHub({
                     <div className="mt-2 text-center">
                       <div className={`text-[10px] font-bold px-1 py-0.5 rounded inline-block mb-1 ${
                         card.grade === '특급' ? 'bg-yellow-500/30 text-yellow-400' :
+                        card.grade === '준특급' ? 'bg-orange-500/30 text-orange-400' :
                         card.grade === '1급' ? 'bg-purple-500/30 text-purple-400' :
                         card.grade === '준1급' ? 'bg-blue-500/30 text-blue-400' :
                         card.grade === '2급' ? 'bg-green-500/30 text-green-400' :

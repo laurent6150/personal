@@ -56,9 +56,9 @@ export const EXP_REWARDS = {
 export const MAX_LEVEL = 10;
 
 // 크루 시스템
-export const CREW_SIZE = 6;          // 크루당 카드 수 (5 → 6)
-export const CREW_COUNT = 8;         // 총 크루 수 (4 → 8)
-export const REGULAR_SEASON_GAMES = 7; // 정규시즌 경기 수
+export const CREW_SIZE = 6;          // 크루당 카드 수
+export const CREW_COUNT = 10;        // 총 크루 수 (플레이어 1 + AI 9)
+export const REGULAR_SEASON_GAMES = 9; // 정규시즌 반기당 경기 수 (9팀 × 2회전 / 2반기)
 
 // 승리 조건
 export const WIN_SCORE = 3;          // 5라운드 중 3승 필요
@@ -136,7 +136,7 @@ export const DIFFICULTY_INFO = {
 // 시즌 반기 수
 export const SEASON_HALVES = 2;
 
-// 총 정규시즌 경기 수 (전반기 7 + 후반기 7 = 14경기)
+// 총 정규시즌 경기 수 (전반기 9 + 후반기 9 = 18경기)
 export const TOTAL_SEASON_GAMES = REGULAR_SEASON_GAMES * SEASON_HALVES;
 
 // 트레이드 윈도우 오픈 시점 (전반기 종료 후)
@@ -173,10 +173,10 @@ export const MAX_CREW_SIZE = 8;
 // ========================================
 
 // 샐러리 캡 (크루 총 연봉 한도) - 하드캡
-export const SALARY_CAP = 15000;
+export const SALARY_CAP = 20000;
 
 // 소프트 캡 (경고 표시 기준)
-export const SOFT_SALARY_CAP = 12000;
+export const SOFT_SALARY_CAP = 16000;
 
 // ========================================
 // Phase 5.3: 소프트캡 초과 페널티 (럭셔리 택스)
@@ -190,9 +190,9 @@ export const SOFT_CAP_REWARD_PENALTY = 0.2;  // 20% 감소
 
 // 소프트캡 초과 구간별 페널티 (심각도에 따라)
 export const LUXURY_TAX_BRACKETS = [
-  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~1000: 50%
-  { threshold: 1000, rate: 0.75 },  // 소프트캡 초과 1000~2000: 75%
-  { threshold: 2000, rate: 1.0 },   // 소프트캡 초과 2000~: 100%
+  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~1500: 50%
+  { threshold: 1500, rate: 0.75 },  // 소프트캡 초과 1500~3000: 75%
+  { threshold: 3000, rate: 1.0 },   // 소프트캡 초과 3000~: 100%
 ];
 
 // ========================================

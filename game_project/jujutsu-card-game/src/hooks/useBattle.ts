@@ -331,7 +331,7 @@ export function useBattle() {
     const aiCrew = session?.ai.crew ?? [];
     setGameEndResult(null);
     resetGame();
-    if (aiCrew.length === 5) {
+    if (aiCrew.length === CREW_SIZE) {
       handleStartGame(aiCrew, diff);
     }
   }, [session?.ai.difficulty, session?.ai.crew, resetGame, handleStartGame]);
