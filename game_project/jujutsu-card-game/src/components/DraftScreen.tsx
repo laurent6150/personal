@@ -470,7 +470,12 @@ function DraftCard({ cardId, character, isSelected, isSelectable, onClick }: Dra
       <div className="h-1/3 p-1.5 bg-black/60 flex flex-col justify-center">
         <div className="flex items-center justify-center gap-0.5">
           <GradeBadge grade={character.grade as LegacyGrade} size="sm" />
-          <span className="text-[10px]" title={attrInfo.name}>{attrInfo.icon}</span>
+          <span
+            className="text-[9px] px-1 rounded font-medium"
+            style={{ backgroundColor: attrInfo.color + '33', color: attrInfo.color }}
+          >
+            {attrInfo.ko}
+          </span>
         </div>
         <div className="text-[10px] font-bold mt-0.5 truncate text-center">
           {character.name.ko}
