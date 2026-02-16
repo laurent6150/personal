@@ -176,10 +176,10 @@ export const MAX_CREW_SIZE = 8;
 // ========================================
 
 // 샐러리 캡 (크루 총 연봉 한도) - 하드캡
-export const SALARY_CAP = 15000;
+export const SALARY_CAP = 18000;
 
-// 소프트 캡 (경고 표시 기준)
-export const SOFT_SALARY_CAP = 13000;
+// 소프트 캡 (럭셔리 택스 기준)
+export const SOFT_SALARY_CAP = 15000;
 
 // ========================================
 // Phase 5.3: 소프트캡 초과 페널티 (럭셔리 택스)
