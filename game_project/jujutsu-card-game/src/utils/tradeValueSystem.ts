@@ -93,7 +93,7 @@ export function calculateCardTV(
   const grade = character.grade as LegacyGrade;
   const baseSalary = BASE_SALARY[grade];
   const levelModifier = getLevelModifier(level);
-  const phaseModifier = PHASE_TV_MODIFIER[careerPhase];
+  const phaseModifier = PHASE_TV_MODIFIER[careerPhase] ?? 1.0;
 
   const baseTV = BASE_TV[grade];
   const levelBonus = Math.floor(baseTV * (levelModifier - 1));

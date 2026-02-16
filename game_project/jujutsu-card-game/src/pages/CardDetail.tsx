@@ -103,11 +103,21 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
 
   // 레벨업 보너스가 적용된 스탯
   const levelBonus = (displayLevel - 1) * 2;
-  const enhancedStats = {
-    ...character.baseStats,
-    [character.growthStats.primary]: character.baseStats[character.growthStats.primary] + levelBonus,
-    [character.growthStats.secondary]: character.baseStats[character.growthStats.secondary] + levelBonus
-  };
+  const bonusStats = playerCard?.bonusStats || {};
+  const enhancedStats = Object.fromEntries(
+    Object.entries(character.baseStats).map(([key, val]) => {
+      let enhanced = val as number;
+      // 주요/보조 스탯 레벨 보너스
+      if (key === character.growthStats.primary || key === character.growthStats.secondary) {
+        enhanced += levelBonus;
+      }
+      // 시즌 종료 시 누적된 보너스 스탯
+      if (key in bonusStats) {
+        enhanced += (bonusStats as Record<string, number>)[key] || 0;
+      }
+      return [key, enhanced];
+    })
+  );
 
   // 장비 보너스 계산 (8스탯 지원)
   const equipmentBonus = { atk: 0, def: 0, spd: 0, ce: 0, hp: 0, crt: 0, tec: 0, mnt: 0 };

@@ -286,8 +286,8 @@ export function useBattle() {
   const handleContinue = useCallback(() => {
     clearLastResult();
 
-    // 게임 종료 체크
-    if (isGameOver && session) {
+    // 게임 종료 체크 (이미 처리된 경우 중복 호출 방지)
+    if (isGameOver && session && !gameEndResult) {
       const won = session.status === 'PLAYER_WIN';
       const result = processGameResult(
         won,
@@ -302,11 +302,13 @@ export function useBattle() {
         newAchievements: result.newAchievements
       });
     }
-  }, [clearLastResult, isGameOver, session, processGameResult]);
+  }, [clearLastResult, isGameOver, session, gameEndResult, processGameResult]);
 
   // 게임 종료 및 결과 처리
   const handleEndGame = useCallback(() => {
     if (!session) return null;
+    // 이미 처리된 경우 중복 호출 방지
+    if (gameEndResult) return null;
 
     const result = endGame();
 
@@ -328,7 +330,7 @@ export function useBattle() {
     }
 
     return result;
-  }, [session, endGame, processGameResult]);
+  }, [session, gameEndResult, endGame, processGameResult]);
 
   // 재대전 (같은 AI 크루와 재대전)
   const handleRematch = useCallback((difficulty?: Difficulty) => {

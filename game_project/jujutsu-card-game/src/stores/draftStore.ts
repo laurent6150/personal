@@ -208,6 +208,11 @@ export const useDraftStore = create<DraftState>()(
       makePlayerPick: (cardId: string) => {
         const { draftPool, currentPickIndex, draftOrder, executeDraftPick } = get();
 
+        if (currentPickIndex >= draftOrder.length) {
+          console.warn('[Draft] 드래프트가 이미 완료되었습니다.');
+          return;
+        }
+
         const currentCrewId = draftOrder[currentPickIndex];
         if (currentCrewId !== PLAYER_CREW_ID) {
           console.warn('[Draft] 현재 플레이어 차례가 아닙니다.');

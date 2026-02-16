@@ -84,8 +84,17 @@ export function calculateCombatStats(
   stats[baseCard.growthStats.primary] += levelBonus;
   stats[baseCard.growthStats.secondary] += levelBonus;
 
+  // 레벨업 누적 보너스 스탯 적용 (시즌 종료 시 등급별 랜덤 분배)
+  if (playerCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerCard.bonusStats)) {
+      if (stat in stats && value) {
+        stats[stat as keyof Stats] += value;
+      }
+    }
+  }
+
   // 장비 보너스 적용
-  for (const equipId of playerCard.equipment) {
+  for (const equipId of (playerCard.equipment || [])) {
     if (equipId) {
       const item = ITEMS_BY_ID[equipId];
       if (item) {

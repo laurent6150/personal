@@ -1048,20 +1048,19 @@ export const useSeasonStore = create<SeasonState>()(
           // 2. 노화/생애주기 처리 (seasonsInCrew 증가, careerPhase 재계산, 쇠퇴 적용)
           const agingResult = processSeasonEnd();
           console.log(`[finalizeSeason] 노화 처리 완료 - 노화: ${agingResult.agedCards.length}명, 쇠퇴: ${agingResult.declinedCards.length}명`);
-        });
 
-        // 3. 상태 초기화
-        set({
-          teamLeagueCompleted: false,
-          individualLeagueCompleted: false,
-          pendingExp: {},
-          // Phase 5: 다음 시즌을 위해 전반기로 리셋
-          currentHalf: 'FIRST',
-          firstHalfStandings: null,
-          isTransitionPeriod: false,
-        });
+          // 3. 상태 초기화 (비동기 작업 완료 후 실행하여 레이스 컨디션 방지)
+          set({
+            teamLeagueCompleted: false,
+            individualLeagueCompleted: false,
+            pendingExp: {},
+            currentHalf: 'FIRST',
+            firstHalfStandings: null,
+            isTransitionPeriod: false,
+          });
 
-        console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
+          console.log(`[finalizeSeason] 시즌 ${currentSeason?.number || '?'} 종료 처리 완료`);
+        });
       },
 
       // 올킬 시즌 판정 (3의 배수 시즌)

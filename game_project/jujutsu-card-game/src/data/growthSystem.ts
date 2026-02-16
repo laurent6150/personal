@@ -329,7 +329,7 @@ export function addExpAndLevelUp(
   levelsGained: number;
   statIncreases: Partial<Stats>;
 } {
-  const newTotalExp = currentProgress.totalExp + expToAdd;
+  const newTotalExp = Math.max(0, currentProgress.totalExp + expToAdd);
   const newLevel = calculateLevelFromExp(newTotalExp);
   const levelsGained = newLevel - currentProgress.level;
   const leveledUp = levelsGained > 0;
@@ -396,7 +396,7 @@ export function calculateExpChange(details: ExpChangeDetails, formExpBonus: numb
 }
 
 /**
- * 총 경험치로 레벨 계산
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 calculateLevelFromExp(EXP_TABLE) 사용
  */
 export function getLevelFromTotalExp(totalExp: number): number {
   let level = 1;
@@ -410,19 +410,21 @@ export function getLevelFromTotalExp(totalExp: number): number {
 }
 
 /**
- * 현재 레벨 내 경험치 계산
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 getExpProgress(EXP_TABLE) 사용
  */
 export function getExpInCurrentLevel(totalExp: number, level: number): number {
   if (level <= 1) return totalExp;
+  if (level > LEVEL_THRESHOLDS.length) return 0;
   const prevThreshold = LEVEL_THRESHOLDS[level - 1];
   return totalExp - prevThreshold;
 }
 
 /**
- * 다음 레벨까지 필요한 경험치
+ * @deprecated 레거시: LEVEL_THRESHOLDS 기반. 신규 코드는 getExpForNextLevel(EXP_TABLE) 사용
  */
 export function getExpToNextLevel(level: number): number {
   if (level >= MAX_LEVEL) return 0;
+  if (level < 1 || level >= LEVEL_THRESHOLDS.length) return 0;
   return LEVEL_THRESHOLDS[level] - LEVEL_THRESHOLDS[level - 1];
 }
 
