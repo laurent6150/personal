@@ -53,6 +53,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
   const [draftComplete, setDraftComplete] = useState(false);
   const [fastMode, setFastMode] = useState(false);
   const draftStartedRef = useRef(false);
+  const aiPickingRef = useRef(false);
 
   // 현재 픽하는 크루
   const currentCrewId = draftOrder[currentPickIndex] || null;
@@ -95,13 +96,16 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
   }, [isDraftInProgress, seasonNumber, standings, startDraft, rounds]);
 
   // AI 턴 자동 처리
+  // aiPickingRef로 재진입 방지 (state인 aiPickingAnimation을 deps에 넣으면
+  // setAiPickingAnimation(true) → 리렌더 → cleanup(clearTimeout) → 타이머 취소 버그 발생)
   useEffect(() => {
-    if (!isDraftInProgress || isPlayerTurn || aiPickingAnimation || draftComplete) return;
+    if (!isDraftInProgress || isPlayerTurn || aiPickingRef.current || draftComplete) return;
     if (currentPickIndex >= draftOrder.length) {
       setDraftComplete(true);
       return;
     }
 
+    aiPickingRef.current = true;
     setAiPickingAnimation(true);
     const delay = fastMode ? 150 : 500;
     const timer = setTimeout(() => {
@@ -109,11 +113,12 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
       if (pickedCardId) {
         setLastPickedCard({ crewId: currentCrewId!, cardId: pickedCardId });
       }
+      aiPickingRef.current = false;
       setAiPickingAnimation(false);
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, aiPickingAnimation, draftComplete, makeAIPick, fastMode]);
+  }, [isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, currentCrewId, draftComplete, makeAIPick, fastMode]);
 
   // 드래프트 완료 체크
   useEffect(() => {
