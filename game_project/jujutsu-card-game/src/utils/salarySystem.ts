@@ -51,10 +51,10 @@ export const SALARY_PER_LEVEL: Record<LegacyGrade, number> = {
 };
 
 // 샐러리 캡 (크루 총 연봉 한도)
-export const SALARY_CAP = 20000;
+export const SALARY_CAP = 25000;
 
 // 소프트 캡 (경고 표시 기준)
-export const SOFT_SALARY_CAP = 16000;
+export const SOFT_SALARY_CAP = 20000;
 
 // 최소 크루 인원
 export const MIN_CREW_SIZE = 5;

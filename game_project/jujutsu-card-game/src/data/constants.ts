@@ -140,10 +140,10 @@ export const SEASON_HALVES = 2;
 export const TOTAL_SEASON_GAMES = REGULAR_SEASON_GAMES * SEASON_HALVES;
 
 // 트레이드 윈도우 오픈 시점 (전반기 종료 후)
-export const TRADE_WINDOW_OPEN_AT = 7;
+export const TRADE_WINDOW_OPEN_AT = REGULAR_SEASON_GAMES;
 
-// 트레이드 마감 경기 (후반기 5경기째 = 전체 12경기째)
-export const TRADE_DEADLINE_GAME = 12;
+// 트레이드 마감 경기 (후반기 5경기째 = 전체 14경기째)
+export const TRADE_DEADLINE_GAME = REGULAR_SEASON_GAMES + 5;
 
 // ========================================
 // Phase 5: 드래프트 상수
@@ -173,10 +173,10 @@ export const MAX_CREW_SIZE = 8;
 // ========================================
 
 // 샐러리 캡 (크루 총 연봉 한도) - 하드캡
-export const SALARY_CAP = 20000;
+export const SALARY_CAP = 25000;
 
 // 소프트 캡 (경고 표시 기준)
-export const SOFT_SALARY_CAP = 16000;
+export const SOFT_SALARY_CAP = 20000;
 
 // ========================================
 // Phase 5.3: 소프트캡 초과 페널티 (럭셔리 택스)
@@ -190,9 +190,9 @@ export const SOFT_CAP_REWARD_PENALTY = 0.2;  // 20% 감소
 
 // 소프트캡 초과 구간별 페널티 (심각도에 따라)
 export const LUXURY_TAX_BRACKETS = [
-  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~1500: 50%
-  { threshold: 1500, rate: 0.75 },  // 소프트캡 초과 1500~3000: 75%
-  { threshold: 3000, rate: 1.0 },   // 소프트캡 초과 3000~: 100%
+  { threshold: 0, rate: 0.5 },      // 소프트캡 초과 0~2000: 50%
+  { threshold: 2000, rate: 0.75 },  // 소프트캡 초과 2000~4000: 75%
+  { threshold: 4000, rate: 1.0 },   // 소프트캡 초과 4000~: 100%
 ];
 
 // ========================================
