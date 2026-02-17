@@ -12,7 +12,12 @@ import type {
 } from '../types/individualLeague';
 import { getArenaById } from '../data/arenaEffects';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import type { CharacterCard } from '../types';
+import type { CharacterCard, Attribute } from '../types';
+import {
+  ATTRIBUTE_ADVANTAGE,
+  ADVANTAGE_MULTIPLIER,
+  DISADVANTAGE_MULTIPLIER
+} from '../data/constants';
 
 // ═══════════════════════════════════════════════════════════
 // 헬퍼 함수
@@ -26,6 +31,22 @@ function calculateTotalStats(card: CharacterCard): number {
   const stats = card.baseStats;
   return (stats.atk || 0) + (stats.def || 0) + (stats.spd || 0) +
          (stats.ce || 0) + (stats.hp || 0);
+}
+
+/**
+ * 속성 상성 배율 계산 (팀리그 로직 반영)
+ * 유리: 1.5배, 불리: 0.7배, 동등: 1.0배
+ */
+function getAttributeMultiplier(attackerAttr: string, defenderAttr: string): number {
+  const advantages = ATTRIBUTE_ADVANTAGE[attackerAttr as Attribute];
+  if (advantages?.includes(defenderAttr as Attribute)) {
+    return ADVANTAGE_MULTIPLIER; // 1.5
+  }
+  const defAdvantages = ATTRIBUTE_ADVANTAGE[defenderAttr as Attribute];
+  if (defAdvantages?.includes(attackerAttr as Attribute)) {
+    return DISADVANTAGE_MULTIPLIER; // 0.7
+  }
+  return 1.0;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -93,7 +114,7 @@ export function applyArenaEffect(
 // 데미지 계산 (Phase 4.3 밸런스 조정 - 10턴 내외 종료 목표)
 // ═══════════════════════════════════════════════════════════
 
-// 전투 밸런스 상수 (Phase 4.3: 8~12턴 전투를 위한 밸런스 조정)
+// 전투 밸런스 상수 (Phase 4.4: 속성 상성 + CE 배율 반영)
 // HP: 100, 목표 종료 턴: 8~12턴, 턴당 평균 데미지: 8~12
 const BATTLE_BALANCE = {
   // 기본 데미지 계수 (ATK 기반)
@@ -103,6 +124,13 @@ const BATTLE_BALANCE = {
   // 방어력 감소율 (최대 30% 감소)
   DEF_REDUCTION_RATE: 0.3,
   MAX_DEF_REDUCTION_PERCENT: 30,
+
+  // 속성 상성 배율 적용 비율 (팀리그보다 약하게: 유리 ×1.25, 불리 ×0.85)
+  // 팀리그: 유리 1.5, 불리 0.7 → 개인리그: 중간값으로 완화
+  ATTRIBUTE_ADVANTAGE_SCALE: 0.5, // (배율 - 1.0) × 0.5 + 1.0
+
+  // CE 배율 계수 (팀리그: 1 + CE/100, 개인리그: 1 + CE × 0.006)
+  CE_MULTIPLIER_COEFFICIENT: 0.006,
 
   // 스킬/필살기 배율
   SKILL_MULTIPLIER: 1.3,      // 스킬: 1.3배
@@ -133,7 +161,7 @@ export function calculateDamage(
 ): DamageResult {
   const atkChar = getCharacterById(attacker.odId);
 
-  // Phase 4.3: 새로운 데미지 계산 공식 (10턴 내외 종료 목표)
+  // Phase 4.4: 속성 상성 + CE 배율 반영 데미지 공식
   // 1. 기본 데미지 (ATK 기반) - ATK 20 기준 약 13 데미지
   const baseAtk = attacker.baseStats.atk;
   const baseDef = defender.baseStats.def;
@@ -146,15 +174,26 @@ export function calculateDamage(
   );
   baseDamage = Math.round(baseDamage * (1 - defenseReduction / 100));
 
-  // 3. 최소 데미지 보장
+  // 3. 속성 상성 배율 적용 (팀리그 로직 반영, 개인리그용 완화 적용)
+  // 팀리그: 유리 ×1.5 / 불리 ×0.7 → 개인리그: 유리 ×1.25 / 불리 ×0.85
+  const rawAttrMult = getAttributeMultiplier(attacker.attribute, defender.attribute);
+  const scaledAttrMult = 1.0 + (rawAttrMult - 1.0) * BATTLE_BALANCE.ATTRIBUTE_ADVANTAGE_SCALE;
+  baseDamage = Math.round(baseDamage * scaledAttrMult);
+
+  // 4. CE 배율 적용 (주력이 높을수록 데미지 증가, CE 0은 보너스 없음)
+  // CE 0: ×1.0, CE 18: ×1.108, CE 25: ×1.15
+  const ceMultiplier = 1 + (attacker.baseStats.ce * BATTLE_BALANCE.CE_MULTIPLIER_COEFFICIENT);
+  baseDamage = Math.round(baseDamage * ceMultiplier);
+
+  // 5. 최소 데미지 보장
   baseDamage = Math.max(baseDamage, BATTLE_BALANCE.MIN_DAMAGE);
 
-  // 4. 총합 차이에 따른 미세 보정 (±20% 범위)
+  // 6. 총합 차이에 따른 미세 보정 (±20% 범위)
   const statDiff = attacker.adjustedTotal - defender.adjustedTotal;
-  const statBonus = 1 + (statDiff / 1000); // 더 약한 보정
+  const statBonus = 1 + (statDiff / 1000);
   baseDamage = Math.round(baseDamage * Math.max(0.8, Math.min(1.2, statBonus)));
 
-  // 5. 랜덤 변동 (±10%)
+  // 7. 랜덤 변동 (±10%)
   const variance = 0.9 + Math.random() * 0.2;
   baseDamage = Math.round(baseDamage * variance);
 

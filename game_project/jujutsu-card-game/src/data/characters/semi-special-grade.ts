@@ -30,7 +30,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("tengen", "텐겐", "BARRIER"),
-    baseStats: { atk: 12, def: 20, spd: 10, ce: 25, hp: 100 },
+    baseStats: { atk: 18, def: 20, spd: 16, ce: 25, hp: 100 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: { name: "허공다면체", description: "무수한 결계가 중첩된 절대 방어", effect: { type: "DAMAGE_REDUCE", value: 90, duration: 2 } },
     basicSkills: [
@@ -48,7 +48,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "BODY",
     imageUrl: getCharacterImage("fushiguro_toji", "후시구로 토우지", "BODY"),
-    baseStats: { atk: 25, def: 16, spd: 24, ce: 0, hp: 92, crt: 26, tec: 20, mnt: 10 },
+    baseStats: { atk: 22, def: 16, spd: 22, ce: 0, hp: 92, crt: 18, tec: 20, mnt: 10 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천역봉인", description: "모든 술식을 강제 해제", effect: { type: "SKILL_NULLIFY", damage: 200 } },
     basicSkills: [

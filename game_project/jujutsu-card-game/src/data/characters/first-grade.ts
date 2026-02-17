@@ -31,7 +31,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     attribute: "BODY",
     imageUrl: getCharacterImage("maki_zenin_awakened", "젠인 마키 (각성)", "BODY"),
     // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
-    baseStats: { atk: 23, def: 15, spd: 24, ce: 0, hp: 88, crt: 23, tec: 19, mnt: 8 },
+    baseStats: { atk: 20, def: 15, spd: 21, ce: 0, hp: 88, crt: 15, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천여함수 완성", description: "토지와 동등한 경지", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 } },
     basicSkills: [
@@ -429,7 +429,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     attribute: "BODY",
     imageUrl: getCharacterImage("tsurugi_okkotsu", "옷코츠 츠루기", "BODY"),
     // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
-    baseStats: { atk: 23, def: 15, spd: 23, ce: 0, hp: 87, crt: 23, tec: 19, mnt: 8 },
+    baseStats: { atk: 20, def: 15, spd: 21, ce: 0, hp: 87, crt: 15, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [
