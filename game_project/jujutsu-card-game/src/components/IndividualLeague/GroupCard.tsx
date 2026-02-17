@@ -6,14 +6,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
-import type { DualTournamentGroup, IndividualMatch } from '../../types';
+import type { DualTournamentGroup } from '../../types';
 import { Button } from '../UI/Button';
 import { DualTournamentFlow } from './DualTournamentFlow';
 import { findNextDualGroupMatch } from '../../utils/individualLeagueSystem';
 
 interface GroupCardProps {
   group: DualTournamentGroup;
-  matches: IndividualMatch[];  // 호환성 유지 (사용하지 않음)
   playerCardIds: string[];
   onStartMatch?: (matchId: string) => void;
 }

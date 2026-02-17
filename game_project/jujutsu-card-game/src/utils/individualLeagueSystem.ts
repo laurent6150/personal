@@ -313,81 +313,74 @@ function getDualGroupAllMatches(group: DualTournamentGroup): IndividualMatch[] {
 
 /**
  * 초기 대진표 생성 (듀얼 토너먼트)
- * - 시즌 1: 64명 → 16조 64강 듀얼 토너먼트
- * - 시즌 2+: 시드 8명은 32강 직행, 나머지 56명 → 14조 64강
- *   → 64강 28명 진출 + 시드 4명(5~8위) = 32명 → 8조 32강
- *   → 시드 상위 4명(1~4위)은 32강 각 조 배치
+ * - 64명 전원 → 16조 64강 듀얼 토너먼트 (단판)
+ * - 시즌 2+: 시드 선수는 유리한 조 배치 (약한 상대와 같은 조)
+ *   → 64강 32명 진출 → 8조 32강 듀얼 토너먼트
  */
 export function generateInitialBrackets(
   participants: LeagueParticipant[],
   seeds: string[] = []
 ): IndividualBrackets {
-  const hasSeed = seeds.length > 0;
   const groupLabels = 'ABCDEFGHIJKLMNOP'.split('');
 
-  if (!hasSeed) {
-    // 시즌 1: 64명 전원 → 16조 64강 듀얼 토너먼트 (단판)
-    const round64Groups: DualTournamentGroup[] = [];
-    const allMatches: IndividualMatch[] = [];
+  // 시드 배치: 시드 선수를 각 조에 1명씩 유리한 위치에 배치
+  const seedSet = new Set(seeds.slice(0, 8));
+  const seedParticipants = participants.filter(p => seedSet.has(p.odId));
+  const nonSeedParticipants = participants.filter(p => !seedSet.has(p.odId));
 
-    for (let i = 0; i < 16; i++) {
-      const groupId = groupLabels[i];
-      const groupMembers = participants.slice(i * 4, (i + 1) * 4).map(p => p.odId);
-      const group = createDualTournamentGroup(groupId, groupMembers, 'r64', '1WIN');
-      round64Groups.push(group);
-      allMatches.push(...getDualGroupAllMatches(group));
+  // 비시드 참가자를 스탯 기준 정렬 (약한 순)
+  const sortedNonSeeds = [...nonSeedParticipants].sort((a, b) => {
+    const cardA = CHARACTERS_BY_ID[a.odId];
+    const cardB = CHARACTERS_BY_ID[b.odId];
+    return (cardA ? calculateTotalStat(cardA) : 0) - (cardB ? calculateTotalStat(cardB) : 0);
+  });
+
+  // 16조 구성: 시드가 있으면 각 조에 1시드 + 약한 비시드 3명 배치
+  const groups: string[][] = Array.from({ length: 16 }, () => []);
+
+  // 시드 배치 (최대 8시드 → 상위 8조에 각 1명)
+  seedParticipants.forEach((seed, idx) => {
+    if (idx < 16) {
+      groups[idx].push(seed.odId);
     }
+  });
 
-    console.log('[generateInitialBrackets] 시즌1: 64강 16조 생성, 총 매치:', allMatches.length);
-
-    return {
-      round64Groups,
-      round32Groups: [],       // 64강 완료 후 생성
-      round32: allMatches,     // 호환성: 플랫 매치 배열
-      round16: [],
-      round16Matches: [],
-      quarter: [],
-      semi: [],
-      final: null,
-    };
-  } else {
-    // 시즌 2+: 시드 시스템
-    // 시드 상위 4명(1~4위): 32강 직행 (각 조 배치)
-    // 시드 하위 4명(5~8위): 64강 완료 후 32강 합류
-    // 나머지 56명: 14조 64강 듀얼 토너먼트
-    const topSeeds = seeds.slice(0, 4);       // 1~4위 → 32강 직행
-    const bottomSeeds = seeds.slice(4, 8);    // 5~8위 → 64강 후 32강 합류
-    const seedSet = new Set(seeds.slice(0, 8));
-    const nonSeedParticipants = participants.filter(p => !seedSet.has(p.odId));
-
-    // 56명 → 14조 64강 듀얼 토너먼트
-    const round64Groups: DualTournamentGroup[] = [];
-    const allMatches: IndividualMatch[] = [];
-
-    for (let i = 0; i < 14; i++) {
-      const groupId = groupLabels[i];
-      const groupMembers = nonSeedParticipants.slice(i * 4, (i + 1) * 4).map(p => p.odId);
-      if (groupMembers.length < 4) break; // 참가자 부족 시 중단
-      const group = createDualTournamentGroup(groupId, groupMembers, 'r64', '1WIN');
-      round64Groups.push(group);
-      allMatches.push(...getDualGroupAllMatches(group));
+  // 나머지 멤버 배치: 약한 참가자를 시드 조에 우선 배치 (시드 유리)
+  let nonSeedIdx = 0;
+  // 먼저 각 조를 4명으로 채움
+  for (let i = 0; i < 16; i++) {
+    while (groups[i].length < 4 && nonSeedIdx < sortedNonSeeds.length) {
+      groups[i].push(sortedNonSeeds[nonSeedIdx].odId);
+      nonSeedIdx++;
     }
-
-    console.log('[generateInitialBrackets] 시즌2+: 64강', round64Groups.length, '조,',
-      '시드 상위', topSeeds.length, '명 32강 직행,',
-      '시드 하위', bottomSeeds.length, '명 32강 합류 예정');
-
-    return {
-      round64Groups,
-      round32Groups: [],       // 64강 완료 후 생성
-      round32: allMatches,     // 호환성: 플랫 매치 배열
-      round16: [],
-      round16Matches: [],
-      quarter: [],
-      semi: [],
-      final: null,
-    };
   }
+
+  // 64강 16조 듀얼 토너먼트 생성
+  const round64Groups: DualTournamentGroup[] = [];
+  const allMatches: IndividualMatch[] = [];
+
+  for (let i = 0; i < 16; i++) {
+    if (groups[i].length < 4) break;
+    const groupId = groupLabels[i];
+    const seedId = groups[i].find(id => seedSet.has(id)) || null;
+    const group = createDualTournamentGroup(groupId, groups[i], 'r64', '1WIN', seedId);
+    round64Groups.push(group);
+    allMatches.push(...getDualGroupAllMatches(group));
+  }
+
+  console.log('[generateInitialBrackets] 64강 16조 생성, 총 매치:', allMatches.length,
+    seeds.length > 0 ? `(시드 ${seedParticipants.length}명 유리한 조 배치)` : '(시즌1: 시드 없음)');
+
+  return {
+    round64Groups,
+    round32Groups: [],       // 64강 완료 후 생성
+    round32: allMatches,     // 호환성: 플랫 매치 배열
+    round16: [],
+    round16Matches: [],
+    quarter: [],
+    semi: [],
+    final: null,
+  };
 }
 
 /**
@@ -816,9 +809,8 @@ export function findNextDualGroupMatch(group: DualTournamentGroup): IndividualMa
 
 /**
  * 64강 결과 처리 → 32강 듀얼 토너먼트 생성
- * - 시즌 1: 64강 16조 → 각 조 1,2위 32명 → 8조 32강
- * - 시즌 2+: 64강 14조 → 각 조 1,2위 28명 + 시드 4명(5~8위) = 32명 → 8조 32강
- *   시드 상위 4명(1~4위)은 32강 각 조 배치
+ * - 64강 16조 → 각 조 1,2위 32명 → 8조 32강 듀얼 토너먼트
+ * - 시드 선수가 진출하면 32강에서 유리한 조 배치
  */
 export function processRound64Results(
   brackets: IndividualBrackets,
@@ -841,22 +833,13 @@ export function processRound64Results(
     if (group.fourthPlace) eliminatedIds.push(group.fourthPlace);
   });
 
-  // 시드 하위 4명(5~8위) 합류
-  const bottomSeeds = seeds.slice(4, 8).filter(id => CHARACTERS_BY_ID[id]);
-  const round32Participants = [...qualifiers, ...bottomSeeds];
-
-  // 시드 상위 4명(1~4위)은 32강 각 조에 배치
-  const topSeeds = seeds.slice(0, 4).filter(id => CHARACTERS_BY_ID[id]);
-
   console.log('[processRound64Results] 32강 진출:', {
-    from64: qualifiers.length,
-    bottomSeeds: bottomSeeds.length,
-    topSeeds: topSeeds.length,
-    total: round32Participants.length + topSeeds.length,
+    qualifiers: qualifiers.length,
+    eliminated: eliminatedIds.length,
   });
 
   // 탈락자 처리
-  let updatedParticipants = participants.map(p => {
+  const updatedParticipants = participants.map(p => {
     if (eliminatedIds.includes(p.odId) && p.status !== 'ELIMINATED') {
       return { ...p, status: 'ELIMINATED' as const, eliminatedAt: 'ROUND_64' as const };
     }
@@ -864,35 +847,41 @@ export function processRound64Results(
   });
 
   // 32강 8조 듀얼 토너먼트 생성
+  // 시드 진출자는 각 조에 분산 배치 (유리한 상대와 매칭)
+  const seedSet = new Set(seeds.slice(0, 8));
+  const seedQualifiers = qualifiers.filter(id => seedSet.has(id));
+  const nonSeedQualifiers = shuffleArray(qualifiers.filter(id => !seedSet.has(id)));
+
   const groupLabels = 'ABCDEFGH'.split('');
-  const shuffledQualifiers = shuffleArray(round32Participants);
   const round32Groups: DualTournamentGroup[] = [];
   const round32AllMatches: IndividualMatch[] = [];
-  let qIdx = 0;
+
+  // 그룹 구성: 시드 진출자를 각 조에 분산, 나머지는 셔플
+  const groupMembers: string[][] = Array.from({ length: 8 }, () => []);
+
+  // 시드 진출자 분산 배치 (1조에 1시드)
+  seedQualifiers.forEach((seedId, idx) => {
+    groupMembers[idx % 8].push(seedId);
+  });
+
+  // 비시드 진출자로 나머지 채움
+  let nsIdx = 0;
+  for (let i = 0; i < 8; i++) {
+    while (groupMembers[i].length < 4 && nsIdx < nonSeedQualifiers.length) {
+      groupMembers[i].push(nonSeedQualifiers[nsIdx++]);
+    }
+  }
 
   for (let i = 0; i < 8; i++) {
+    if (groupMembers[i].length < 4) {
+      console.warn(`[processRound64Results] ${groupLabels[i]}조 인원 부족:`, groupMembers[i].length);
+      continue;
+    }
     const groupId = groupLabels[i];
-    const groupMembers: string[] = [];
-
-    // 시드 상위 4명은 A~D조에 각 1명 배치
-    if (i < topSeeds.length) {
-      groupMembers.push(topSeeds[i]);
-    }
-
-    // 나머지 멤버 채우기
-    while (groupMembers.length < 4 && qIdx < shuffledQualifiers.length) {
-      const candidate = shuffledQualifiers[qIdx++];
-      if (!groupMembers.includes(candidate)) {
-        groupMembers.push(candidate);
-      }
-    }
-
-    if (groupMembers.length === 4) {
-      const seedId = i < topSeeds.length ? topSeeds[i] : null;
-      const group = createDualTournamentGroup(groupId, groupMembers, 'r32', '1WIN', seedId);
-      round32Groups.push(group);
-      round32AllMatches.push(...getDualGroupAllMatches(group));
-    }
+    const seedId = groupMembers[i].find(id => seedSet.has(id)) || null;
+    const group = createDualTournamentGroup(groupId, groupMembers[i], 'r32', '1WIN', seedId);
+    round32Groups.push(group);
+    round32AllMatches.push(...getDualGroupAllMatches(group));
   }
 
   console.log('[processRound64Results] 32강', round32Groups.length, '조 생성');

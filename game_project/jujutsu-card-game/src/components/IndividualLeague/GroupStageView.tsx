@@ -5,13 +5,12 @@
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
-import type { DualTournamentGroup, LeagueParticipant, IndividualMatch } from '../../types';
+import type { DualTournamentGroup, LeagueParticipant } from '../../types';
 import { Button } from '../UI/Button';
 
 interface GroupStageViewProps {
   groups: DualTournamentGroup[];
   participants: LeagueParticipant[];
-  matches: IndividualMatch[];  // 호환성 유지 (사용하지 않음)
   onClose: () => void;
 }
 

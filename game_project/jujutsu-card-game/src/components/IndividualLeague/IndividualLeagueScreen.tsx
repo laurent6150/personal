@@ -521,7 +521,6 @@ export function IndividualLeagueScreen({
                 ? (currentLeague.brackets.round64Groups || [])
                 : (currentLeague.brackets.round32Groups || [])
             }
-            matches={currentLeague.brackets.round32}
             playerCardIds={playerCrew}
             onStartMatch={handleGroupStageStartMatch}
             onSkipAll={handleSkipAll}
@@ -607,7 +606,6 @@ export function IndividualLeagueScreen({
                 : (currentLeague.brackets.round32Groups || [])
             }
             participants={currentLeague.participants}
-            matches={currentLeague.brackets.round32}
             onClose={() => setShowGroups(false)}
           />
         )}

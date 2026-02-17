@@ -3,13 +3,12 @@
 // ========================================
 
 import { motion } from 'framer-motion';
-import type { DualTournamentGroup, IndividualMatch } from '../../types';
+import type { DualTournamentGroup } from '../../types';
 import { Button } from '../UI/Button';
 import { GroupCard } from './GroupCard';
 
 interface GroupStageMainViewProps {
   groups: DualTournamentGroup[];
-  matches: IndividualMatch[];
   playerCardIds: string[];
   onStartMatch: (matchId: string) => void;
   onSkipAll: () => void;
@@ -19,7 +18,6 @@ interface GroupStageMainViewProps {
 
 export function GroupStageMainView({
   groups,
-  matches,
   playerCardIds,
   onStartMatch,
   onSkipAll,
@@ -75,7 +73,6 @@ export function GroupStageMainView({
           <GroupCard
             key={group.id}
             group={group}
-            matches={matches}
             playerCardIds={playerCardIds}
             onStartMatch={onStartMatch}
           />

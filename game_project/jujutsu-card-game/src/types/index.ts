@@ -1131,7 +1131,7 @@ export interface LeagueGroup {
 // 개인 리그 대진표
 export interface IndividualBrackets {
   // 듀얼 토너먼트 (64강/32강)
-  round64Groups?: DualTournamentGroup[];  // 64강 듀얼 토너먼트 (16조 or 12조)
+  round64Groups?: DualTournamentGroup[];  // 64강 듀얼 토너먼트 (16조)
   round32Groups?: DualTournamentGroup[];  // 32강 듀얼 토너먼트 (8조)
   round32: IndividualMatch[];     // 호환성 유지 (듀얼 토너먼트 전체 매치 플랫 배열)
   round16: LeagueGroup[];         // 호환성 유지 (사용 안 함)
@@ -1146,7 +1146,7 @@ export interface IndividualBrackets {
 export interface IndividualLeague {
   season: number;
   status: IndividualLeagueStatus;
-  participants: LeagueParticipant[];  // 64명 (시즌2+: 시드8 + 64강48)
+  participants: LeagueParticipant[];  // 64명 (전원 64강 참가, 시드는 유리한 조 배치)
   brackets: IndividualBrackets;
   champion: string | null;            // 우승자 odId
   runnerUp: string | null;            // 준우승자 odId
