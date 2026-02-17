@@ -52,6 +52,7 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
   const [lastPickedCard, setLastPickedCard] = useState<{ crewId: string; cardId: string } | null>(null);
   const [draftComplete, setDraftComplete] = useState(false);
   const [fastMode, setFastMode] = useState(false);
+  const [isAutoMode, setIsAutoMode] = useState(false);
   const draftStartedRef = useRef(false);
   const aiPickingRef = useRef(false);
 
@@ -127,6 +128,38 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
     }
   }, [currentPickIndex, draftOrder.length, draftComplete]);
 
+  // 자동 선택 모드 토글 (켜면 빨리감기도 함께 활성화)
+  const handleAutoMode = useCallback(() => {
+    setIsAutoMode(prev => {
+      if (!prev) setFastMode(true);
+      return !prev;
+    });
+  }, []);
+
+  // 자동 선택 모드: 플레이어 턴 자동 처리
+  useEffect(() => {
+    if (!isAutoMode || !isDraftInProgress || !isPlayerTurn || aiPickingRef.current || draftComplete) return;
+    if (currentPickIndex >= draftOrder.length) {
+      setDraftComplete(true);
+      return;
+    }
+
+    aiPickingRef.current = true;
+    setAiPickingAnimation(true);
+    const delay = fastMode ? 150 : 500;
+    const timer = setTimeout(() => {
+      const pickedCardId = makeAIPick(PLAYER_CREW_ID);
+      if (pickedCardId) {
+        setLastPickedCard({ crewId: PLAYER_CREW_ID, cardId: pickedCardId });
+      }
+      aiPickingRef.current = false;
+      setAiPickingAnimation(false);
+      setSelectedCard(null);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [isAutoMode, isDraftInProgress, isPlayerTurn, currentPickIndex, draftOrder, draftComplete, makeAIPick, fastMode]);
+
   // 플레이어 픽 처리
   const handlePlayerPick = useCallback(() => {
     if (!selectedCard || !isPlayerTurn) return;
@@ -184,6 +217,19 @@ export function DraftScreen({ onComplete, standings, seasonNumber, rounds = 6 }:
                   }`}
                 >
                   {fastMode ? '⚡ 빨리감기' : '▶ 보통속도'}
+                </button>
+              )}
+              {/* 자동 선택 토글 */}
+              {!draftComplete && (
+                <button
+                  onClick={handleAutoMode}
+                  className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                    isAutoMode
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30 animate-pulse'
+                      : 'bg-white/10 text-text-secondary border-white/20'
+                  }`}
+                >
+                  {isAutoMode ? '🤖 자동 선택 중...' : '🤖 자동 선택'}
                 </button>
               )}
             </div>

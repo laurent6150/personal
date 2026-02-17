@@ -12,7 +12,8 @@ import type {
 } from '../types/individualLeague';
 import { getArenaById } from '../data/arenaEffects';
 import { CHARACTERS_BY_ID } from '../data/characters';
-import type { CharacterCard } from '../types';
+import type { CharacterCard, Attribute } from '../types';
+import { getAttributeMultiplier as getAttrMultFromSystem } from './attributeSystem';
 
 // ═══════════════════════════════════════════════════════════
 // 헬퍼 함수
@@ -26,6 +27,14 @@ function calculateTotalStats(card: CharacterCard): number {
   const stats = card.baseStats;
   return (stats.atk || 0) + (stats.def || 0) + (stats.spd || 0) +
          (stats.ce || 0) + (stats.hp || 0);
+}
+
+/**
+ * 속성 상성 배율 계산 (팀리그와 동일 로직 사용)
+ * attributeSystem.ts의 getAttributeMultiplier를 그대로 사용
+ */
+function getAttributeMultiplier(attackerAttr: string, defenderAttr: string): number {
+  return getAttrMultFromSystem(attackerAttr as Attribute, defenderAttr as Attribute);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -83,8 +92,8 @@ export function applyArenaEffect(
     adjustedTotal,
     arenaBonus,
     arenaPenalty,
-    currentHp: 100,
-    maxHp: 100,
+    currentHp: baseStats.hp,
+    maxHp: baseStats.hp,
   };
 }
 
@@ -93,23 +102,36 @@ export function applyArenaEffect(
 // 데미지 계산 (Phase 4.3 밸런스 조정 - 10턴 내외 종료 목표)
 // ═══════════════════════════════════════════════════════════
 
-// 전투 밸런스 상수 (Phase 4.3: 8~12턴 전투를 위한 밸런스 조정)
+// 전투 밸런스 상수 (팀리그와 통일된 로직)
 // HP: 100, 목표 종료 턴: 8~12턴, 턴당 평균 데미지: 8~12
+// 속성 배율, CE 배율 공식을 팀리그와 동일하게 사용
 const BATTLE_BALANCE = {
   // 기본 데미지 계수 (ATK 기반)
   ATK_COEFFICIENT: 0.4,
   BASE_DAMAGE_BONUS: 5,
 
-  // 방어력 감소율 (최대 30% 감소)
-  DEF_REDUCTION_RATE: 0.3,
-  MAX_DEF_REDUCTION_PERCENT: 30,
+  // DEF → 피해 감소% (최대 22%)
+  DEF_REDUCTION_RATE: 0.7,
+  MAX_DEF_REDUCTION_PERCENT: 22,
 
-  // 스킬/필살기 배율
+  // CE → 데미지 배율 (1 + CE×0.006)
+  CE_MULTIPLIER_COEFFICIENT: 0.006,
+
+  // CE0 캐릭터 고정 보너스 (토우지, 마키(각성), 츠루기 등)
+  CE0_BONUS: 0.12,
+
+  // TEC → 스킬 발동률 (기본20% + TEC×1%)
+  TEC_SKILL_BASE_CHANCE: 20,
+  TEC_SKILL_RATE: 1.0,
   SKILL_MULTIPLIER: 1.3,      // 스킬: 1.3배
   ULTIMATE_MULTIPLIER: 2.0,   // 필살기: 2.0배
 
-  // 크리티컬 배율
+  // CRT → 크리티컬 확률 (CRT/150)
+  CRITICAL_RATE_DIVISOR: 150,
   CRITICAL_MULTIPLIER: 1.5,   // 크리티컬: 1.5배
+
+  // MNT → 추가 피해 감소 (MNT×0.5%)
+  MNT_REDUCTION_RATE: 0.5,
 
   // 최소 데미지 보장
   MIN_DAMAGE: 5,
@@ -133,32 +155,46 @@ export function calculateDamage(
 ): DamageResult {
   const atkChar = getCharacterById(attacker.odId);
 
-  // Phase 4.3: 새로운 데미지 계산 공식 (10턴 내외 종료 목표)
+  // Phase 4.4: 속성 상성 + CE 배율 반영 데미지 공식
   // 1. 기본 데미지 (ATK 기반) - ATK 20 기준 약 13 데미지
   const baseAtk = attacker.baseStats.atk;
   const baseDef = defender.baseStats.def;
   let baseDamage = Math.round(baseAtk * BATTLE_BALANCE.ATK_COEFFICIENT + BATTLE_BALANCE.BASE_DAMAGE_BONUS);
 
-  // 2. 방어력 적용 (최대 30% 감소)
+  // 2. DEF → 피해 감소% (최대 22%)
   const defenseReduction = Math.min(
     baseDef * BATTLE_BALANCE.DEF_REDUCTION_RATE,
     BATTLE_BALANCE.MAX_DEF_REDUCTION_PERCENT
   );
   baseDamage = Math.round(baseDamage * (1 - defenseReduction / 100));
 
-  // 3. 최소 데미지 보장
+  // 3. MNT → 추가 피해 감소% (수비자의 정신력)
+  const mntReduction = defender.baseStats.mnt * BATTLE_BALANCE.MNT_REDUCTION_RATE;
+  baseDamage = Math.round(baseDamage * (1 - mntReduction / 100));
+
+  // 4. 속성 상성 배율 적용 (팀리그와 동일)
+  const attrMult = getAttributeMultiplier(attacker.attribute, defender.attribute);
+  baseDamage = Math.round(baseDamage * attrMult);
+
+  // 5. CE 배율 적용 (CE0 캐릭터 보너스, 그 외 1 + CE×0.006)
+  const ceMultiplier = attacker.baseStats.ce === 0
+    ? (1 + BATTLE_BALANCE.CE0_BONUS)
+    : (1 + attacker.baseStats.ce * BATTLE_BALANCE.CE_MULTIPLIER_COEFFICIENT);
+  baseDamage = Math.round(baseDamage * ceMultiplier);
+
+  // 6. 최소 데미지 보장
   baseDamage = Math.max(baseDamage, BATTLE_BALANCE.MIN_DAMAGE);
 
-  // 4. 총합 차이에 따른 미세 보정 (±20% 범위)
+  // 7. 총합 차이에 따른 미세 보정 (±20% 범위)
   const statDiff = attacker.adjustedTotal - defender.adjustedTotal;
-  const statBonus = 1 + (statDiff / 1000); // 더 약한 보정
+  const statBonus = 1 + (statDiff / 1000);
   baseDamage = Math.round(baseDamage * Math.max(0.8, Math.min(1.2, statBonus)));
 
-  // 5. 랜덤 변동 (±10%)
+  // 8. 랜덤 변동 (±10%)
   const variance = 0.9 + Math.random() * 0.2;
   baseDamage = Math.round(baseDamage * variance);
 
-  // 6. 액션 타입 결정 (게이지 기반 필살기 + 확률 기반 스킬)
+  // 9. 액션 타입 결정 (게이지 기반 필살기 + TEC 기반 스킬)
   let actionType: 'basic' | 'skill' | 'ultimate' = 'basic';
   let actionName = atkChar?.basicSkills?.[0]?.name || '기본 공격';
   let multiplier = 1.0;
@@ -169,9 +205,9 @@ export function calculateDamage(
     actionName = atkChar?.ultimateSkill?.name || '필살기';
     multiplier = BATTLE_BALANCE.ULTIMATE_MULTIPLIER;
   } else {
-    const roll = Math.random() * 100;
-    // 스킬: 30%, 나머지: 일반 (필살기는 게이지로만 발동)
-    if (roll < 30) {
+    // TEC → 스킬 발동률 (기본20% + TEC×1%)
+    const tecSkillChance = BATTLE_BALANCE.TEC_SKILL_BASE_CHANCE + attacker.baseStats.tec * BATTLE_BALANCE.TEC_SKILL_RATE;
+    if (Math.random() * 100 < tecSkillChance) {
       actionType = 'skill';
       const skillIndex = Math.floor(Math.random() * (atkChar?.basicSkills?.length || 1));
       actionName = atkChar?.basicSkills?.[skillIndex]?.name || '특수 기술';
@@ -179,8 +215,8 @@ export function calculateDamage(
     }
   }
 
-  // 7. 크리티컬 체크 (crt 50 기준 ~33% 확률)
-  const critChance = attacker.baseStats.crt / 150;
+  // 10. CRT → 크리티컬 (확률: CRT/150, 배율: ×1.5)
+  const critChance = attacker.baseStats.crt / BATTLE_BALANCE.CRITICAL_RATE_DIVISOR;
   const isCritical = Math.random() < critChance;
 
   // 8. 최종 데미지 계산
@@ -382,12 +418,13 @@ export function createParticipantFromId(
 
 export function getBestOfForRound(round: string): number {
   switch (round) {
+    case 'ROUND_64': return 1;       // 64강: 단판
     case 'ROUND_32': return 1;       // 32강: 단판
-    case 'ROUND_16': return 3;       // 16강: 3판 2선승
-    case 'QUARTER': return 5;        // 8강: 5판 3선승
-    case 'SEMI': return 5;           // 4강: 5판 3선승
-    case 'FINAL': return 5;          // 결승: 5판 3선승
-    case 'THIRD_PLACE': return 5;    // 3/4위전: 5판 3선승
+    case 'ROUND_16': return 3;       // 16강: Bo3
+    case 'QUARTER': return 5;        // 8강: Bo5
+    case 'SEMI': return 5;           // 4강: Bo5
+    case 'FINAL': return 5;          // 결승: Bo5
+    case 'THIRD_PLACE': return 5;    // 3/4위전: Bo5
     default: return 1;
   }
 }

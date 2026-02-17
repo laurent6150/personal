@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
 import { getCharacterImage } from '../../utils/imageHelper';
+import { getExpForNextLevel } from '../../data/growthSystem';
 import { Button } from '../UI/Button';
 import type { Stats } from '../../types';
 
@@ -72,9 +73,9 @@ const getRankIcon = (rank: number): string => {
   return '📜';
 };
 
-// 레벨별 필요 경험치
+// 레벨별 필요 경험치 (실제 EXP_TABLE 기반)
 const getExpRequired = (level: number): number => {
-  return 100 + (level - 1) * 50; // 레벨 1: 100, 레벨 2: 150, 레벨 3: 200 ...
+  return getExpForNextLevel(level);
 };
 
 // 스탯 변화 계산

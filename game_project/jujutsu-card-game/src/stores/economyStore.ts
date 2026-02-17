@@ -132,8 +132,8 @@ interface EconomyState {
 
 // 초기 상태
 const initialState = {
-  cp: 10000,                 // 초기 CP (첫 시작 보너스)
-  totalEarned: 10000,
+  cp: 5000,                  // 초기 CP (5,000으로 조정)
+  totalEarned: 5000,
   totalSpent: 0,
   seasonIncome: [],
   transactionLog: [],

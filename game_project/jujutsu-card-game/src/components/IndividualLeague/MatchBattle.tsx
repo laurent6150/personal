@@ -43,7 +43,8 @@ export function MatchBattle({ matchResult, onComplete }: MatchBattleProps) {
   // 라운드 이름 변환
   const getRoundName = (round: string) => {
     const names: Record<string, string> = {
-      'ROUND_32': '32강 조별리그',
+      'ROUND_64': '64강 듀얼 토너먼트',
+      'ROUND_32': '32강 듀얼 토너먼트',
       'ROUND_16': '16강',
       'QUARTER': '8강',
       'SEMI': '4강',

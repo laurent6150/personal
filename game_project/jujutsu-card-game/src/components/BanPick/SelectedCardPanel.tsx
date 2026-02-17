@@ -6,8 +6,9 @@
 
 import { motion } from 'framer-motion';
 import type { CharacterCard, PlayerCard, Arena } from '../../types';
-import { ATTRIBUTES } from '../../data/constants';
+import { ATTRIBUTES, ATTRIBUTE_ADVANTAGE } from '../../data/constants';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
+import type { Attribute } from '../../types';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
 import { FORM_CONFIG, getConditionIcon } from '../../data/growthSystem';
 import { analyzeArenaEffects, getRecommendationBadge } from '../../utils/arenaEffectAnalyzer';
@@ -161,6 +162,46 @@ export function SelectedCardPanel({
             {/* 필살기 요약 */}
             <div className="text-xs text-text-secondary">
               <span className="text-purple-400">⚡ {character.ultimateSkill?.name || character.skill.name}</span>
+            </div>
+
+            {/* 속성 상성 */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-green-400 w-8 flex-shrink-0">강함</span>
+                <div className="flex gap-1">
+                  {ATTRIBUTE_ADVANTAGE[character.attribute as Attribute]?.map(attr => {
+                    const info = ATTRIBUTES[attr];
+                    return (
+                      <span
+                        key={attr}
+                        className="text-[10px] px-1.5 py-0.5 rounded"
+                        style={{ backgroundColor: `${info.color}25`, color: info.color }}
+                      >
+                        {info.icon}{info.ko}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-red-400 w-8 flex-shrink-0">약함</span>
+                <div className="flex gap-1">
+                  {(Object.keys(ATTRIBUTE_ADVANTAGE) as Attribute[])
+                    .filter(attr => ATTRIBUTE_ADVANTAGE[attr].includes(character.attribute as Attribute))
+                    .map(attr => {
+                      const info = ATTRIBUTES[attr];
+                      return (
+                        <span
+                          key={attr}
+                          className="text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: `${info.color}25`, color: info.color }}
+                        >
+                          {info.icon}{info.ko}
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

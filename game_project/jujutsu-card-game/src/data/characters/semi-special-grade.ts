@@ -13,7 +13,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("geto_suguru", "게토 스구루", "CURSE"),
-    baseStats: { atk: 19, def: 18, spd: 18, ce: 22, hp: 93 },
+    baseStats: { atk: 21, def: 18, spd: 18, ce: 22, hp: 98 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "우즈마키", description: "모든 저주령을 하나로 합쳐 극대화", effect: { type: "DAMAGE", value: 280 } },
     basicSkills: [
@@ -30,7 +30,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("tengen", "텐겐", "BARRIER"),
-    baseStats: { atk: 12, def: 20, spd: 10, ce: 25, hp: 100 },
+    baseStats: { atk: 20, def: 20, spd: 17, ce: 25, hp: 100 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: { name: "허공다면체", description: "무수한 결계가 중첩된 절대 방어", effect: { type: "DAMAGE_REDUCE", value: 90, duration: 2 } },
     basicSkills: [
@@ -42,13 +42,13 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     achievements: []
   },
   {
-    // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
+    // CE 0 캐릭터: 8스탯 직접 지정 (기본값 50 기준 밸런스 조정)
     id: "fushiguro_toji",
     name: { ko: "후시구로 토우지", ja: "伏黒甚爾", en: "Fushiguro Toji" },
     grade: "준특급",
     attribute: "BODY",
     imageUrl: getCharacterImage("fushiguro_toji", "후시구로 토우지", "BODY"),
-    baseStats: { atk: 25, def: 16, spd: 24, ce: 0, hp: 92, crt: 26, tec: 20, mnt: 10 },
+    baseStats: { atk: 23, def: 16, spd: 21, ce: 0, hp: 92, crt: 35, tec: 50, mnt: 45 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천역봉인", description: "모든 술식을 강제 해제", effect: { type: "SKILL_NULLIFY", damage: 200 } },
     basicSkills: [
@@ -80,9 +80,9 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     id: "rika_full",
     name: { ko: "완전체 리카", ja: "折本里香 (完全体)", en: "Rika (Full Manifestation)" },
     grade: "준특급",
-    attribute: "SOUL",
-    imageUrl: getCharacterImage("rika_full", "완전체 리카", "SOUL"),
-    baseStats: { atk: 22, def: 17, spd: 19, ce: 24, hp: 95 },
+    attribute: "CURSE",
+    imageUrl: getCharacterImage("rika_full", "완전체 리카", "CURSE"),
+    baseStats: { atk: 21, def: 17, spd: 19, ce: 24, hp: 95 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "사랑의 저주 해방", description: "무한의 사랑이 곧 무한의 저주", effect: { type: "TRANSFORM", damage: 270, ceBonus: 80, duration: 3 } },
     basicSkills: [
@@ -99,7 +99,7 @@ export const SEMI_SPECIAL_GRADE: CharacterCard[] = [
     grade: "준특급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("tamamo_no_mae", "화신 타마모노마에", "CURSE"),
-    baseStats: { atk: 21, def: 19, spd: 20, ce: 22, hp: 95 },
+    baseStats: { atk: 21, def: 19, spd: 20, ce: 22, hp: 96 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: { name: "구미호 해방", description: "진정한 구미호의 힘을 해방", effect: { type: "TRANSFORM", damage: 260, atkBonus: 40, duration: 3 } },
     basicSkills: [

@@ -24,9 +24,10 @@ export const ATTRIBUTE_ADVANTAGE: Record<Attribute, Attribute[]> = {
   RANGE:   ['BODY', 'SOUL']
 };
 
-// 상성 배율
-export const ADVANTAGE_MULTIPLIER = 1.5;   // 유리할 때
-export const DISADVANTAGE_MULTIPLIER = 0.7; // 불리할 때
+// 상성 배율 (밸런스 조정: 1.15/0.92 → 1.08/0.96)
+// 신체/변환 구조적 격차 해소를 위해 속성 배율 완화 (6.7%p 이내)
+export const ADVANTAGE_MULTIPLIER = 1.08;    // 유리할 때
+export const DISADVANTAGE_MULTIPLIER = 0.96; // 불리할 때
 
 // 등급 정보 (주술회전 등급 체계) - 기존 6등급 호환
 // Phase 5.3: 등급 제한 제거 → CP 샐러리캡으로 대체 (maxInDeck은 레거시 호환용으로 유지, 실제 제한 없음)

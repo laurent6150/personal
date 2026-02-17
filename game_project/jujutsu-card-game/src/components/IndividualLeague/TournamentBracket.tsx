@@ -4,7 +4,7 @@
 
 import { motion } from 'framer-motion';
 import { CHARACTERS_BY_ID } from '../../data/characters';
-import type { IndividualLeague, IndividualMatch, LeagueGroup } from '../../types';
+import type { IndividualLeague, IndividualMatch, DualTournamentGroup } from '../../types';
 import { Button } from '../UI/Button';
 
 interface TournamentBracketProps {
@@ -22,12 +22,13 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
 
   // 참가자 이름 가져오기
   const getParticipantName = (odId: string) => {
+    if (!odId) return '??';
     const card = CHARACTERS_BY_ID[odId];
     return card?.name.ko || '???';
   };
 
   // 플레이어 카드 여부
-  const isPlayerCard = (odId: string) => playerCardIds.includes(odId);
+  const isPlayerCard = (odId: string) => odId && playerCardIds.includes(odId);
 
   // 매치 결과 아이콘
   const getMatchResultIcon = (match: IndividualMatch, participantId: string) => {
@@ -38,8 +39,8 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
 
   // 매치 렌더링
   const renderMatch = (match: IndividualMatch, label?: string) => {
-    const p1Name = getParticipantName(match.participant1);
-    const p2Name = getParticipantName(match.participant2);
+    const p1Name = match.participant1 ? getParticipantName(match.participant1) : '(대기)';
+    const p2Name = match.participant2 ? getParticipantName(match.participant2) : '(대기)';
     const isP1Player = isPlayerCard(match.participant1);
     const isP2Player = isPlayerCard(match.participant2);
 
@@ -72,32 +73,69 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
     );
   };
 
-  // 조별 결과 렌더링
-  const renderGroup = (group: LeagueGroup) => {
-    const p1Name = group.participants[0] ? getParticipantName(group.participants[0]) : '?';
-    const p2Name = group.participants[1] ? getParticipantName(group.participants[1]) : '?';
-    const isP1Player = group.participants[0] && isPlayerCard(group.participants[0]);
-    const isP2Player = group.participants[1] && isPlayerCard(group.participants[1]);
-    const p1Wins = group.participants[0] ? (group.winsCount[group.participants[0]] || 0) : 0;
-    const p2Wins = group.participants[1] ? (group.winsCount[group.participants[1]] || 0) : 0;
+  // 듀얼 토너먼트 조 렌더링
+  const renderDualGroup = (group: DualTournamentGroup) => {
+    const rankLabels = [
+      { place: group.firstPlace, label: '1위', color: 'text-yellow-400' },
+      { place: group.secondPlace, label: '2위', color: 'text-gray-300' },
+      { place: group.thirdPlace, label: '3위', color: 'text-red-400' },
+      { place: group.fourthPlace, label: '4위', color: 'text-red-400' },
+    ];
+
+    const matchLabels: { key: keyof typeof group.matches; label: string; color: string }[] = [
+      { key: 'match1', label: '1차', color: 'text-text-secondary' },
+      { key: 'match2', label: '2차', color: 'text-text-secondary' },
+      { key: 'winnersMatch', label: '승자', color: 'text-blue-400' },
+      { key: 'losersMatch', label: '패자', color: 'text-red-400' },
+      { key: 'finalMatch', label: '최종', color: 'text-purple-400' },
+    ];
+
+    const completedCount = matchLabels.filter(ml => group.matches[ml.key].played).length;
 
     return (
-      <div className="bg-bg-primary/50 rounded-lg p-2 text-sm min-w-[100px]">
-        <div className="text-xs text-text-secondary mb-1 text-center">{group.id}조</div>
-        <div className={`flex items-center gap-1 ${isP1Player ? 'text-accent' : 'text-text-primary'}`}>
-          {isP1Player && <span className="text-xs">🌟</span>}
-          <span className={group.winner === group.participants[0] ? 'font-bold text-green-400' : ''}>
-            {p1Name}
+      <div className="bg-bg-primary/50 rounded-lg p-2 text-xs min-w-[130px]">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-text-secondary font-bold">{group.id}조</span>
+          <span className={`${group.isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
+            {completedCount}/5
           </span>
-          <span className="ml-auto text-xs">{p1Wins}승</span>
         </div>
-        <div className={`flex items-center gap-1 ${isP2Player ? 'text-accent' : 'text-text-primary'}`}>
-          {isP2Player && <span className="text-xs">🌟</span>}
-          <span className={group.winner === group.participants[1] ? 'font-bold text-green-400' : ''}>
-            {p2Name}
-          </span>
-          <span className="ml-auto text-xs">{p2Wins}승</span>
-        </div>
+
+        {/* 참가자 순위 */}
+        {group.isCompleted ? (
+          <div className="space-y-0.5">
+            {rankLabels.map(({ place, label, color }) => (
+              place && (
+                <div key={label} className={`flex items-center gap-1 ${isPlayerCard(place) ? 'text-accent' : color}`}>
+                  {isPlayerCard(place) && <span>🌟</span>}
+                  <span className="font-bold">{label}</span>
+                  <span>{getParticipantName(place)}</span>
+                </div>
+              )
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {/* 경기 진행 상태 */}
+            {matchLabels.map(({ key, label, color }) => {
+              const match = group.matches[key];
+              return (
+                <div key={key} className="flex items-center gap-1">
+                  <span className={color}>{label}</span>
+                  {match.played ? (
+                    <span className="text-green-400 text-[10px]">
+                      {getParticipantName(match.winner || '')} 승
+                    </span>
+                  ) : match.participant1 && match.participant2 ? (
+                    <span className="text-yellow-400 text-[10px]">대기</span>
+                  ) : (
+                    <span className="text-text-secondary text-[10px]">-</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -135,6 +173,8 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
         {/* 대진표 */}
         <div className="flex-1 overflow-auto p-4">
           <div className="flex items-center gap-2 mb-4 text-sm text-text-secondary">
+            <span className={status === 'ROUND_64' ? 'text-accent font-bold' : ''}>64강</span>
+            <span>→</span>
             <span className={status === 'ROUND_32' ? 'text-accent font-bold' : ''}>32강</span>
             <span>→</span>
             <span className={status === 'ROUND_16' ? 'text-accent font-bold' : ''}>16강</span>
@@ -146,37 +186,52 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
             <span className={status === 'FINAL' || status === 'FINISHED' ? 'text-accent font-bold' : ''}>결승</span>
           </div>
 
-          {/* 32강 */}
-          <div className="mb-6">
-            <div className="text-sm font-bold text-text-primary mb-2">── 32강 ──</div>
-            <div className="grid grid-cols-4 gap-2">
-              {brackets.round32.slice(0, 8).map((match, idx) => (
-                <div key={match.id}>
-                  {renderMatch(match, `경기 ${idx + 1}`)}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {brackets.round32.slice(8, 16).map((match, idx) => (
-                <div key={match.id}>
-                  {renderMatch(match, `경기 ${idx + 9}`)}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 16강 조별 */}
-          {brackets.round16.some(g => g.participants.length > 0) && (
+          {/* 64강 듀얼 토너먼트 */}
+          {brackets.round64Groups && brackets.round64Groups.length > 0 && (
             <div className="mb-6">
-              <div className="text-sm font-bold text-text-primary mb-2">── 16강 (조별 2선승) ──</div>
+              <div className="text-sm font-bold text-text-primary mb-2">── 64강 (듀얼 토너먼트 16조) ──</div>
               <div className="grid grid-cols-4 gap-2">
-                {brackets.round16.slice(0, 4).map(group => (
-                  <div key={group.id}>{renderGroup(group)}</div>
+                {brackets.round64Groups.slice(0, 8).map(group => (
+                  <div key={group.id}>{renderDualGroup(group)}</div>
                 ))}
               </div>
               <div className="grid grid-cols-4 gap-2 mt-2">
-                {brackets.round16.slice(4, 8).map(group => (
-                  <div key={group.id}>{renderGroup(group)}</div>
+                {brackets.round64Groups.slice(8, 16).map(group => (
+                  <div key={group.id}>{renderDualGroup(group)}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 32강 듀얼 토너먼트 */}
+          {brackets.round32Groups && brackets.round32Groups.length > 0 && (
+            <div className="mb-6">
+              <div className="text-sm font-bold text-text-primary mb-2">── 32강 (듀얼 토너먼트 8조) ──</div>
+              <div className="grid grid-cols-4 gap-2">
+                {brackets.round32Groups.slice(0, 4).map(group => (
+                  <div key={group.id}>{renderDualGroup(group)}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {brackets.round32Groups.slice(4, 8).map(group => (
+                  <div key={group.id}>{renderDualGroup(group)}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 16강 */}
+          {brackets.round16Matches && brackets.round16Matches.length > 0 && (
+            <div className="mb-6">
+              <div className="text-sm font-bold text-text-primary mb-2">── 16강 ──</div>
+              <div className="grid grid-cols-4 gap-2">
+                {brackets.round16Matches.slice(0, 4).map((match, idx) => (
+                  <div key={match.id}>{renderMatch(match, `경기 ${idx + 1}`)}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {brackets.round16Matches.slice(4, 8).map((match, idx) => (
+                  <div key={match.id}>{renderMatch(match, `경기 ${idx + 5}`)}</div>
                 ))}
               </div>
             </div>

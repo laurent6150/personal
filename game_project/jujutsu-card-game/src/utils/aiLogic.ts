@@ -2,7 +2,7 @@
 // AI 로직 시스템
 // ========================================
 
-import type { CharacterCard, Difficulty, Arena, Attribute } from '../types';
+import type { CharacterCard, Difficulty, Arena, Attribute, Item } from '../types';
 import { CHARACTERS_BY_GRADE } from '../data/characters';
 import { ROSTER_SIZE } from '../data/constants';
 import {
@@ -10,6 +10,7 @@ import {
   getArenaAttributeBonus,
   isAttributeNullifiedArena
 } from './attributeSystem';
+import { ALL_ITEMS } from '../data/items';
 
 /**
  * 랜덤 선택
@@ -298,4 +299,167 @@ export function generateBalancedAICrew(
   // TODO: 플레이어 크루 등급에 맞춰 밸런싱 구현
   // 기본 크루 생성 후 반환
   return generateAICrew(difficulty);
+}
+
+// ========================================
+// AI 아이템 구매 시스템
+// ========================================
+
+/**
+ * AI 크루의 아이템 구매 우선순위 점수 계산
+ */
+function calculateItemScore(
+  item: Item,
+  crew: CharacterCard[],
+  difficulty: Difficulty
+): number {
+  let score = 0;
+  const bonus = item.statBonus;
+
+  // ATK 보너스 아이템 우선 (공격력이 가장 영향력 큼)
+  if (bonus.atk) score += bonus.atk * 10;
+  if (bonus.def) score += bonus.def * 6;
+  if (bonus.spd) score += bonus.spd * 7;
+  if (bonus.ce) score += bonus.ce * 8;
+  if (bonus.hp) score += bonus.hp * 5;
+  if (bonus.crt) score += bonus.crt * 6;
+  if (bonus.tec) score += bonus.tec * 5;
+  if (bonus.mnt) score += bonus.mnt * 4;
+
+  // 가성비 보정 (가격 대비 점수)
+  score = score / (item.price / 1000);
+
+  // 난이도별 전략 차이
+  if (difficulty === 'HARD') {
+    // HARD: CE 0 캐릭터가 있으면 ATK/CRT 아이템 우선
+    const hasCe0 = crew.some(c => c.baseStats.ce === 0);
+    if (hasCe0 && (bonus.atk || bonus.crt)) {
+      score *= 1.3;
+    }
+    // 특수 효과가 있는 아이템 선호
+    if (item.specialEffect) score *= 1.2;
+  } else if (difficulty === 'EASY') {
+    // EASY: 랜덤성 높게
+    score *= (0.5 + Math.random());
+  }
+
+  return score;
+}
+
+/**
+ * AI CP 기반 아이템 구매
+ * AI 크루가 보유 CP 내에서 최적의 아이템을 구매
+ * @param availableCP AI가 사용할 수 있는 CP
+ * @param crew AI의 크루 카드
+ * @param difficulty AI 난이도
+ * @param ownedItemIds 이미 보유한 아이템 ID
+ * @returns 구매한 아이템 ID 목록과 소비한 CP
+ */
+export function aiPurchaseItems(
+  availableCP: number,
+  crew: CharacterCard[],
+  difficulty: Difficulty,
+  ownedItemIds: string[] = []
+): { purchasedItems: string[]; totalSpent: number } {
+  const purchasedItems: string[] = [];
+  let remainingCP = availableCP;
+
+  // 구매 가능한 아이템 필터링 (미보유 + 가격 이내)
+  const buyableItems = ALL_ITEMS
+    .filter(item => !ownedItemIds.includes(item.id))
+    .filter(item => item.price <= remainingCP);
+
+  if (buyableItems.length === 0) {
+    return { purchasedItems: [], totalSpent: 0 };
+  }
+
+  // 난이도별 구매 예산 비율
+  const budgetRatio = difficulty === 'HARD' ? 0.6 : difficulty === 'NORMAL' ? 0.4 : 0.2;
+  const budget = Math.floor(availableCP * budgetRatio);
+
+  // 아이템 점수 계산 후 정렬
+  const scoredItems = buyableItems
+    .map(item => ({ item, score: calculateItemScore(item, crew, difficulty) }))
+    .sort((a, b) => b.score - a.score);
+
+  // 예산 내에서 최고 점수 아이템부터 구매
+  let spent = 0;
+  for (const { item } of scoredItems) {
+    if (spent + item.price > budget) continue;
+    if (item.price > remainingCP) continue;
+
+    purchasedItems.push(item.id);
+    spent += item.price;
+    remainingCP -= item.price;
+
+    // 크루 카드 수만큼만 구매 (최대)
+    if (purchasedItems.length >= crew.length) break;
+  }
+
+  console.log(`[AI] 아이템 구매: ${purchasedItems.length}개, ${spent} CP 사용 (예산: ${budget})`);
+
+  return { purchasedItems, totalSpent: spent };
+}
+
+/**
+ * AI가 크루 카드에 아이템을 장착하는 로직
+ * @param crew AI 크루 카드
+ * @param itemIds 보유 아이템 ID 목록
+ * @returns 카드별 장착된 아이템 매핑 { cardId: itemId }
+ */
+export function aiEquipItems(
+  crew: CharacterCard[],
+  itemIds: string[]
+): Record<string, string> {
+  const equipment: Record<string, string> = {};
+  const availableItems = [...itemIds];
+
+  // 등급 높은 카드부터 좋은 아이템 배정
+  const sortedCrew = [...crew].sort((a, b) => {
+    const gradeOrder: Record<string, number> = {
+      '특급': 6, '준특급': 5, '1급': 4, '준1급': 3, '2급': 2, '준2급': 1, '3급': 0
+    };
+    return (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
+  });
+
+  for (const card of sortedCrew) {
+    if (availableItems.length === 0) break;
+
+    // 카드 특성에 맞는 아이템 선택
+    let bestItemIdx = 0;
+    let bestScore = -1;
+
+    for (let i = 0; i < availableItems.length; i++) {
+      const item = ALL_ITEMS.find(it => it.id === availableItems[i]);
+      if (!item) continue;
+
+      let score = 0;
+      const bonus = item.statBonus;
+
+      // CE 0 캐릭터는 ATK/SPD/CRT 아이템 우선
+      if (card.baseStats.ce === 0) {
+        if (bonus.atk) score += bonus.atk * 15;
+        if (bonus.spd) score += bonus.spd * 10;
+        if (bonus.crt) score += bonus.crt * 12;
+      } else {
+        // 일반 캐릭터는 균형 잡힌 점수
+        if (bonus.atk) score += bonus.atk * 10;
+        if (bonus.ce) score += bonus.ce * 8;
+        if (bonus.spd) score += bonus.spd * 7;
+      }
+
+      if (bonus.def) score += bonus.def * 5;
+      if (bonus.hp) score += bonus.hp * 4;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestItemIdx = i;
+      }
+    }
+
+    equipment[card.id] = availableItems[bestItemIdx];
+    availableItems.splice(bestItemIdx, 1);
+  }
+
+  return equipment;
 }
