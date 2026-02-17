@@ -280,8 +280,14 @@ export const usePlayerStore = create<PlayerState>()(
         const playerCard = player.ownedCards[cardId];
         if (!playerCard) return false;
 
-        // 아이템 소유 여부는 UI 레벨(CardDetail)에서 검증됨
-        // (playerStore.unlockedItems 또는 economyStore.inventory에 있는 아이템만 표시)
+        // 다른 카드에서 이미 장착 중인 아이템인지 확인
+        for (const [otherId, otherCard] of Object.entries(player.ownedCards)) {
+          if (otherId === cardId) continue;
+          if (otherCard.equipment[0] === itemId || otherCard.equipment[1] === itemId) {
+            console.warn(`[equipItem] 아이템 ${itemId}은 이미 ${otherId}에 장착되어 있습니다.`);
+            return false;
+          }
+        }
 
         const newEquipment: [string | null, string | null] = [...playerCard.equipment];
         newEquipment[slot] = itemId;
