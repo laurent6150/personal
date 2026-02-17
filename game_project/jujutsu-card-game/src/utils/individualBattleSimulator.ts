@@ -92,8 +92,8 @@ export function applyArenaEffect(
     adjustedTotal,
     arenaBonus,
     arenaPenalty,
-    currentHp: 100,
-    maxHp: 100,
+    currentHp: baseStats.hp,
+    maxHp: baseStats.hp,
   };
 }
 
