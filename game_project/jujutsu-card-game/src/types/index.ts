@@ -809,6 +809,7 @@ export interface SeasonHistory {
   playerPoints: number;
   playoffResult?: 'CHAMPION' | 'FINALIST' | 'SEMI' | 'NOT_QUALIFIED';
   summary?: SeasonSummary;
+  standings?: LeagueStanding[];
 }
 
 // ========================================
