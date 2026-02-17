@@ -534,6 +534,10 @@ export function recommendOptimalPlacement(
     if (recommendations.length >= arenas.length) break;
   }
 
+  // 원래 경기장 순서대로 정렬 (UI 경기장 순서와 일치시키기 위해)
+  const arenaOrder = new Map(arenas.map((a, i) => [a.id, i]));
+  recommendations.sort((a, b) => (arenaOrder.get(a.arenaId) ?? 0) - (arenaOrder.get(b.arenaId) ?? 0));
+
   return recommendations;
 }
 

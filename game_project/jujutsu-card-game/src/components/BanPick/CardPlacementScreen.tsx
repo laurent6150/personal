@@ -263,8 +263,10 @@ export function CardPlacementScreen({
                   <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arena.name.ko}>
                     {arena.name.ko}
                   </div>
-                  <div className="text-[10px] text-text-secondary leading-tight break-keep" title={getArenaEffectSummary(arena)}>
-                    {getArenaEffectSummary(arena)}
+                  <div className="text-[10px] text-text-secondary leading-tight break-words overflow-hidden">
+                    {getArenaEffectSummary(arena).split(', ').map((effect, i) => (
+                      <div key={i}>{effect}</div>
+                    ))}
                   </div>
                   {/* 선택된 카드의 경기장 효과 미리보기 */}
                   {selectedCardAnalysis && !assignedCard && (
@@ -393,8 +395,10 @@ export function CardPlacementScreen({
                 <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arenas[4].name.ko}>
                   {arenas[4].name.ko}
                 </div>
-                <div className="text-[10px] text-text-secondary leading-tight break-keep" title={getArenaEffectSummary(arenas[4])}>
-                  {getArenaEffectSummary(arenas[4])}
+                <div className="text-[10px] text-text-secondary leading-tight break-words overflow-hidden">
+                  {getArenaEffectSummary(arenas[4]).split(', ').map((effect, i) => (
+                    <div key={i}>{effect}</div>
+                  ))}
                 </div>
               </div>
 
@@ -435,9 +439,11 @@ export function CardPlacementScreen({
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {strategyRecommendations.map((rec) => (
+              {strategyRecommendations.map((rec, index) => (
                 <div key={rec.arenaId} className="bg-black/30 rounded-lg p-2">
-                  <div className="text-xs text-gray-400 truncate">{rec.arenaName}</div>
+                  <div className="text-xs text-gray-400 truncate">
+                    <span className="text-purple-400 font-bold">{index + 1}경기</span> {rec.arenaName}
+                  </div>
                   <div className="text-sm text-white font-bold truncate">
                     → {rec.recommendedCardName}
                   </div>
