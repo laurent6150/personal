@@ -163,7 +163,7 @@ export function calculateAICombatStats(
 /**
  * 스킬 효과 적용
  */
-function applySkillEffect(
+export function applySkillEffect(
   attacker: CombatStats,
   defender: CombatStats,
   effect: SkillEffect,
