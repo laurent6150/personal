@@ -263,7 +263,7 @@ export function CardPlacementScreen({
                   <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arena.name.ko}>
                     {arena.name.ko}
                   </div>
-                  <div className="text-[10px] text-text-secondary leading-tight break-words overflow-hidden">
+                  <div className="text-[10px] text-text-secondary leading-tight break-words">
                     {getArenaEffectSummary(arena).split(', ').map((effect, i) => (
                       <div key={i}>{effect}</div>
                     ))}
@@ -395,7 +395,7 @@ export function CardPlacementScreen({
                 <div className="text-sm font-bold text-text-primary mb-1 break-keep leading-tight" title={arenas[4].name.ko}>
                   {arenas[4].name.ko}
                 </div>
-                <div className="text-[10px] text-text-secondary leading-tight break-words overflow-hidden">
+                <div className="text-[10px] text-text-secondary leading-tight break-words">
                   {getArenaEffectSummary(arenas[4]).split(', ').map((effect, i) => (
                     <div key={i}>{effect}</div>
                   ))}

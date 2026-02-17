@@ -430,7 +430,6 @@ export function getArenaEffectSummary(arena: Arena): string {
       const sign = value >= 0 ? '+' : '';
       summaries.push(`${stat}${sign}${value}`);
     } else if (effect.type === 'SPECIAL_RULE') {
-      // 짧은 요약
       if (effect.description.includes('SPD 역전')) {
         summaries.push('SPD역전');
       } else if (effect.description.includes('속성 상성 무효')) {
@@ -441,11 +440,10 @@ export function getArenaEffectSummary(arena: Arena): string {
       } else if (effect.description.includes('크리티컬')) {
         summaries.push(`크리+${effect.value}%`);
       } else {
-        // 기타 특수 규칙은 첫 4글자만
-        summaries.push(effect.description.slice(0, 6) + '...');
+        summaries.push(effect.description);
       }
     }
   }
 
-  return summaries.slice(0, 2).join(', ');
+  return summaries.join(', ');
 }
