@@ -384,23 +384,28 @@ export function IndividualLeagueScreen({
               시즌 {currentSeason} 개인 리그
             </h2>
             <p className="text-text-secondary mb-6">
-              등급순 상위 32명의 술사가 참가하는 개인 토너먼트입니다.<br />
+              등급순 상위 64명의 술사가 참가하는 듀얼 토너먼트입니다.<br />
               내 크루 카드도 등급에 따라 참가할 수 있습니다.
             </p>
 
             <div className="bg-bg-primary/50 rounded-lg p-4 mb-6 text-left">
               <div className="text-sm font-bold text-accent mb-2">📋 토너먼트 형식</div>
               <ul className="text-sm text-text-secondary space-y-1">
-                <li>• 32강: 8조 × 4명 조별 풀 리그전 (각 조 상위 2명 진출, 단판)</li>
-                <li>• 16강: 3판 2선승 (교차 대진)</li>
+                <li>• 64강: 16조 × 4명 듀얼 토너먼트 (단판, 각 조 상위 2명 진출)</li>
+                <li>• 32강: 8조 × 4명 듀얼 토너먼트 (단판, 각 조 상위 2명 진출)</li>
+                <li>• 16강: 3판 2선승</li>
                 <li>• 8강: 3판 2선승</li>
                 <li>• 4강/결승/3,4위전: 5판 3선승</li>
               </ul>
+              <div className="mt-2 text-xs text-text-secondary/70">
+                ※ 듀얼 토너먼트: 4명이 1차전→승자전/패자전→최종전을 거쳐 1,2위 진출
+              </div>
             </div>
 
             <div className="bg-bg-primary/50 rounded-lg p-4 mb-6 text-left">
               <div className="text-sm font-bold text-accent mb-2">🎁 보상 (최종 순위 기준)</div>
               <ul className="text-sm text-text-secondary space-y-1">
+                <li>• 64강 탈락 (33~64위): 경험치 없음</li>
                 <li>• 32강 탈락 (17~32위): 경험치 +50</li>
                 <li>• 16강 탈락 (9~16위): 경험치 +100</li>
                 <li>• 8강 탈락 (5~8위): 경험치 +150</li>
