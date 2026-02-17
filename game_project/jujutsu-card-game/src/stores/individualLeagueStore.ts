@@ -30,6 +30,7 @@ import {
   generateParticipants,
   generateInitialBrackets,
   simulateMatch,
+  setParticipantBonusCache,
   processRound32Results,
   processRound16Results,
   processQuarterResults,
@@ -149,6 +150,9 @@ export const useIndividualLeagueStore = create<IndividualLeagueState>()(
 
         // 참가자 생성 (32명, 등급순 선발 + 시드 + 장비/레벨 반영)
         const participants = generateParticipants(playerCrewIds, playerCrewName, seeds, playerCards);
+
+        // 참가자 보너스 캐시 초기화 (전투 시뮬레이션 성능 최적화)
+        setParticipantBonusCache(participants);
 
         // 대진표 생성
         const brackets = generateInitialBrackets(participants);

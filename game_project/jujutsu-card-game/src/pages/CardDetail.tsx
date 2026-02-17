@@ -144,9 +144,18 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
     : 100;
   const formConfig = FORM_CONFIG[formState as FormState];
 
-  // 장착 가능한 아이템 필터링 (economyStore의 inventory와 playerStore의 unlockedItems 모두 확인)
+  // 다른 카드에 장착된 아이템 ID 수집
+  const equippedElsewhere = new Set<string>();
+  for (const [otherId, otherCard] of Object.entries(player.ownedCards)) {
+    if (otherId === cardId) continue;
+    if (otherCard.equipment[0]) equippedElsewhere.add(otherCard.equipment[0]);
+    if (otherCard.equipment[1]) equippedElsewhere.add(otherCard.equipment[1]);
+  }
+
+  // 장착 가능한 아이템 필터링 (이 카드에 이미 장착 + 다른 카드 장착 제외)
   const availableItems = ALL_ITEMS.filter(item => {
     if (equipmentList.includes(item.id)) return false;
+    if (equippedElsewhere.has(item.id)) return false;
     return inventory.includes(item.id) || player.unlockedItems.includes(item.id);
   });
 

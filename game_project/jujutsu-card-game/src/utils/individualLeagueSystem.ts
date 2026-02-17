@@ -11,10 +11,23 @@ import type {
   IndividualBrackets,
   LeagueMatchFormat,
   CharacterCard,
-  PlayerCard
+  PlayerCard,
+  CombatStats,
+  Arena,
+  Stats,
+  Attribute
 } from '../types';
 import { CHARACTERS_BY_ID, ALL_CHARACTERS } from '../data/characters';
 import { ITEMS_BY_ID } from '../data/items';
+import { getRandomArena } from '../data/arenas';
+import {
+  calculateDamage,
+  determineFirstAttacker,
+  applySkillEffect,
+} from './battleCalculator';
+import {
+  getSkillSealProbability,
+} from './attributeSystem';
 
 // ========================================
 // 유틸리티 함수
@@ -110,6 +123,17 @@ function calculatePlayerCardBonus(playerCard: PlayerCard): {
       statBonus[secondaryStat as keyof typeof statBonus] =
         (statBonus[secondaryStat as keyof typeof statBonus] || 0) + levelBonus;
       totalBonus += levelBonus;
+    }
+  }
+
+  // 시즌 종료 시 누적된 bonusStats 반영
+  if (playerCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerCard.bonusStats)) {
+      if (value) {
+        const key = stat as keyof typeof statBonus;
+        statBonus[key] = (statBonus[key] || 0) + value;
+        totalBonus += value;
+      }
     }
   }
 
@@ -483,37 +507,166 @@ export function generateThirdPlaceMatch(
 }
 
 // ========================================
-// 매치 시뮬레이션
+// 매치 시뮬레이션 (팀 리그 수준 전투 시스템)
 // ========================================
 
 /**
- * 캐릭터 총 스탯 계산
+ * 캐릭터 총 스탯 계산 (8스탯 전체 합산)
  */
 export function calculateTotalStat(card: CharacterCard): number {
   const stats = card.baseStats;
   return (stats.atk || 0) + (stats.def || 0) + (stats.spd || 0) +
-         (stats.ce || 0) + (stats.hp || 0);
+         (stats.ce || 0) + (stats.hp || 0) +
+         ((stats as Stats).crt || 0) + ((stats as Stats).tec || 0) + ((stats as Stats).mnt || 0);
 }
 
+// 참가자 statBonus 캐시 (매치 중 조회 성능 최적화)
+let participantBonusCache = new Map<string, LeagueParticipant['statBonus']>();
+
 /**
- * 단일 세트 승패 시뮬레이션
+ * 참가자 보너스 캐시 설정 (리그 시작 시 호출)
  */
-function simulateSingleGame(card1: CharacterCard, card2: CharacterCard): 1 | 2 {
-  const totalStat1 = calculateTotalStat(card1);
-  const totalStat2 = calculateTotalStat(card2);
-
-  // 스탯 기반 승률 계산 (양쪽 모두 0인 경우 50:50)
-  const totalSum = totalStat1 + totalStat2;
-  const winChance1 = totalSum > 0 ? totalStat1 / totalSum : 0.5;
-
-  // 약간의 랜덤 요소 추가 (완전 결정론적이지 않게)
-  const adjustedChance = winChance1 * 0.7 + Math.random() * 0.3;
-
-  return Math.random() < adjustedChance ? 1 : 2;
+export function setParticipantBonusCache(participants: LeagueParticipant[]): void {
+  participantBonusCache = new Map();
+  for (const p of participants) {
+    if (p.statBonus) {
+      participantBonusCache.set(p.odId, p.statBonus);
+    }
+  }
 }
 
 /**
- * 매치 시뮬레이션 (AI vs AI)
+ * BaseStats → 8스탯 변환 (레거시 호환)
+ */
+function ensureFullStats(baseStats: CharacterCard['baseStats']): Stats {
+  if ('crt' in baseStats) {
+    return { ...baseStats } as Stats;
+  }
+  return { ...baseStats, crt: 10, tec: 10, mnt: 10 };
+}
+
+/**
+ * 참가자 → CombatStats 변환 (팀 리그 calculateCombatStats/calculateAICombatStats 동일 수준)
+ * - 8스탯 전체 적용
+ * - 레벨업 보너스 (statBonus) 적용
+ * - 경기장 효과 적용
+ * - 스킬 효과 포함
+ */
+function buildCombatStats(
+  card: CharacterCard,
+  participantId: string,
+  arena: Arena
+): CombatStats {
+  const stats: Stats = ensureFullStats(card.baseStats);
+
+  // 참가자 보너스 (레벨업 + 장비) 적용
+  const bonus = participantBonusCache.get(participantId);
+  if (bonus) {
+    for (const [stat, value] of Object.entries(bonus)) {
+      if (stat in stats && value) {
+        stats[stat as keyof Stats] += value;
+      }
+    }
+  }
+
+  // 경기장 스탯 수정자 적용 (CE, DEF, HP 등)
+  for (const effect of arena.effects) {
+    if (effect.type === 'STAT_MODIFY' && effect.target === 'ALL') {
+      const mod = typeof effect.value === 'number' ? effect.value : 0;
+      if (effect.description.includes('CE')) {
+        stats.ce = Math.max(0, stats.ce + mod);
+      } else if (effect.description.includes('DEF')) {
+        stats.def = Math.max(0, stats.def + mod);
+      } else if (effect.description.includes('HP')) {
+        stats.hp = Math.max(1, stats.hp + mod);
+      }
+    }
+  }
+
+  return {
+    ...stats,
+    attribute: card.attribute,
+    skillEffect: card.skill?.effect,
+    cardId: card.id
+  };
+}
+
+/**
+ * 단일 세트 시뮬레이션 (팀 리그 resolveRound와 동일한 턴제 전투)
+ * - 속성 상성 (1.5x / 0.7x)
+ * - CE 배율, 경기장 속성 보너스
+ * - 스킬 효과 (방어 무시, 크리티컬, 데미지 변환 등)
+ * - 스킬 봉인 확률
+ * - SPD 기반 선공 판정 (경기장 역전 포함)
+ * - HP 기반 턴제 전투
+ */
+function simulateSingleGame(
+  card1: CharacterCard,
+  card2: CharacterCard,
+  p1Id: string,
+  p2Id: string,
+  arena: Arena
+): 1 | 2 {
+  // CombatStats 구축 (8스탯 + 보너스 + 경기장)
+  let stats1 = buildCombatStats(card1, p1Id, arena);
+  let stats2 = buildCombatStats(card2, p2Id, arena);
+
+  // 스킬 봉인 확률 체크
+  const sealProb = getSkillSealProbability(arena);
+  const skill1Sealed = Math.random() < sealProb;
+  const skill2Sealed = Math.random() < sealProb;
+
+  // 스킬 효과 적용
+  if (stats1.skillEffect) {
+    const result = applySkillEffect(stats1, stats2, stats1.skillEffect, skill1Sealed);
+    stats1 = result.attacker;
+    stats2 = result.defender;
+  }
+  if (stats2.skillEffect) {
+    const result = applySkillEffect(stats2, stats1, stats2.skillEffect, skill2Sealed);
+    stats2 = result.attacker;
+    stats1 = result.defender;
+  }
+
+  // 선공 판정 (SPD 기반, 경기장 역전 적용)
+  const firstAttacker = determineFirstAttacker(stats1, stats2, arena);
+  const p1First = firstAttacker === 'PLAYER'; // PLAYER = participant1
+
+  // 턴당 데미지 계산 (속성 배율, CE 배율, 경기장 보너스, 스킬 전부 적용)
+  const dmg1 = calculateDamage(stats1, stats2, arena);
+  const dmg2 = calculateDamage(stats2, stats1, arena);
+
+  // HP 기반 턴제 전투
+  let hp1 = stats1.hp;
+  let hp2 = stats2.hp;
+  const MAX_TURNS = 100;
+  let turnCount = 0;
+
+  while (hp1 > 0 && hp2 > 0 && turnCount < MAX_TURNS) {
+    turnCount++;
+    if (p1First) {
+      hp2 -= dmg1;
+      if (hp2 <= 0) break;
+      hp1 -= dmg2;
+    } else {
+      hp1 -= dmg2;
+      if (hp1 <= 0) break;
+      hp2 -= dmg1;
+    }
+  }
+
+  // 승패 판정
+  if (hp2 <= 0 && hp1 <= 0) {
+    return Math.random() < 0.5 ? 1 : 2; // 동시 탈진 시 랜덤
+  }
+  if (hp2 <= 0) return 1;
+  if (hp1 <= 0) return 2;
+  // MAX_TURNS 도달 시 HP 비교
+  return hp1 >= hp2 ? 1 : 2;
+}
+
+/**
+ * 매치 시뮬레이션 (세트제, 각 세트마다 랜덤 경기장 배정)
  */
 export function simulateMatch(
   participant1Id: string,
@@ -524,7 +677,6 @@ export function simulateMatch(
   const card2 = CHARACTERS_BY_ID[participant2Id];
 
   if (!card1 || !card2) {
-    // 카드가 없으면 랜덤 승자
     const randomWinner = Math.random() < 0.5 ? participant1Id : participant2Id;
     return {
       winner: randomWinner,
@@ -537,7 +689,9 @@ export function simulateMatch(
   let score2 = 0;
 
   while (score1 < requiredWins && score2 < requiredWins) {
-    const gameWinner = simulateSingleGame(card1, card2);
+    // 각 세트마다 랜덤 경기장 배정
+    const arena = getRandomArena();
+    const gameWinner = simulateSingleGame(card1, card2, participant1Id, participant2Id, arena);
     if (gameWinner === 1) {
       score1++;
     } else {
