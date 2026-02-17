@@ -24,10 +24,10 @@ export const ATTRIBUTE_ADVANTAGE: Record<Attribute, Attribute[]> = {
   RANGE:   ['BODY', 'SOUL']
 };
 
-// 상성 배율 (밸런스 조정: 1.5/0.7 → 1.3/0.8)
-// 유리 시 ~65% 승률, 불리 시 ~35% 승률 목표
-export const ADVANTAGE_MULTIPLIER = 1.3;   // 유리할 때
-export const DISADVANTAGE_MULTIPLIER = 0.8; // 불리할 때
+// 상성 배율 (밸런스 조정: 1.5/0.7 → 1.1/0.95)
+// 양측 적용 시 실질 비율 = 1.1/0.95 ≈ 1.158 → 유리 시 ~65% 승률 목표
+export const ADVANTAGE_MULTIPLIER = 1.1;    // 유리할 때
+export const DISADVANTAGE_MULTIPLIER = 0.95; // 불리할 때
 
 // 등급 정보 (주술회전 등급 체계) - 기존 6등급 호환
 // Phase 5.3: 등급 제한 제거 → CP 샐러리캡으로 대체 (maxInDeck은 레거시 호환용으로 유지, 실제 제한 없음)

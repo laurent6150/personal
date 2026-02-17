@@ -655,27 +655,18 @@ export function processUltimateEffects(
 }
 
 /**
- * 데미지 계산
- * 공식: (ATK × 속성배율 × CE배율 × 경기장보너스) - DEF
+ * 데미지 계산 (개인리그와 동일 공식)
+ * 공식: (ATK×0.4+5) × (1-DEF%감소) × 속성배율 × CE배율 × 경기장보너스 × 스킬배율
  */
 export function calculateDamage(
   attacker: CombatStats,
   defender: CombatStats,
   arena: Arena
 ): number {
-  // 1. 속성 배율
-  let attrMultiplier = 1.0;
-  if (!isAttributeNullifiedArena(arena)) {
-    attrMultiplier = getAttributeMultiplier(attacker.attribute, defender.attribute);
-  }
+  // 1. 기본 데미지 (ATK 기반 - 개인리그와 동일)
+  let baseDamage = Math.round(attacker.atk * 0.4 + 5);
 
-  // 2. CE 배율: 1 + (CE / 100)
-  const ceMultiplier = 1 + (attacker.ce / 100);
-
-  // 3. 경기장 속성 보너스
-  const arenaBonus = 1 + getArenaAttributeBonus(attacker.attribute, arena);
-
-  // 4. 방어력 (IGNORE_DEFENSE 스킬 처리)
+  // 2. 방어력 적용 (퍼센트 감소 방식, 최대 30% - 개인리그와 동일)
   let effectiveDef = defender.def;
   if (attacker.skillEffect?.type === 'IGNORE_DEFENSE') {
     const ignoreAmount = typeof attacker.skillEffect.value === 'number'
@@ -683,18 +674,33 @@ export function calculateDamage(
       : 0;
     effectiveDef = Math.max(0, effectiveDef - ignoreAmount);
   }
+  const defenseReduction = Math.min(effectiveDef * 0.3, 30);
+  baseDamage = Math.round(baseDamage * (1 - defenseReduction / 100));
 
-  // 5. 크리티컬 처리
-  let critMultiplier = 1.0;
+  // 3. 속성 배율
+  let attrMultiplier = 1.0;
+  if (!isAttributeNullifiedArena(arena)) {
+    attrMultiplier = getAttributeMultiplier(attacker.attribute, defender.attribute);
+  }
+  baseDamage = Math.round(baseDamage * attrMultiplier);
+
+  // 4. CE 배율: 1 + (CE / 100)
+  const ceMultiplier = 1 + (attacker.ce / 100);
+  baseDamage = Math.round(baseDamage * ceMultiplier);
+
+  // 5. 경기장 속성 보너스
+  const arenaBonus = 1 + getArenaAttributeBonus(attacker.attribute, arena);
+  baseDamage = Math.round(baseDamage * arenaBonus);
+
+  // 6. 크리티컬 처리
   if (attacker.skillEffect?.type === 'CRITICAL') {
     const critValue = typeof attacker.skillEffect.value === 'number'
       ? attacker.skillEffect.value
       : 1.0;
-    critMultiplier = critValue;
+    baseDamage = Math.round(baseDamage * critValue);
   }
 
-  // 6. 데미지 배율 수정 (DAMAGE_MODIFY)
-  let damageModifier = 1.0;
+  // 7. 데미지 배율 수정 (DAMAGE_MODIFY)
   if (attacker.skillEffect?.type === 'DAMAGE_MODIFY') {
     const modValue = typeof attacker.skillEffect.value === 'number'
       ? attacker.skillEffect.value
@@ -702,17 +708,14 @@ export function calculateDamage(
 
     // 상대 CE 기반 추가 데미지 (노바라의 공명)
     if (modValue < 1 && attacker.skillEffect.target === 'ENEMY') {
-      damageModifier = 1 + (defender.ce * modValue);
+      baseDamage = Math.round(baseDamage * (1 + (defender.ce * modValue)));
     } else {
-      damageModifier = modValue;
+      baseDamage = Math.round(baseDamage * modValue);
     }
   }
 
-  // 최종 데미지 계산
-  let damage = (attacker.atk * attrMultiplier * ceMultiplier * arenaBonus * critMultiplier * damageModifier) - effectiveDef;
-
-  // 최소 데미지 1
-  return Math.max(1, Math.floor(damage));
+  // 최소 데미지 5 (개인리그와 동일)
+  return Math.max(5, baseDamage);
 }
 
 /**
