@@ -13,7 +13,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("itadori_yuji", "이타도리 유지", "BODY"),
-    baseStats: { atk: 19, def: 16, spd: 20, ce: 18, hp: 90 },
+    baseStats: { atk: 18, def: 16, spd: 19, ce: 18, hp: 90 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: { name: "흑섬", description: "저주력의 핵심을 찌르는 일격", effect: { type: "CRITICAL_GUARANTEED", damage: 220, multiplier: 2.5 } },
     basicSkills: [
@@ -31,7 +31,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     attribute: "BODY",
     imageUrl: getCharacterImage("maki_zenin_awakened", "젠인 마키 (각성)", "BODY"),
     // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
-    baseStats: { atk: 20, def: 15, spd: 21, ce: 0, hp: 88, crt: 15, tec: 19, mnt: 8 },
+    baseStats: { atk: 20, def: 15, spd: 19, ce: 0, hp: 88, crt: 15, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "천여함수 완성", description: "토지와 동등한 경지", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 180 } },
     basicSkills: [
@@ -65,7 +65,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("jogo", "죠고", "CONVERT"),
-    baseStats: { atk: 22, def: 13, spd: 17, ce: 23, hp: 88 },
+    baseStats: { atk: 21, def: 13, spd: 17, ce: 23, hp: 88 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "개문돈갑", description: "태양 온도의 영역", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 20, damage: 230 } },
     basicSkills: [
@@ -99,7 +99,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("naobito_zenin", "젠인 나오비토", "BODY"),
-    baseStats: { atk: 19, def: 14, spd: 22, ce: 19, hp: 82 },
+    baseStats: { atk: 18, def: 14, spd: 20, ce: 19, hp: 82 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: { name: "투사호법 - 극", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true } },
     basicSkills: [
@@ -150,7 +150,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("hajime_kashimo", "카시모 하지메", "CONVERT"),
-    baseStats: { atk: 22, def: 15, spd: 22, ce: 21, hp: 86 },
+    baseStats: { atk: 21, def: 15, spd: 20, ce: 21, hp: 86 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "환상의 수", description: "번개의 신으로 변신", effect: { type: "TRANSFORM", damage: 230, spdBonus: 60, duration: 3 } },
     basicSkills: [
@@ -201,7 +201,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("kinji_hakari", "하카리 킨지", "BARRIER"),
-    baseStats: { atk: 21, def: 16, spd: 20, ce: 22, hp: 87 },
+    baseStats: { atk: 19, def: 16, spd: 19, ce: 22, hp: 85 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "좌살박도", description: "잭팟! 무한 저주력 + 불사", effect: { type: "TRANSFORM", damage: 200, duration: 3 } },
     basicSkills: [
@@ -216,9 +216,9 @@ export const FIRST_GRADE: CharacterCard[] = [
     id: "choso",
     name: { ko: "쵸소", ja: "脹相", en: "Choso" },
     grade: "1급",
-    attribute: "CURSE",
-    imageUrl: getCharacterImage("choso", "쵸소", "CURSE"),
-    baseStats: { atk: 18, def: 16, spd: 17, ce: 19, hp: 88 },
+    attribute: "CONVERT",
+    imageUrl: getCharacterImage("choso", "쵸소", "CONVERT"),
+    baseStats: { atk: 19, def: 16, spd: 17, ce: 19, hp: 90 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "초노바", description: "혈액을 독으로 변환 폭발", effect: { type: "POISON_EXPLOSION", damage: 220, dotDamage: 35, duration: 2 } },
     basicSkills: [
@@ -269,7 +269,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("yorozu", "요로즈", "CONVERT"),
-    baseStats: { atk: 19, def: 15, spd: 17, ce: 21, hp: 83 },
+    baseStats: { atk: 21, def: 15, spd: 17, ce: 21, hp: 87 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "진구", description: "완벽한 구체로 공격", effect: { type: "DAMAGE", value: 220 } },
     basicSkills: [
@@ -306,7 +306,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "RANGE",
     imageUrl: getCharacterImage("mei_mei", "메이메이", "RANGE"),
-    baseStats: { atk: 18, def: 15, spd: 16, ce: 18, hp: 82 },
+    baseStats: { atk: 20, def: 15, spd: 16, ce: 18, hp: 88 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: { name: "조의 송장", description: "까마귀에 120% 저주력을 실어 돌격", effect: { type: "SACRIFICE_ATTACK", damage: 260 } },
     basicSkills: [
@@ -360,7 +360,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("miguel", "미겔", "BODY"),
-    baseStats: { atk: 20, def: 16, spd: 19, ce: 18, hp: 88 },
+    baseStats: { atk: 18, def: 16, spd: 19, ce: 18, hp: 88 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "흑승포 최종격", description: "흑승포의 힘을 극대화한 일격", effect: { type: "DAMAGE", value: 240, ignoreBarrier: true } },
     basicSkills: [
@@ -394,7 +394,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("kurourushi", "쿠로우루시", "CURSE"),
-    baseStats: { atk: 18, def: 14, spd: 18, ce: 20, hp: 82 },
+    baseStats: { atk: 19, def: 14, spd: 18, ce: 20, hp: 84 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "곤충 폭풍", description: "무한한 곤충 대군의 공격", effect: { type: "CONTINUOUS_DAMAGE", value: 70, duration: 3 } },
     basicSkills: [
@@ -411,7 +411,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("bansho", "만상", "CONVERT"),
-    baseStats: { atk: 19, def: 16, spd: 16, ce: 20, hp: 85 },
+    baseStats: { atk: 21, def: 16, spd: 16, ce: 20, hp: 91 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "삼라만상", description: "만물을 지배하는 힘", effect: { type: "AOE_DAMAGE", value: 220 } },
     basicSkills: [
@@ -429,7 +429,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     attribute: "BODY",
     imageUrl: getCharacterImage("tsurugi_okkotsu", "옷코츠 츠루기", "BODY"),
     // CE 0 캐릭터: 8스탯 직접 지정 (CRT/TEC 상향, MNT 하향으로 CE 0 보정)
-    baseStats: { atk: 20, def: 15, spd: 21, ce: 0, hp: 87, crt: 15, tec: 19, mnt: 8 },
+    baseStats: { atk: 20, def: 15, spd: 19, ce: 0, hp: 87, crt: 15, tec: 19, mnt: 8 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "리카 융합", description: "리카와 융합하여 초월적 힘을 발현", effect: { type: "TRANSFORM", damage: 200, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [

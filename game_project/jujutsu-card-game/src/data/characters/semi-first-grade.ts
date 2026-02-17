@@ -13,7 +13,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("fushiguro_megumi", "후시구로 메구미", "SOUL"),
-    baseStats: { atk: 16, def: 15, spd: 17, ce: 19, hp: 82 },
+    baseStats: { atk: 14, def: 15, spd: 17, ce: 19, hp: 80 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "질풍암영정", description: "그림자를 지배하는 영역전개", effect: { type: "DOMAIN", damage: 170, summonBoost: 50 } },
     basicSkills: [
@@ -30,7 +30,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("inumaki_toge", "이누마키 토게", "CURSE"),
-    baseStats: { atk: 14, def: 13, spd: 16, ce: 21, hp: 75 },
+    baseStats: { atk: 15, def: 13, spd: 16, ce: 21, hp: 77 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "죽어", description: "최강의 주언, 치명적 부작용", effect: { type: "INSTANT_DAMAGE", damage: 300, selfDamage: 60 } },
     basicSkills: [
@@ -64,7 +64,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("angel_hana", "천사", "BARRIER"),
-    baseStats: { atk: 15, def: 17, spd: 16, ce: 22, hp: 78 },
+    baseStats: { atk: 15, def: 17, spd: 16, ce: 22, hp: 79 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "천사의 심판", description: "모든 술식과 저주를 정화", effect: { type: "SKILL_NULLIFY", damage: 200 } },
     basicSkills: [
@@ -98,7 +98,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("fumihiko_takaba", "타카바 후미히코", "SOUL"),
-    baseStats: { atk: 14, def: 18, spd: 15, ce: 20, hp: 82 },
+    baseStats: { atk: 14, def: 18, spd: 15, ce: 20, hp: 83 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "코미디", description: "재밌으면 모든 것이 가능", effect: { type: "DAMAGE", value: 200 } },
     basicSkills: [
@@ -220,7 +220,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("yuka_okkotsu", "옷코츠 유카", "BODY"),
-    baseStats: { atk: 16, def: 13, spd: 18, ce: 17, hp: 76 },
+    baseStats: { atk: 14, def: 13, spd: 18, ce: 17, hp: 74 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: { name: "광폭화", description: "생명의 마지막 불꽃, 한계를 초월", effect: { type: "STAT_BOOST", atkBonus: 60, spdBonus: 40, damage: 200 } },
     basicSkills: [
@@ -254,7 +254,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("marulu", "마루", "BARRIER"),
-    baseStats: { atk: 15, def: 16, spd: 16, ce: 23, hp: 78 },
+    baseStats: { atk: 15, def: 16, spd: 16, ce: 23, hp: 79 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "혼돈과 조화", description: "혼돈과 조화를 동시에 발동하여 현실을 왜곡", effect: { type: "DOMAIN", damage: 200 } },
     basicSkills: [
@@ -271,7 +271,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("usami", "우사미", "CURSE"),
-    baseStats: { atk: 15, def: 14, spd: 16, ce: 21, hp: 76 },
+    baseStats: { atk: 16, def: 14, spd: 16, ce: 21, hp: 79 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "대규모 주언", description: "다수의 대상을 동시에 주언으로 조종", effect: { type: "STUN", damage: 180, duration: 2 } },
     basicSkills: [
@@ -291,7 +291,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("masamichi_yaga", "야가 마사미치", "SOUL"),
-    baseStats: { atk: 15, def: 15, spd: 14, ce: 18, hp: 82 },
+    baseStats: { atk: 16, def: 15, spd: 14, ce: 18, hp: 85 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "자율 인형술", description: "자아를 가진 인형 군단, 특급 상당 술식", effect: { type: "MULTI_SUMMON", damage: 200 } },
     basicSkills: [
