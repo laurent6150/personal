@@ -11,6 +11,7 @@ import { Button } from '../UI/Button';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useShallow } from 'zustand/shallow';
+import { calculateLevelFromExp } from '../../data/growthSystem';
 
 interface SeasonEndScreenProps {
   seasonNumber: number;
@@ -52,13 +53,12 @@ export function SeasonEndScreen({ seasonNumber, onNextSeason }: SeasonEndScreenP
       const charData = CHARACTERS_BY_ID[cardId];
       const playerCard = ownedCards[cardId];
 
-      const currentLevel = playerCard?.level || 1;
       const currentTotalExp = playerCard?.totalExp || 0;
-      const expPerLevel = 100;
+      const currentLevel = calculateLevelFromExp(currentTotalExp);
 
-      // 레벨업 계산
+      // 레벨업 계산 (실제 EXP_TABLE 기반)
       const newTotalExp = currentTotalExp + data.totalExp;
-      const newLevel = Math.min(10, Math.floor(newTotalExp / expPerLevel) + 1);
+      const newLevel = calculateLevelFromExp(newTotalExp);
 
       summaries.push({
         cardId,
