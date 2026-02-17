@@ -113,7 +113,7 @@ export function CardDetail({ cardId, onBack }: CardDetailProps) {
       }
       // 시즌 종료 시 누적된 보너스 스탯
       if (key in bonusStats) {
-        enhanced += (bonusStats as Record<string, number>)[key] || 0;
+        enhanced += (bonusStats as unknown as Record<string, number>)[key] || 0;
       }
       return [key, enhanced];
     })

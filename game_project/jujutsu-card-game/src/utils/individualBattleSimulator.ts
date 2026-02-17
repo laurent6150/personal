@@ -382,12 +382,13 @@ export function createParticipantFromId(
 
 export function getBestOfForRound(round: string): number {
   switch (round) {
+    case 'ROUND_64': return 1;       // 64강: 단판
     case 'ROUND_32': return 1;       // 32강: 단판
-    case 'ROUND_16': return 3;       // 16강: 3판 2선승
-    case 'QUARTER': return 5;        // 8강: 5판 3선승
-    case 'SEMI': return 5;           // 4강: 5판 3선승
-    case 'FINAL': return 5;          // 결승: 5판 3선승
-    case 'THIRD_PLACE': return 5;    // 3/4위전: 5판 3선승
+    case 'ROUND_16': return 3;       // 16강: Bo3
+    case 'QUARTER': return 5;        // 8강: Bo5
+    case 'SEMI': return 5;           // 4강: Bo5
+    case 'FINAL': return 5;          // 결승: Bo5
+    case 'THIRD_PLACE': return 5;    // 3/4위전: Bo5
     default: return 1;
   }
 }

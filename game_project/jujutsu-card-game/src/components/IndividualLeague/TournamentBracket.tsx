@@ -135,6 +135,8 @@ export function TournamentBracket({ league, onClose }: TournamentBracketProps) {
         {/* 대진표 */}
         <div className="flex-1 overflow-auto p-4">
           <div className="flex items-center gap-2 mb-4 text-sm text-text-secondary">
+            <span className={status === 'ROUND_64' ? 'text-accent font-bold' : ''}>64강</span>
+            <span>→</span>
             <span className={status === 'ROUND_32' ? 'text-accent font-bold' : ''}>32강</span>
             <span>→</span>
             <span className={status === 'ROUND_16' ? 'text-accent font-bold' : ''}>16강</span>

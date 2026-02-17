@@ -3,10 +3,10 @@
 // ========================================
 
 import { CHARACTERS_BY_ID } from '../../data/characters';
-import type { Round32Group, IndividualMatch } from '../../types';
+import type { DualTournamentGroup, IndividualMatch } from '../../types';
 
 interface DualTournamentFlowProps {
-  group: Round32Group;
+  group: DualTournamentGroup;
   matches: IndividualMatch[];
   playerCardIds: string[];
 }

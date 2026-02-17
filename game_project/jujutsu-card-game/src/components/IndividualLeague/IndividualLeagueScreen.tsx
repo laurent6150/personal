@@ -109,6 +109,7 @@ export function IndividualLeagueScreen({
   // 포맷 텍스트 가져오기
   const getFormatText = (status?: string) => {
     switch (status) {
+      case 'ROUND_64': return '단판 승부';
       case 'ROUND_32': return '단판 승부';
       case 'ROUND_16': return '3판 2선승';
       case 'QUARTER': return '3판 2선승';
@@ -190,11 +191,15 @@ export function IndividualLeagueScreen({
     if (!currentLeague) return false;
     const status = currentLeague.status;
 
+    if (status === 'ROUND_64') {
+      const groups = currentLeague.brackets.round64Groups || [];
+      return groups.length > 0 && groups.every(g => g.isCompleted);
+    }
     if (status === 'ROUND_32') {
-      return currentLeague.brackets.round32.every(m => m.played);
+      const groups = currentLeague.brackets.round32Groups || [];
+      return groups.length > 0 && groups.every(g => g.isCompleted);
     }
     if (status === 'ROUND_16') {
-      // 16강 토너먼트 (1:1 녹아웃)
       const round16Matches = currentLeague.brackets.round16Matches || [];
       return round16Matches.length > 0 && round16Matches.every(m => m.played);
     }
@@ -205,9 +210,8 @@ export function IndividualLeagueScreen({
       return currentLeague.brackets.semi.every(m => m.played);
     }
     if (status === 'FINAL') {
-      // 결승과 3/4위전 모두 완료되어야 함
       const finalDone = currentLeague.brackets.final?.played ?? false;
-      const thirdPlaceDone = currentLeague.brackets.thirdPlace?.played ?? true; // 3/4위전 없으면 true
+      const thirdPlaceDone = currentLeague.brackets.thirdPlace?.played ?? true;
       return finalDone && thirdPlaceDone;
     }
     return false;
@@ -217,7 +221,8 @@ export function IndividualLeagueScreen({
   const getRoundName = (status: string) => {
     const names: Record<string, string> = {
       'NOT_STARTED': '시작 전',
-      'ROUND_32': '32강 조별리그',
+      'ROUND_64': '64강 듀얼 토너먼트',
+      'ROUND_32': '32강 듀얼 토너먼트',
       'ROUND_16': '16강 토너먼트',
       'QUARTER': '8강',
       'SEMI': '4강',
@@ -227,51 +232,80 @@ export function IndividualLeagueScreen({
     return names[status] || status;
   };
 
-  // 32강 조별리그 경기 컨텍스트 가져오기
+  // 듀얼 토너먼트 경기 컨텍스트 가져오기
   const getMatchContext = (matchId: string, groupId?: string): { context: string; implication: string } => {
     if (!groupId) return { context: '', implication: '' };
 
-    // 경기 ID에서 인덱스 추출 (r32_A_1 -> 1)
-    const matchIndex = parseInt(matchId.split('_').pop() || '1', 10) - 1;
+    // 매치 ID 접미사로 매치 유형 판별 (r64_A_m1, r32_B_wm, etc.)
+    const suffix = matchId.split('_').pop() || '';
 
-    const contextMap: Record<number, string> = {
-      0: '1경기',
-      1: '2경기',
-      2: '승자전',
-      3: '패자전',
-      4: '최종전',
-      5: '6경기'
+    const contextMap: Record<string, string> = {
+      'm1': '1차전',
+      'm2': '2차전',
+      'wm': '승자전',
+      'lm': '패자전',
+      'fm': '최종전',
     };
 
-    const implicationMap: Record<number, string> = {
-      0: '',
-      1: '',
-      2: '승자는 16강 진출 확정!',
-      3: '패자는 탈락!',
-      4: '승자는 16강 진출!',
-      5: ''
+    const isRound64 = matchId.startsWith('r64');
+    const nextRound = isRound64 ? '32강' : '16강';
+
+    const implicationMap: Record<string, string> = {
+      'm1': '',
+      'm2': '',
+      'wm': `승자는 ${nextRound} 진출 확정!`,
+      'lm': '패자는 탈락!',
+      'fm': `승자는 ${nextRound} 진출!`,
     };
 
     return {
-      context: contextMap[matchIndex] || '',
-      implication: implicationMap[matchIndex] || ''
+      context: contextMap[suffix] || '',
+      implication: implicationMap[suffix] || ''
     };
   };
 
-  // 32강 GroupStageMainView에서 경기 시작
+  // 듀얼 토너먼트 GroupStageMainView에서 경기 시작
   const handleGroupStageStartMatch = (matchId: string) => {
-    const match = currentLeague?.brackets.round32.find(m => m.id === matchId);
-    if (!match) return;
+    if (!currentLeague) return;
 
-    const { context, implication } = getMatchContext(matchId, match.groupId);
+    // 64강/32강 듀얼 토너먼트 그룹에서 매치 찾기
+    let foundMatch: IndividualMatch | undefined;
+    let foundGroupId: string | undefined;
 
-    // 32강: 단판이므로 경기장 1개
+    const searchInGroups = (groups: import('../../types').DualTournamentGroup[] | undefined) => {
+      if (!groups) return;
+      for (const group of groups) {
+        const allMatches = [
+          group.matches.match1, group.matches.match2,
+          group.matches.winnersMatch, group.matches.losersMatch,
+          group.matches.finalMatch,
+        ];
+        const found = allMatches.find(m => m.id === matchId);
+        if (found) {
+          foundMatch = found;
+          foundGroupId = group.id;
+          return;
+        }
+      }
+    };
+
+    if (currentLeague.status === 'ROUND_64') {
+      searchInGroups(currentLeague.brackets.round64Groups);
+    } else {
+      searchInGroups(currentLeague.brackets.round32Groups);
+    }
+
+    if (!foundMatch) return;
+
+    const { context, implication } = getMatchContext(matchId, foundGroupId);
+
+    // 64강/32강: 단판이므로 경기장 1개
     const arenaIds = getRandomArenas(1);
 
     setPendingMatch({
-      match,
-      roundName: `${match.groupId}조`,
-      formatText: getFormatText('ROUND_32'),
+      match: foundMatch,
+      roundName: `${foundGroupId}조`,
+      formatText: getFormatText(currentLeague.status),
       matchContext: context,
       matchImplication: implication,
       arenaIds
@@ -479,10 +513,14 @@ export function IndividualLeagueScreen({
           <LeagueFinishedScreen onFinish={onBack} />
         )}
 
-        {/* 32강 조별리그: 새로운 GroupStageMainView 사용 */}
-        {currentLeague.status === 'ROUND_32' && currentLeague.brackets.round32Groups && (
+        {/* 64강/32강 듀얼 토너먼트: GroupStageMainView 사용 */}
+        {(currentLeague.status === 'ROUND_64' || currentLeague.status === 'ROUND_32') && (
           <GroupStageMainView
-            groups={currentLeague.brackets.round32Groups}
+            groups={
+              currentLeague.status === 'ROUND_64'
+                ? (currentLeague.brackets.round64Groups || [])
+                : (currentLeague.brackets.round32Groups || [])
+            }
             matches={currentLeague.brackets.round32}
             playerCardIds={playerCrew}
             onStartMatch={handleGroupStageStartMatch}
@@ -493,7 +531,7 @@ export function IndividualLeagueScreen({
         )}
 
         {/* 16강 이후: 카드형 UI 적용 */}
-        {currentLeague.status !== 'FINISHED' && currentLeague.status !== 'ROUND_32' && (
+        {currentLeague.status !== 'FINISHED' && currentLeague.status !== 'ROUND_64' && currentLeague.status !== 'ROUND_32' && (
           <>
             {/* 내 카드 현황 */}
             <div className="bg-bg-secondary rounded-xl border border-white/10 p-4 mb-4">
@@ -560,10 +598,14 @@ export function IndividualLeagueScreen({
           />
         )}
 
-        {/* 32강 조별 현황 모달 */}
-        {showGroups && currentLeague.status === 'ROUND_32' && currentLeague.brackets.round32Groups && (
+        {/* 듀얼 토너먼트 조별 현황 모달 */}
+        {showGroups && (currentLeague.status === 'ROUND_64' || currentLeague.status === 'ROUND_32') && (
           <GroupStageView
-            groups={currentLeague.brackets.round32Groups}
+            groups={
+              currentLeague.status === 'ROUND_64'
+                ? (currentLeague.brackets.round64Groups || [])
+                : (currentLeague.brackets.round32Groups || [])
+            }
             participants={currentLeague.participants}
             matches={currentLeague.brackets.round32}
             onClose={() => setShowGroups(false)}

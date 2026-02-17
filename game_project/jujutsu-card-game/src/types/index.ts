@@ -1030,11 +1030,12 @@ export interface TradeState {
 // 개인 리그 상태
 export type IndividualLeagueStatus =
   | 'NOT_STARTED'
-  | 'ROUND_32'       // 32강 조별 리그 (8조×4명, 풀 리그전)
-  | 'ROUND_16'       // 16강 토너먼트 (단판)
-  | 'QUARTER'        // 8강 (3판 2선승)
-  | 'SEMI'           // 4강 (5판 3선승)
-  | 'FINAL'          // 결승 (5판 3선승)
+  | 'ROUND_64'       // 64강 듀얼 토너먼트 (16조×4명 or 12조×4명)
+  | 'ROUND_32'       // 32강 듀얼 토너먼트 (8조×4명)
+  | 'ROUND_16'       // 16강 싱글 엘리미네이션 (Bo3)
+  | 'QUARTER'        // 8강 (Bo5)
+  | 'SEMI'           // 4강 (Bo5)
+  | 'FINAL'          // 결승 (Bo5)
   | 'FINISHED';
 
 // 개인 리그 매치 형식
@@ -1084,17 +1085,37 @@ export interface IndividualMatch {
   groupId?: string;       // 조별 리그인 경우 조 ID
 }
 
-// 32강 조 (4명 조별 풀 리그전)
-export interface Round32Group {
-  id: string;             // 'A' ~ 'H'
+// 듀얼 토너먼트 조 (4인 1조, 5경기: 1차전×2 + 승자전 + 패자전 + 최종전)
+export interface DualTournamentGroup {
+  id: string;             // 조 ID ('A' ~ 'P' 등)
   participants: string[]; // 참가자 odId (4명)
-  matches: IndividualMatch[];  // 조별 리그 경기 (6경기)
-  standings: {            // 조별 순위
+  matches: {
+    match1: IndividualMatch;    // 1차전: A vs B
+    match2: IndividualMatch;    // 2차전: C vs D
+    winnersMatch: IndividualMatch;  // 승자전: match1승자 vs match2승자
+    losersMatch: IndividualMatch;   // 패자전: match1패자 vs match2패자
+    finalMatch: IndividualMatch;    // 최종전: 승자전패자 vs 패자전승자
+  };
+  // 결과
+  firstPlace: string | null;   // 조 1위 (승자전 승자) → 진출
+  secondPlace: string | null;  // 조 2위 (최종전 승자) → 진출
+  thirdPlace: string | null;   // 조 3위 (최종전 패자) → 탈락
+  fourthPlace: string | null;  // 조 4위 (패자전 패자) → 탈락
+  isCompleted: boolean;
+  seedId?: string | null;      // 시드 참가자 ID (있을 경우)
+}
+
+// @deprecated - 호환성 유지용 (기존 풀 리그전 타입)
+export interface Round32Group {
+  id: string;
+  participants: string[];
+  matches: IndividualMatch[];
+  standings: {
     odId: string;
     wins: number;
     losses: number;
   }[];
-  isCompleted: boolean;   // 조별 리그 완료 여부
+  isCompleted: boolean;
 }
 
 // 개인 리그 조 (16강 - 더 이상 조별 리그 아님, 호환성 유지)
@@ -1109,10 +1130,12 @@ export interface LeagueGroup {
 
 // 개인 리그 대진표
 export interface IndividualBrackets {
-  round32: IndividualMatch[];     // 조별 리그 48경기 (8조×6경기)
-  round32Groups?: Round32Group[]; // 32강 조별 그룹 정보
+  // 듀얼 토너먼트 (64강/32강)
+  round64Groups?: DualTournamentGroup[];  // 64강 듀얼 토너먼트 (16조 or 12조)
+  round32Groups?: DualTournamentGroup[];  // 32강 듀얼 토너먼트 (8조)
+  round32: IndividualMatch[];     // 호환성 유지 (듀얼 토너먼트 전체 매치 플랫 배열)
   round16: LeagueGroup[];         // 호환성 유지 (사용 안 함)
-  round16Matches?: IndividualMatch[];  // 16강 토너먼트 8경기
+  round16Matches?: IndividualMatch[];  // 16강 싱글 엘리미네이션 8경기
   quarter: IndividualMatch[];     // 4경기 (8명 → 4명)
   semi: IndividualMatch[];        // 2경기 (4명 → 2명)
   final: IndividualMatch | null;  // 1경기 (2명 → 1명)
@@ -1123,13 +1146,13 @@ export interface IndividualBrackets {
 export interface IndividualLeague {
   season: number;
   status: IndividualLeagueStatus;
-  participants: LeagueParticipant[];  // 32명
+  participants: LeagueParticipant[];  // 64명 (시즌2+: 시드8 + 64강48)
   brackets: IndividualBrackets;
   champion: string | null;            // 우승자 odId
   runnerUp: string | null;            // 준우승자 odId
   thirdPlace?: string | null;         // 3위 odId
   fourthPlace?: string | null;        // 4위 odId
-  seeds?: string[];                   // 시드 참가자 odId (전 시즌 1~4위, 시즌2부터)
+  seeds?: string[];                   // 시드 참가자 odId (전 시즌 1~8위, 시즌2부터)
   // 내 카드 현황 추적용
   myCardResults: {
     odId: string;
@@ -1209,6 +1232,7 @@ export const INDIVIDUAL_LEAGUE_REWARDS: Record<IndividualLeagueStatus, {
   seed?: boolean;  // 다음 시즌 시드 여부
 }> = {
   'NOT_STARTED': { exp: 0 },
+  'ROUND_64': { exp: 0 },               // 64강 탈락 (경험치 없음)
   'ROUND_32': { exp: 50 },              // 32강 탈락
   'ROUND_16': { exp: 100 },             // 16강 탈락
   'QUARTER': { exp: 200 },              // 8강 탈락
