@@ -7,8 +7,11 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useShallow } from 'zustand/shallow';
 import { useIndividualLeagueStore } from '../../stores/individualLeagueStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { calculateFinalRankings, calculateAwards } from '../../utils/individualLeagueSystem';
 import { CHARACTERS_BY_ID } from '../../data/characters';
+import { EXP_TABLE, calculateLevelFromExp, STAT_INCREASE_BY_GRADE } from '../../data/growthSystem';
+import type { Grade } from '../../types';
 import { getCharacterImage } from '../../utils/imageHelper';
 import { Button } from '../UI/Button';
 import { RewardClaimScreen } from './RewardClaimScreen';
@@ -134,34 +137,57 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
     onFinish?.();
   };
 
-  // RewardClaimScreen용 데이터 변환
+  // RewardClaimScreen용 데이터 변환 (실제 카드 레벨/EXP 기반)
   const getRewardData = () => {
+    const { player } = usePlayerStore.getState();
+
     return myCards.map(card => {
       const character = CHARACTERS_BY_ID[card.odId];
+      const playerCard = player.ownedCards[card.odId];
+
+      // 실제 카드 레벨/경험치 읽기
+      const levelBefore = playerCard?.level || 1;
+      const currentTotalExp = playerCard?.totalExp || 0;
+      const currentBonusStats = playerCard?.bonusStats || {};
+
+      // 개인리그 획득 경험치 적용 후 예측 레벨 계산 (EXP_TABLE 기반)
+      const projectedTotalExp = currentTotalExp + card.exp;
+      const levelAfter = calculateLevelFromExp(projectedTotalExp);
+      const levelUps = levelAfter - levelBefore;
+
+      // 현재 레벨 내 경험치 (프로그레스 바용)
+      const expBefore = currentTotalExp - (EXP_TABLE[levelBefore] || 0);
+      const expAfter = projectedTotalExp - (EXP_TABLE[levelAfter] || 0);
+
+      // 실제 등급별 스탯 증가 계산 (레벨업 횟수 × 등급별 증가량)
+      const grade = (character?.grade || '1급') as Grade;
+      const statPerLevel = STAT_INCREASE_BY_GRADE[grade] || 4;
+      const totalStatIncrease = levelUps * statPerLevel;
+
+      // 현재 실제 스탯 (baseStats + bonusStats)
       const baseStats = character?.baseStats;
-
-      // 레벨업 계산 (현재 레벨 + EXP 기준)
-      // 여기서는 단순화: 레벨1 기준, 100EXP마다 레벨업
-      const currentExp = 0; // 실제로는 저장된 EXP
-      const totalExp = currentExp + card.exp;
-      const levelBefore = 1;
-      const expPerLevel = 100;
-      const levelUps = Math.floor(totalExp / expPerLevel);
-      const levelAfter = levelBefore + levelUps;
-      const expAfter = totalExp % expPerLevel;
-
-      // 레벨업 시 스탯 증가 (레벨당 총 +4)
-      const statIncrease = levelUps * 4;
-      const statsAfter = baseStats ? {
-        atk: (baseStats.atk || 0) + Math.floor(statIncrease / 4),
-        def: (baseStats.def || 0) + Math.floor(statIncrease / 4),
-        spd: (baseStats.spd || 0) + Math.floor(statIncrease / 4),
-        hp: (baseStats.hp || 0) + Math.floor(statIncrease / 4),
-        ce: baseStats.ce || 0,
-        crt: (baseStats as { crt?: number })?.crt || 50,
-        tec: (baseStats as { tec?: number })?.tec || 50,
-        mnt: (baseStats as { mnt?: number })?.mnt || 50,
+      const statsBefore = baseStats ? {
+        atk: (baseStats.atk || 0) + (currentBonusStats.atk || 0),
+        def: (baseStats.def || 0) + (currentBonusStats.def || 0),
+        spd: (baseStats.spd || 0) + (currentBonusStats.spd || 0),
+        hp: (baseStats.hp || 0) + (currentBonusStats.hp || 0),
+        ce: (baseStats.ce || 0) + (currentBonusStats.ce || 0),
+        crt: ((baseStats as { crt?: number })?.crt || 50) + (currentBonusStats.crt || 0),
+        tec: ((baseStats as { tec?: number })?.tec || 50) + (currentBonusStats.tec || 0),
+        mnt: ((baseStats as { mnt?: number })?.mnt || 50) + (currentBonusStats.mnt || 0),
       } : undefined;
+
+      // 레벨업 시 예상 스탯 (균등 분배 예측)
+      const statsAfter = statsBefore && levelUps > 0 ? {
+        atk: statsBefore.atk + Math.floor(totalStatIncrease / 8),
+        def: statsBefore.def + Math.floor(totalStatIncrease / 8),
+        spd: statsBefore.spd + Math.floor(totalStatIncrease / 8),
+        hp: statsBefore.hp + Math.floor(totalStatIncrease / 8),
+        ce: statsBefore.ce + Math.floor(totalStatIncrease / 8),
+        crt: statsBefore.crt + Math.floor(totalStatIncrease / 8),
+        tec: statsBefore.tec + Math.floor(totalStatIncrease / 8),
+        mnt: statsBefore.mnt + Math.ceil(totalStatIncrease - Math.floor(totalStatIncrease / 8) * 7),
+      } : statsBefore;
 
       return {
         odId: card.odId,
@@ -170,11 +196,11 @@ export function LeagueFinishedScreen({ onFinish }: LeagueFinishedScreenProps) {
         exp: card.exp,
         levelBefore,
         levelAfter,
-        expBefore: currentExp,
+        expBefore,
         expAfter,
-        statsBefore: baseStats,
+        statsBefore,
         statsAfter,
-        statIncrease: levelUps > 0 ? statIncrease : 0
+        statIncrease: totalStatIncrease
       };
     });
   };
