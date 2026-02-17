@@ -666,7 +666,7 @@ export function calculateDamage(
   // 1. 기본 데미지 (ATK 기반 - 개인리그와 동일)
   let baseDamage = Math.round(attacker.atk * 0.4 + 5);
 
-  // 2. 방어력 적용 (퍼센트 감소 방식, 최대 30% - 개인리그와 동일)
+  // 2. 방어력 적용 (퍼센트 감소 방식, 최대 22% - DEF 영향력 강화)
   let effectiveDef = defender.def;
   if (attacker.skillEffect?.type === 'IGNORE_DEFENSE') {
     const ignoreAmount = typeof attacker.skillEffect.value === 'number'
@@ -674,7 +674,7 @@ export function calculateDamage(
       : 0;
     effectiveDef = Math.max(0, effectiveDef - ignoreAmount);
   }
-  const defenseReduction = Math.min(effectiveDef * 0.3, 30);
+  const defenseReduction = Math.min(effectiveDef * 0.7, 22);
   baseDamage = Math.round(baseDamage * (1 - defenseReduction / 100));
 
   // 3. 속성 배율
@@ -684,8 +684,8 @@ export function calculateDamage(
   }
   baseDamage = Math.round(baseDamage * attrMultiplier);
 
-  // 4. CE 배율: 1 + (CE / 100)
-  const ceMultiplier = 1 + (attacker.ce / 100);
+  // 4. CE 배율: CE0 캐릭터 12% 보너스, 그 외 1 + CE×0.006
+  const ceMultiplier = attacker.ce === 0 ? 1.12 : 1 + (attacker.ce * 0.006);
   baseDamage = Math.round(baseDamage * ceMultiplier);
 
   // 5. 경기장 속성 보너스

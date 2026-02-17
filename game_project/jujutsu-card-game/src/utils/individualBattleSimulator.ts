@@ -106,16 +106,19 @@ export function applyArenaEffect(
 // HP: 100, 목표 종료 턴: 8~12턴, 턴당 평균 데미지: 8~12
 // 속성 배율, CE 배율 공식을 팀리그와 동일하게 사용
 const BATTLE_BALANCE = {
-  // 기본 데미지 계수 (ATK 기반 - HP 100 시스템에 맞춤)
+  // 기본 데미지 계수 (ATK 기반)
   ATK_COEFFICIENT: 0.4,
   BASE_DAMAGE_BONUS: 5,
 
-  // 방어력 감소율 (최대 30% 감소)
-  DEF_REDUCTION_RATE: 0.3,
-  MAX_DEF_REDUCTION_PERCENT: 30,
+  // 방어력 감소율 (최대 22% 감소, DEF 영향력 강화)
+  DEF_REDUCTION_RATE: 0.7,
+  MAX_DEF_REDUCTION_PERCENT: 22,
 
-  // CE 배율 계수 (팀리그와 동일: 1 + CE/100)
-  CE_MULTIPLIER_COEFFICIENT: 0.01,
+  // CE 배율 계수 (팀리그와 동일: 1 + CE×0.006)
+  CE_MULTIPLIER_COEFFICIENT: 0.006,
+
+  // CE0 캐릭터 고정 보너스 (토우지, 마키(각성), 츠루기 등)
+  CE0_BONUS: 0.12,
 
   // 스킬/필살기 배율
   SKILL_MULTIPLIER: 1.3,      // 스킬: 1.3배
@@ -164,9 +167,11 @@ export function calculateDamage(
   const attrMult = getAttributeMultiplier(attacker.attribute, defender.attribute);
   baseDamage = Math.round(baseDamage * attrMult);
 
-  // 4. CE 배율 적용 (팀리그와 동일: 1 + CE/100)
-  // CE 0: ×1.0, CE 18: ×1.18, CE 25: ×1.25
-  const ceMultiplier = 1 + (attacker.baseStats.ce * BATTLE_BALANCE.CE_MULTIPLIER_COEFFICIENT);
+  // 4. CE 배율 적용 (CE0 캐릭터 보너스, 그 외 1 + CE×0.006)
+  // CE 0: ×1.12 (보너스), CE 18: ×1.108, CE 25: ×1.15
+  const ceMultiplier = attacker.baseStats.ce === 0
+    ? (1 + BATTLE_BALANCE.CE0_BONUS)
+    : (1 + attacker.baseStats.ce * BATTLE_BALANCE.CE_MULTIPLIER_COEFFICIENT);
   baseDamage = Math.round(baseDamage * ceMultiplier);
 
   // 5. 최소 데미지 보장
