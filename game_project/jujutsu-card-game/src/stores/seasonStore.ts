@@ -21,6 +21,7 @@ import type {
 import { generateAICrewsForSeason, setAICrews, PLAYER_CREW_ID, validatePlayerCrew } from '../data/aiCrews';
 // CHARACTERS_BY_ID removed (unused)
 import { useTradeStore } from './tradeStore';
+import { useCardRecordStore } from './cardRecordStore';
 import { useNewsFeedStore } from './newsFeedStore';
 import { usePlayerStore } from './playerStore';
 import { useEconomyStore, getMatchRewardCP } from './economyStore';
@@ -186,10 +187,54 @@ function generateInitialStandings(aiCrews: AICrew[]): LeagueStanding[] {
   }));
 }
 
-// AI 경기 시뮬레이션
-function simulateAIMatch(): { homeScore: number; awayScore: number } {
-  const homeScore = Math.floor(Math.random() * 4);
-  const awayScore = Math.floor(Math.random() * 4);
+// AI 경기 시뮬레이션 (카드별 전적 기록 포함)
+function simulateAIMatch(
+  homeCrew?: string[],
+  awayCrew?: string[],
+  seasonNumber?: number
+): { homeScore: number; awayScore: number } {
+  // 크루 정보가 없으면 기존 방식 (팀 점수만)
+  if (!homeCrew || !awayCrew || seasonNumber === undefined) {
+    const homeScore = Math.floor(Math.random() * 4);
+    const awayScore = Math.floor(Math.random() * 4);
+    return { homeScore, awayScore };
+  }
+
+  // 5라운드 카드별 매치업 시뮬레이션
+  const rounds = Math.min(homeCrew.length, awayCrew.length, 5);
+  let homeScore = 0;
+  let awayScore = 0;
+
+  // 셔플된 순서로 카드 매칭
+  const homeOrder = [...homeCrew].sort(() => Math.random() - 0.5);
+  const awayOrder = [...awayCrew].sort(() => Math.random() - 0.5);
+
+  const { recordBattle } = useCardRecordStore.getState();
+
+  for (let i = 0; i < rounds; i++) {
+    const homeCardId = homeOrder[i];
+    const awayCardId = awayOrder[i];
+    const homeWins = Math.random() < 0.5;
+
+    if (homeWins) {
+      homeScore++;
+      recordBattle({
+        seasonNumber,
+        winnerCardId: homeCardId,
+        loserCardId: awayCardId,
+        arenaId: 'random',
+      });
+    } else {
+      awayScore++;
+      recordBattle({
+        seasonNumber,
+        winnerCardId: awayCardId,
+        loserCardId: homeCardId,
+        arenaId: 'random',
+      });
+    }
+  }
+
   return { homeScore, awayScore };
 }
 
@@ -457,10 +502,11 @@ export const useSeasonStore = create<SeasonState>()(
           // AI 경기들 시뮬레이션
           let aiMatchCount = 0;
           const aiCrews = get().currentAICrews;
+          const getCrewCards = (crewId: string) => aiCrews.find(c => c.id === crewId)?.crew;
           for (let i = 0; i < updatedMatches.length && aiMatchCount < 2; i++) {
             const m = updatedMatches[i];
             if (!m.played && m.homeCrewId !== PLAYER_CREW_ID && m.awayCrewId !== PLAYER_CREW_ID) {
-              const simResult = simulateAIMatch();
+              const simResult = simulateAIMatch(getCrewCards(m.homeCrewId), getCrewCards(m.awayCrewId), currentSeason.number);
               updatedMatches[i] = {
                 ...m,
                 homeScore: simResult.homeScore,
@@ -587,11 +633,14 @@ export const useSeasonStore = create<SeasonState>()(
         // 모든 남은 AI 경기 시뮬레이션
         let updatedMatches = [...currentSeason.matches];
         let updatedStandings = [...currentSeason.standings];
+        const aiCrewsForEnd = get().currentAICrews;
+        const getCrewCardsForEnd = (crewId: string) =>
+          crewId === PLAYER_CREW_ID ? get().playerCrew : aiCrewsForEnd.find(c => c.id === crewId)?.crew;
 
         for (let i = 0; i < updatedMatches.length; i++) {
           const m = updatedMatches[i];
           if (!m.played) {
-            const simResult = simulateAIMatch();
+            const simResult = simulateAIMatch(getCrewCardsForEnd(m.homeCrewId), getCrewCardsForEnd(m.awayCrewId), currentSeason.number);
             updatedMatches[i] = {
               ...m,
               homeScore: simResult.homeScore,
@@ -721,9 +770,13 @@ export const useSeasonStore = create<SeasonState>()(
           // 다른 준결승도 시뮬레이션
           const otherIndex = 1 - semiIndex;
           if (!newSemiFinals[otherIndex].result) {
-            const sim = simulateAIMatch();
+            const otherSemi = newSemiFinals[otherIndex];
+            const aiCrewsPlayoff = get().currentAICrews;
+            const getPlayoffCrew = (id: string) =>
+              id === PLAYER_CREW_ID ? get().playerCrew : aiCrewsPlayoff.find(c => c.id === id)?.crew;
+            const sim = simulateAIMatch(getPlayoffCrew(otherSemi.homeCrewId), getPlayoffCrew(otherSemi.awayCrewId), currentSeason!.number);
             newSemiFinals[otherIndex] = updatePlayoffMatch(
-              newSemiFinals[otherIndex],
+              otherSemi,
               sim.homeScore,
               sim.awayScore
             );
@@ -771,8 +824,11 @@ export const useSeasonStore = create<SeasonState>()(
                 matches: []
               };
 
+              const aiCrewsFinal = get().currentAICrews;
+              const getFinalCrew = (id: string) => aiCrewsFinal.find(c => c.id === id)?.crew;
+
               while (!finalMatch.result) {
-                const sim = simulateAIMatch();
+                const sim = simulateAIMatch(getFinalCrew(winner1), getFinalCrew(winner2), currentSeason.number);
                 finalMatch = updatePlayoffMatch(finalMatch, sim.homeScore, sim.awayScore);
               }
 
