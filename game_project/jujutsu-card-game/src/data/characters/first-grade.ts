@@ -133,7 +133,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("hiromi_higuruma", "히구루마 히로미", "BARRIER"),
-    baseStats: { atk: 17, def: 18, spd: 16, ce: 23, hp: 86 },
+    baseStats: { atk: 17, def: 18, spd: 16, ce: 23, hp: 89 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "사법암흑계 - 사형선고", description: "영역 내 재판에서 유죄 시 심판인의 검으로 처형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 240 } },
     basicSkills: [

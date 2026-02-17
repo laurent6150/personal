@@ -1685,7 +1685,7 @@ export const CREW_POLICY_EFFECTS: Record<CrewPolicy, {
 }> = {
   AGGRESSIVE: { label: '공격적', atkMod: 1.05, defMod: 0.97, icon: '⚔️' },
   BALANCED:   { label: '균형',   atkMod: 1.00, defMod: 1.00, icon: '⚖️' },
-  DEFENSIVE:  { label: '수비적', atkMod: 0.97, defMod: 1.05, icon: '🛡️' },
+  DEFENSIVE:  { label: '수비적', atkMod: 0.98, defMod: 1.07, icon: '🛡️' },
 };
 
 // 개인 리그: 카드별 전략
