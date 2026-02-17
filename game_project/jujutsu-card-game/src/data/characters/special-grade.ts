@@ -47,7 +47,7 @@ export const SPECIAL_GRADE: CharacterCard[] = [
     grade: "특급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("yuta_okkotsu", "옷코츠 유타", "CURSE"),
-    baseStats: { atk: 21, def: 18, spd: 20, ce: 26, hp: 100 },
+    baseStats: { atk: 22, def: 18, spd: 20, ce: 25, hp: 100 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "진안상애", description: "사랑과 저주가 뒤엉킨 영역전개", effect: { type: "DOMAIN", damage: 260, ceBonus: 50 } },
     basicSkills: [
@@ -64,7 +64,7 @@ export const SPECIAL_GRADE: CharacterCard[] = [
     grade: "특급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("kenjaku", "켄자쿠", "SOUL"),
-    baseStats: { atk: 18, def: 17, spd: 18, ce: 25, hp: 100 },
+    baseStats: { atk: 20, def: 17, spd: 18, ce: 25, hp: 100 },
     growthStats: { primary: "ce", secondary: "hp" },
     skill: { name: "태산부군제", description: "천년의 지혜로 완성한 금기술식", effect: { type: "DAMAGE", value: 240, skillSeal: true } },
     basicSkills: [
@@ -98,7 +98,7 @@ export const SPECIAL_GRADE: CharacterCard[] = [
     grade: "특급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("itadori_yuji_final", "이타도리 유지 (최종전)", "SOUL"),
-    baseStats: { atk: 23, def: 18, spd: 23, ce: 22, hp: 95 },
+    baseStats: { atk: 21, def: 18, spd: 21, ce: 22, hp: 95 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: { name: "영혼의 일격", description: "영혼에 직접 도달하는 주먹, 스쿠나를 꺾은 최후의 일격", effect: { type: "TRUE_DAMAGE", value: 250, ignoreDefense: true } },
     basicSkills: [

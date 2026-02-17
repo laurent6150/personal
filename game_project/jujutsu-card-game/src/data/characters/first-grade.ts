@@ -82,7 +82,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("hanami", "하나미", "CONVERT"),
-    baseStats: { atk: 16, def: 19, spd: 14, ce: 20, hp: 92 },
+    baseStats: { atk: 18, def: 19, spd: 16, ce: 20, hp: 92 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: { name: "재앙의 꽃", description: "모든 생물의 저주력을 강제 흡수", effect: { type: "DRAIN", value: 160, healPercent: 60 } },
     basicSkills: [
@@ -99,7 +99,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "BODY",
     imageUrl: getCharacterImage("naobito_zenin", "젠인 나오비토", "BODY"),
-    baseStats: { atk: 17, def: 14, spd: 24, ce: 19, hp: 80 },
+    baseStats: { atk: 19, def: 14, spd: 22, ce: 19, hp: 82 },
     growthStats: { primary: "spd", secondary: "atk" },
     skill: { name: "투사호법 - 극", description: "프레임을 완전히 지배하는 궁극 투사", effect: { type: "MULTI_HIT", hits: 5, value: 45, guaranteed_first: true } },
     basicSkills: [
@@ -306,7 +306,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "RANGE",
     imageUrl: getCharacterImage("mei_mei", "메이메이", "RANGE"),
-    baseStats: { atk: 16, def: 15, spd: 16, ce: 18, hp: 80 },
+    baseStats: { atk: 18, def: 15, spd: 16, ce: 18, hp: 82 },
     growthStats: { primary: "atk", secondary: "ce" },
     skill: { name: "조의 송장", description: "까마귀에 120% 저주력을 실어 돌격", effect: { type: "SACRIFICE_ATTACK", damage: 260 } },
     basicSkills: [
@@ -326,7 +326,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("dagon", "다곤", "CONVERT"),
-    baseStats: { atk: 17, def: 17, spd: 14, ce: 21, hp: 90 },
+    baseStats: { atk: 19, def: 17, spd: 16, ce: 21, hp: 90 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "사미세유도", description: "열대의 해변 영역전개, 필중 물고기떼", effect: { type: "DOMAIN", damage: 210 } },
     basicSkills: [
@@ -377,7 +377,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("smallpox_deity", "포창신", "CURSE"),
-    baseStats: { atk: 16, def: 18, spd: 12, ce: 22, hp: 90 },
+    baseStats: { atk: 18, def: 18, spd: 14, ce: 22, hp: 90 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "포창 영역", description: "관에 갇힌 자에게 3카운트 내 사형", effect: { type: "INSTANT_KILL_OR_DAMAGE", threshold: 25, damage: 230 } },
     basicSkills: [
@@ -411,7 +411,7 @@ export const FIRST_GRADE: CharacterCard[] = [
     grade: "1급",
     attribute: "CONVERT",
     imageUrl: getCharacterImage("bansho", "만상", "CONVERT"),
-    baseStats: { atk: 17, def: 16, spd: 15, ce: 20, hp: 85 },
+    baseStats: { atk: 19, def: 16, spd: 16, ce: 20, hp: 85 },
     growthStats: { primary: "ce", secondary: "atk" },
     skill: { name: "삼라만상", description: "만물을 지배하는 힘", effect: { type: "AOE_DAMAGE", value: 220 } },
     basicSkills: [

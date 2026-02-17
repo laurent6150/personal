@@ -63,7 +63,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     grade: "2급",
     attribute: "RANGE",
     imageUrl: getCharacterImage("nishimiya_momo", "니시미야 모모", "RANGE"),
-    baseStats: { atk: 12, def: 12, spd: 18, ce: 16, hp: 70 },
+    baseStats: { atk: 14, def: 12, spd: 17, ce: 16, hp: 72 },
     growthStats: { primary: "spd", secondary: "ce" },
     skill: { name: "대선풍", description: "거대한 바람으로 광역 공격", effect: { type: "AOE_DAMAGE", damage: 150 } },
     basicSkills: [
@@ -148,7 +148,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     grade: "2급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("utahime_iori", "이오리 우타히메", "BARRIER"),
-    baseStats: { atk: 12, def: 15, spd: 13, ce: 19, hp: 75 },
+    baseStats: { atk: 14, def: 15, spd: 13, ce: 18, hp: 75 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "솔로 금지", description: "모든 아군 대폭 강화", effect: { type: "STAT_BOOST", atkBonus: 50, defBonus: 50 } },
     basicSkills: [
@@ -165,7 +165,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     grade: "2급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("shoko_ieiri", "이에이리 쇼코", "SOUL"),
-    baseStats: { atk: 10, def: 14, spd: 12, ce: 20, hp: 80 },
+    baseStats: { atk: 13, def: 14, spd: 12, ce: 19, hp: 80 },
     growthStats: { primary: "ce", secondary: "hp" },
     skill: { name: "완전 소생", description: "치명상도 완전 회복", effect: { type: "HEAL", value: 200 } },
     basicSkills: [
@@ -185,7 +185,7 @@ export const SECOND_GRADE: CharacterCard[] = [
     grade: "2급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("granny_ogami", "오가미 할멈", "SOUL"),
-    baseStats: { atk: 10, def: 13, spd: 11, ce: 19, hp: 75 },
+    baseStats: { atk: 13, def: 13, spd: 12, ce: 18, hp: 75 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "완전 강신", description: "사망한 강자의 힘을 완전히 강림", effect: { type: "TRANSFORM", damage: 180, atkBonus: 60, spdBonus: 40, duration: 3 } },
     basicSkills: [

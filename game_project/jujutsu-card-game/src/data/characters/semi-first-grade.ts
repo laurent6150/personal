@@ -203,7 +203,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "BARRIER",
     imageUrl: getCharacterImage("ui_ui", "우이우이", "BARRIER"),
-    baseStats: { atk: 10, def: 14, spd: 20, ce: 21, hp: 72 },
+    baseStats: { atk: 14, def: 14, spd: 18, ce: 21, hp: 75 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "연속 공간 전송", description: "연속으로 순간이동을 발동하여 교란", effect: { type: "SWAP_ATTACK", damage: 180, guaranteed_first: true } },
     basicSkills: [
@@ -271,7 +271,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "CURSE",
     imageUrl: getCharacterImage("usami", "우사미", "CURSE"),
-    baseStats: { atk: 13, def: 14, spd: 16, ce: 22, hp: 75 },
+    baseStats: { atk: 15, def: 14, spd: 16, ce: 21, hp: 76 },
     growthStats: { primary: "ce", secondary: "spd" },
     skill: { name: "대규모 주언", description: "다수의 대상을 동시에 주언으로 조종", effect: { type: "STUN", damage: 180, duration: 2 } },
     basicSkills: [
@@ -291,7 +291,7 @@ export const SEMI_FIRST_GRADE: CharacterCard[] = [
     grade: "준1급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("masamichi_yaga", "야가 마사미치", "SOUL"),
-    baseStats: { atk: 14, def: 15, spd: 11, ce: 18, hp: 82 },
+    baseStats: { atk: 15, def: 15, spd: 14, ce: 18, hp: 82 },
     growthStats: { primary: "ce", secondary: "def" },
     skill: { name: "자율 인형술", description: "자아를 가진 인형 군단, 특급 상당 술식", effect: { type: "MULTI_SUMMON", damage: 200 } },
     basicSkills: [

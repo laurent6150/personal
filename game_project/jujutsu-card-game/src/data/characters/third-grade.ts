@@ -12,7 +12,7 @@ export const THIRD_GRADE: CharacterCard[] = [
     grade: "3급",
     attribute: "BODY",
     imageUrl: getCharacterImage("yu_haibara", "하이바라 유", "BODY"),
-    baseStats: { atk: 13, def: 13, spd: 14, ce: 14, hp: 75 },
+    baseStats: { atk: 12, def: 13, spd: 14, ce: 14, hp: 75 },
     growthStats: { primary: "atk", secondary: "spd" },
     skill: { name: "동료를 위해", description: "동료를 지키려는 의지", effect: { type: "DAMAGE", value: 160, defBonus: 30 } },
     basicSkills: [
@@ -27,9 +27,9 @@ export const THIRD_GRADE: CharacterCard[] = [
     id: "kiyotaka_ijichi",
     name: { ko: "이지치 키요타카", ja: "伊地知潔高", en: "Kiyotaka Ijichi" },
     grade: "3급",
-    attribute: "BARRIER",
-    imageUrl: getCharacterImage("kiyotaka_ijichi", "이지치 키요타카", "BARRIER"),
-    baseStats: { atk: 8, def: 16, spd: 10, ce: 18, hp: 70 },
+    attribute: "CURSE",
+    imageUrl: getCharacterImage("kiyotaka_ijichi", "이지치 키요타카", "CURSE"),
+    baseStats: { atk: 12, def: 15, spd: 12, ce: 16, hp: 72 },
     growthStats: { primary: "def", secondary: "ce" },
     skill: { name: "완벽한 장막", description: "모든 것을 차단하는 결계", effect: { type: "DAMAGE_REDUCE", value: 90, duration: 2 } },
     basicSkills: [
@@ -46,7 +46,7 @@ export const THIRD_GRADE: CharacterCard[] = [
     grade: "3급",
     attribute: "SOUL",
     imageUrl: getCharacterImage("akari_nitta", "닛타 아카리", "SOUL"),
-    baseStats: { atk: 8, def: 13, spd: 12, ce: 17, hp: 72 },
+    baseStats: { atk: 11, def: 13, spd: 12, ce: 16, hp: 72 },
     growthStats: { primary: "ce", secondary: "hp" },
     skill: { name: "완전 보존", description: "대상의 상태를 완전히 유지", effect: { type: "HEAL", value: 150 } },
     basicSkills: [
@@ -61,9 +61,9 @@ export const THIRD_GRADE: CharacterCard[] = [
     id: "misato_kuroi",
     name: { ko: "쿠로이 미사토", ja: "黒井美里", en: "Misato Kuroi" },
     grade: "3급",
-    attribute: "BODY",
-    imageUrl: getCharacterImage("misato_kuroi", "쿠로이 미사토", "BODY"),
-    baseStats: { atk: 10, def: 14, spd: 13, ce: 12, hp: 75 },
+    attribute: "CONVERT",
+    imageUrl: getCharacterImage("misato_kuroi", "쿠로이 미사토", "CONVERT"),
+    baseStats: { atk: 12, def: 14, spd: 13, ce: 13, hp: 75 },
     growthStats: { primary: "def", secondary: "hp" },
     skill: { name: "필사의 수호", description: "목숨을 걸고 지킨다", effect: { type: "DAMAGE", value: 120, defBonus: 60 } },
     basicSkills: [
