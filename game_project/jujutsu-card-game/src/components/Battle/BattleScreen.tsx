@@ -777,16 +777,6 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
             >
               <div className="text-2xl text-text-secondary mb-3">상대가 카드를 공개합니다!</div>
 
-              {/* 경기장 정보 */}
-              {currentArena && (
-                <div className="mb-4 bg-bg-card/80 rounded-lg p-3 max-w-md mx-auto border border-white/10">
-                  <div className="text-sm text-accent">🏟️ {currentArena.name.ko}</div>
-                  <div className="text-xs text-text-secondary mt-1">
-                    {currentArena.effects.map(e => e.description).slice(0, 2).join(' / ')}
-                  </div>
-                </div>
-              )}
-
               {/* 카드 비교 영역 - VS 중심 대칭 레이아웃 */}
               <div className="flex flex-col md:flex-row items-start justify-center gap-6 mb-4">
                 {/* 좌측 패널 - 고정 너비, 내용 중앙 정렬 */}
@@ -807,6 +797,15 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
 
                 {/* VS - 중앙 고정 */}
                 <div className="flex flex-col items-center justify-center px-4 py-8 min-w-[120px]">
+                  {/* 경기장 정보 */}
+                  {currentArena && (
+                    <div className="mb-4 bg-bg-card/80 rounded-lg p-3 max-w-md mx-auto border border-white/10">
+                      <div className="text-sm text-accent">🏟️ {currentArena.name.ko}</div>
+                      <div className="text-xs text-text-secondary mt-1">
+                        {currentArena.effects.map(e => e.description).slice(0, 2).join(' / ')}
+                      </div>
+                    </div>
+                  )}
                   <div className="text-5xl text-accent font-bold mb-4">VS</div>
                   <div className="text-sm mb-4 space-y-2">
                     {getAttributeAdvantage(revealedPlayerCard.attribute, revealedAiCard.attribute) && (
