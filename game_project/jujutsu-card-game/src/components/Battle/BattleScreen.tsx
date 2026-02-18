@@ -79,6 +79,22 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
   // 플레이어 소유 카드 (레벨/장비 보너스 표시용)
   const ownedCards = usePlayerStore(state => state.player.ownedCards);
 
+  // DEBUG: ownedCards 상태 확인
+  useEffect(() => {
+    const keys = Object.keys(ownedCards);
+    console.log('[BattleScreen Debug] ownedCards 현황:', {
+      count: keys.length,
+      keys: keys.slice(0, 5),
+      sampleLevel: keys[0] ? ownedCards[keys[0]]?.level : 'N/A',
+      playerCrewIds: session?.player.crew,
+      crewInOwned: session?.player.crew?.map(id => ({
+        id,
+        found: !!ownedCards[id],
+        level: ownedCards[id]?.level
+      }))
+    });
+  }, [ownedCards, session]);
+
   // Phase 4: 올킬 시즌 상태
   const { isAllKillSeason } = useSeasonStore(
     useShallow(state => ({
