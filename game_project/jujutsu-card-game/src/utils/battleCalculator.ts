@@ -50,7 +50,7 @@ import {
 /**
  * BaseStats를 8스탯 Stats로 변환 (레거시 호환)
  */
-function ensureFullStats(baseStats: BaseStats): Stats {
+export function ensureFullStats(baseStats: BaseStats): Stats {
   // 이미 8스탯이면 복사본 반환 (원본 뮤테이션 방지)
   if ('crt' in baseStats) {
     return { ...baseStats } as Stats;
@@ -62,6 +62,47 @@ function ensureFullStats(baseStats: BaseStats): Stats {
     tec: 10,  // 기본 기술
     mnt: 10   // 기본 정신
   };
+}
+
+/**
+ * CharacterCard의 baseStats에 PlayerCard 보너스(레벨업/누적보너스/장비)를 합산한 8스탯 반환
+ * 경기장 보너스는 미포함 (UI 표시용)
+ */
+export function getEffectiveStats(character: CharacterCard, playerCard?: PlayerCard): Stats {
+  const stats = ensureFullStats(character.baseStats);
+  if (!playerCard) return stats;
+
+  // 레벨업 기본 보너스 (레벨당 주요 스탯 +2)
+  const levelBonus = (playerCard.level - 1) * 2;
+  if (levelBonus > 0) {
+    stats[character.growthStats.primary] += levelBonus;
+    stats[character.growthStats.secondary] += levelBonus;
+  }
+
+  // 레벨업 누적 보너스 스탯
+  if (playerCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerCard.bonusStats)) {
+      if (stat in stats && value) {
+        stats[stat as keyof Stats] += value;
+      }
+    }
+  }
+
+  // 장비 보너스
+  for (const equipId of (playerCard.equipment || [])) {
+    if (equipId) {
+      const item = ITEMS_BY_ID[equipId];
+      if (item) {
+        for (const [stat, value] of Object.entries(item.statBonus)) {
+          if (stat in stats && value !== undefined) {
+            stats[stat as keyof Stats] += value;
+          }
+        }
+      }
+    }
+  }
+
+  return stats;
 }
 
 /**

@@ -10,7 +10,6 @@ import { Button } from '../UI/Button';
 import type { CharacterCard, PlayerCard, Arena, RoundResult, BasicSkill, UltimateSkill, AppliedStatusEffect, Stats } from '../../types';
 import { getStatusEffect } from '../../data/statusEffects';
 import { getUltimateSkillEffects } from '../../data/ultimateSkillEffects';
-import { ITEMS_BY_ID } from '../../data/items';
 import {
   processUltimateEffects,
   processStatusTrigger,
@@ -20,6 +19,7 @@ import {
   isSkillBlocked,
   calculateGaugeCharge,
   calculateDamageTakenGaugeCharge,
+  getEffectiveStats,
   MAX_GAUGE
 } from '../../utils/battleCalculator';
 
@@ -30,47 +30,6 @@ interface TurnBattleModalProps {
   result: RoundResult;
   arena: Arena | null;
   onComplete: (winner: 'PLAYER' | 'AI' | 'DRAW') => void;  // 실제 승자 전달
-}
-
-/**
- * CharacterCard의 baseStats에 PlayerCard 보너스를 합산한 스탯 계산
- */
-function getEffectiveBaseStats(character: CharacterCard, playerOwnedCard?: PlayerCard): Record<string, number> {
-  const base = character.baseStats as unknown as Record<string, number>;
-  const result: Record<string, number> = { ...base };
-  if (!playerOwnedCard) return result;
-
-  // 레벨업 기본 보너스 (레벨당 주요 스탯 +2)
-  const levelBonus = (playerOwnedCard.level - 1) * 2;
-  if (levelBonus > 0) {
-    result[character.growthStats.primary] = (result[character.growthStats.primary] || 0) + levelBonus;
-    result[character.growthStats.secondary] = (result[character.growthStats.secondary] || 0) + levelBonus;
-  }
-
-  // 레벨업 누적 보너스 스탯
-  if (playerOwnedCard.bonusStats) {
-    for (const [stat, value] of Object.entries(playerOwnedCard.bonusStats)) {
-      if (stat in result && value) {
-        result[stat] += value;
-      }
-    }
-  }
-
-  // 장비 보너스
-  for (const equipId of (playerOwnedCard.equipment || [])) {
-    if (equipId) {
-      const item = ITEMS_BY_ID[equipId];
-      if (item) {
-        for (const [stat, value] of Object.entries(item.statBonus)) {
-          if (stat in result && value !== undefined) {
-            result[stat] += value;
-          }
-        }
-      }
-    }
-  }
-
-  return result;
 }
 
 interface BattleLog {
@@ -134,22 +93,28 @@ export function TurnBattleModal({
   arena,
   onComplete
 }: TurnBattleModalProps) {
-  // 플레이어 카드의 실제 스탯 (레벨/장비/보너스 반영)
+  // 플레이어 카드의 실제 스탯 (레벨/장비/보너스 반영, 8스탯)
   const playerEffectiveStats = useMemo(
-    () => getEffectiveBaseStats(playerCard, playerOwnedCard),
+    () => getEffectiveStats(playerCard, playerOwnedCard),
     [playerCard, playerOwnedCard]
+  );
+
+  // AI 카드도 8스탯으로 변환
+  const aiEffectiveStats = useMemo(
+    () => getEffectiveStats(aiCard),
+    [aiCard]
   );
 
   // 카드별 실제 스탯을 빠르게 조회하기 위한 맵
   const effectiveStatsMap = useMemo(() => {
-    const map = new Map<string, Record<string, number>>();
+    const map = new Map<string, Stats>();
     map.set(playerCard.id, playerEffectiveStats);
-    map.set(aiCard.id, aiCard.baseStats as unknown as Record<string, number>);
+    map.set(aiCard.id, aiEffectiveStats);
     return map;
-  }, [playerCard, aiCard, playerEffectiveStats]);
+  }, [playerCard, aiCard, playerEffectiveStats, aiEffectiveStats]);
 
-  const getStats = useCallback((card: CharacterCard) => {
-    return effectiveStatsMap.get(card.id) || (card.baseStats as unknown as Record<string, number>);
+  const getCardStats = useCallback((card: CharacterCard): Stats => {
+    return effectiveStatsMap.get(card.id) || getEffectiveStats(card);
   }, [effectiveStatsMap]);
 
   const [currentTurn, setCurrentTurn] = useState(0);
@@ -224,8 +189,8 @@ export function TurnBattleModal({
     _attackerState: BattleState,
     isPlayerAttacking: boolean
   ): { damage: number; isCritical: boolean; statusEffect?: string } => {
-    const atkStats = getStats(attacker);
-    const defStats = getStats(defender);
+    const atkStats = getCardStats(attacker);
+    const defStats = getCardStats(defender);
     const baseAtk = atkStats.atk || 0;
     const baseDef = defStats.def || 0;
     const baseSpd = atkStats.spd || 0;
@@ -319,7 +284,7 @@ export function TurnBattleModal({
     damage = Math.max(5, Math.min(isUltimate ? 50 : 35, damage));
 
     return { damage, isCritical, statusEffect };
-  }, [arena, result, getStats]);
+  }, [arena, result, getCardStats]);
 
   // 전투 종료 처리 (최대 턴 도달 시 HP 비교로 승자 결정)
   const endBattle = useCallback(() => {
@@ -358,7 +323,7 @@ export function TurnBattleModal({
       const turnStartResult = processStatusTrigger(
         attackerState.effects,
         'TURN_START',
-        { hp: attackerState.hp, atk: getStats(attacker).atk || 0, def: getStats(attacker).def || 0, spd: getStats(attacker).spd || 0, ce: getStats(attacker).ce || 0 }
+        { hp: attackerState.hp, atk: getCardStats(attacker).atk || 0, def: getCardStats(attacker).def || 0, spd: getCardStats(attacker).spd || 0, ce: getCardStats(attacker).ce || 0 }
       );
 
       let attackerHp = turnStartResult.newHp;
@@ -422,8 +387,8 @@ export function TurnBattleModal({
           defender.id,
           attackerState.effects,
           defenderState.effects,
-          { hp: attackerHp, maxHp: 100, ce: getStats(attacker).ce || 0 },
-          { hp: defenderState.hp, maxHp: 100, ce: getStats(defender).ce || 0 }
+          { hp: attackerHp, maxHp: 100, ce: getCardStats(attacker).ce || 0 },
+          { hp: defenderState.hp, maxHp: 100, ce: getCardStats(defender).ce || 0 }
         );
 
         damage = ultimateResult.damage;

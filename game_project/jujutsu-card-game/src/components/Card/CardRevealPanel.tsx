@@ -5,7 +5,7 @@
 
 import { RadarChart } from '../UI/RadarChart';
 import type { CharacterCard, PlayerCard, Arena, Attribute, BaseStats } from '../../types';
-import { ITEMS_BY_ID } from '../../data/items';
+import { getEffectiveStats } from '../../utils/battleCalculator';
 
 interface CardRevealPanelProps {
   character: CharacterCard;
@@ -14,44 +14,6 @@ interface CardRevealPanelProps {
   isPlayer: boolean;
   seasonRecord?: { wins: number; losses: number };
   h2hRecord?: { wins: number; losses: number };
-}
-
-/**
- * playerCard의 레벨업 보너스 + 장비 보너스를 baseStats에 합산
- */
-function getEffectiveStats(character: CharacterCard, playerOwnedCard?: PlayerCard): Record<string, number> {
-  const base = character.baseStats as unknown as Record<string, number>;
-  const result: Record<string, number> = { ...base };
-  if (!playerOwnedCard) return result;
-
-  const levelBonus = (playerOwnedCard.level - 1) * 2;
-  if (levelBonus > 0) {
-    result[character.growthStats.primary] = (result[character.growthStats.primary] || 0) + levelBonus;
-    result[character.growthStats.secondary] = (result[character.growthStats.secondary] || 0) + levelBonus;
-  }
-
-  if (playerOwnedCard.bonusStats) {
-    for (const [stat, value] of Object.entries(playerOwnedCard.bonusStats)) {
-      if (stat in result && value) {
-        result[stat] += value;
-      }
-    }
-  }
-
-  for (const equipId of (playerOwnedCard.equipment || [])) {
-    if (equipId) {
-      const item = ITEMS_BY_ID[equipId];
-      if (item) {
-        for (const [stat, value] of Object.entries(item.statBonus)) {
-          if (stat in result && value !== undefined) {
-            result[stat] += value;
-          }
-        }
-      }
-    }
-  }
-
-  return result;
 }
 
 // 속성별 색상 및 한글 이름
