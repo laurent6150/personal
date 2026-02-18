@@ -1,10 +1,53 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { CharacterCard, PlayerCard, Grade, BaseStats, Attribute } from '../../types';
+import type { CharacterCard, PlayerCard, Grade, BaseStats, Attribute, Stats } from '../../types';
 import { ATTRIBUTES, GRADES } from '../../data';
+import { ITEMS_BY_ID } from '../../data/items';
 import { GradeBadge, AttributeBadge } from '../UI/Badge';
 import { StatsDisplay } from '../UI/StatBar';
 import { getCharacterImage, getPlaceholderImage } from '../../utils/imageHelper';
+
+/**
+ * playerCard의 레벨업 보너스 + 장비 보너스를 baseStats에 합산한 스탯 반환
+ */
+function getEffectiveStats(character: CharacterCard, playerCard?: PlayerCard): BaseStats {
+  if (!playerCard) return character.baseStats;
+
+  const base = character.baseStats as Record<string, number>;
+  const result: Record<string, number> = { ...base };
+
+  // 레벨업 기본 보너스 (레벨당 주요 스탯 +2)
+  const levelBonus = (playerCard.level - 1) * 2;
+  if (levelBonus > 0) {
+    result[character.growthStats.primary] = (result[character.growthStats.primary] || 0) + levelBonus;
+    result[character.growthStats.secondary] = (result[character.growthStats.secondary] || 0) + levelBonus;
+  }
+
+  // 레벨업 누적 보너스 스탯
+  if (playerCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerCard.bonusStats)) {
+      if (stat in result && value) {
+        result[stat] += value;
+      }
+    }
+  }
+
+  // 장비 보너스
+  for (const equipId of (playerCard.equipment || [])) {
+    if (equipId) {
+      const item = ITEMS_BY_ID[equipId];
+      if (item) {
+        for (const [stat, value] of Object.entries(item.statBonus)) {
+          if (stat in result && value !== undefined) {
+            result[stat] += value;
+          }
+        }
+      }
+    }
+  }
+
+  return result as unknown as BaseStats;
+}
 
 // 속성별 색상 및 한글 이름
 function getAttributeInfo(attribute: Attribute): { label: string; color: string } {
@@ -211,24 +254,27 @@ export function CardDisplay({
         </div>
       </div>
 
-      {/* 스탯 - 모든 사이즈에서 표시 */}
-      {showStats && (
-        <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
-          {statsDisplayMode === 'gradeTotal' ? (
-            // 등급 + 총합 + 속성 표시 모드
-            <GradeTotalDisplay
-              grade={character.grade}
-              stats={character.baseStats}
-              size={size}
-              gradeInfo={gradeInfo}
-              attribute={character.attribute}
-              showAttribute={true}
-            />
-          ) : (
-            <StatsDisplay stats={character.baseStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
-          )}
-        </div>
-      )}
+      {/* 스탯 - 모든 사이즈에서 표시 (playerCard가 있으면 레벨/장비 보너스 반영) */}
+      {showStats && (() => {
+        const effectiveStats = getEffectiveStats(character, playerCard);
+        return (
+          <div className={size === 'xs' ? 'px-1 py-0.5' : size === 'sm' ? 'px-1 py-0.5' : size === 'md' ? 'px-1.5 py-1' : 'px-2 py-1.5'}>
+            {statsDisplayMode === 'gradeTotal' ? (
+              // 등급 + 총합 + 속성 표시 모드
+              <GradeTotalDisplay
+                grade={character.grade}
+                stats={effectiveStats}
+                size={size}
+                gradeInfo={gradeInfo}
+                attribute={character.attribute}
+                showAttribute={true}
+              />
+            ) : (
+              <StatsDisplay stats={effectiveStats} compact={size === 'xs' || size === 'sm' || size === 'md'} tiny={size === 'xs'} showAllStats={showAllStats} />
+            )}
+          </div>
+        );
+      })()}
 
       {/* 스킬 - 모든 사이즈에서 표시 */}
       {showSkill && (

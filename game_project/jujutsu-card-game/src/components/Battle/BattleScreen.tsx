@@ -19,6 +19,7 @@ import type { CharacterCard, AllKillState } from '../../types';
 import { AllKillIndicator } from '../Phase4/AllKillIndicator';
 import { useSeasonStore } from '../../stores/seasonStore';
 import { useGameStore } from '../../stores/gameStore';
+import { usePlayerStore } from '../../stores/playerStore';
 import { getMatchRewardCP } from '../../stores/economyStore';
 import { useShallow } from 'zustand/shallow';
 import {
@@ -74,6 +75,9 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
     // 배치 모드에서 현재 라운드에 배치된 카드
     assignedCardForCurrentRound
   } = useBattle();
+
+  // 플레이어 소유 카드 (레벨/장비 보너스 표시용)
+  const ownedCards = usePlayerStore(state => state.player.ownedCards);
 
   // Phase 4: 올킬 시즌 상태
   const { isAllKillSeason } = useSeasonStore(
@@ -681,6 +685,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                     >
                       <CardDisplay
                         character={card}
+                        playerCard={ownedCards[card.id]}
                         size="sm"
                         isSelected={isSelected}
                         statsDisplayMode="gradeTotal"
@@ -754,6 +759,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
           <TurnBattleModal
             playerCard={CHARACTERS_BY_ID[roundResultInfo.playerCardId]!}
             aiCard={CHARACTERS_BY_ID[roundResultInfo.aiCardId]!}
+            playerOwnedCard={ownedCards[roundResultInfo.playerCardId]}
             result={roundResultInfo}
             arena={currentArena}
             onComplete={handleTurnBattleComplete}
@@ -788,6 +794,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                 >
                   <CardRevealPanel
                     character={revealedPlayerCard}
+                    playerOwnedCard={ownedCards[revealedPlayerCard.id]}
                     arena={currentArena}
                     isPlayer={true}
                     seasonRecord={{ wins: 0, losses: 0 }}
@@ -941,6 +948,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                 >
                   <CardDisplay
                     character={card}
+                    playerCard={ownedCards[card.id]}
                     size="sm"
                     isSelected={isSelected}
                     statsDisplayMode="gradeTotal"
@@ -987,7 +995,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                 >
-                  <CardDisplay character={selectedCard} size="md" isSelected />
+                  <CardDisplay character={selectedCard} playerCard={ownedCards[selectedCard.id]} size="md" isSelected />
                 </motion.div>
               ) : (
                 <div className="w-32 h-44 rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center">
@@ -1152,6 +1160,7 @@ export function BattleScreen({ onReturnToMenu, onBattleEnd, opponentName }: Batt
                 >
                   <CardDisplay
                     character={card}
+                    playerCard={ownedCards[card.id]}
                     size="sm"
                     statsDisplayMode="gradeTotal"
                     showSkill={false}

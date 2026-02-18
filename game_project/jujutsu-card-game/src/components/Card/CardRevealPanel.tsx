@@ -4,14 +4,54 @@
 // ========================================
 
 import { RadarChart } from '../UI/RadarChart';
-import type { CharacterCard, Arena, Attribute, BaseStats } from '../../types';
+import type { CharacterCard, PlayerCard, Arena, Attribute, BaseStats } from '../../types';
+import { ITEMS_BY_ID } from '../../data/items';
 
 interface CardRevealPanelProps {
   character: CharacterCard;
+  playerOwnedCard?: PlayerCard;  // 플레이어 카드의 레벨/장비 정보
   arena?: Arena | null;
   isPlayer: boolean;
   seasonRecord?: { wins: number; losses: number };
   h2hRecord?: { wins: number; losses: number };
+}
+
+/**
+ * playerCard의 레벨업 보너스 + 장비 보너스를 baseStats에 합산
+ */
+function getEffectiveStats(character: CharacterCard, playerOwnedCard?: PlayerCard): Record<string, number> {
+  const base = character.baseStats as unknown as Record<string, number>;
+  const result: Record<string, number> = { ...base };
+  if (!playerOwnedCard) return result;
+
+  const levelBonus = (playerOwnedCard.level - 1) * 2;
+  if (levelBonus > 0) {
+    result[character.growthStats.primary] = (result[character.growthStats.primary] || 0) + levelBonus;
+    result[character.growthStats.secondary] = (result[character.growthStats.secondary] || 0) + levelBonus;
+  }
+
+  if (playerOwnedCard.bonusStats) {
+    for (const [stat, value] of Object.entries(playerOwnedCard.bonusStats)) {
+      if (stat in result && value) {
+        result[stat] += value;
+      }
+    }
+  }
+
+  for (const equipId of (playerOwnedCard.equipment || [])) {
+    if (equipId) {
+      const item = ITEMS_BY_ID[equipId];
+      if (item) {
+        for (const [stat, value] of Object.entries(item.statBonus)) {
+          if (stat in result && value !== undefined) {
+            result[stat] += value;
+          }
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 // 속성별 색상 및 한글 이름
@@ -76,15 +116,17 @@ function calculateArenaFit(
 
 export function CardRevealPanel({
   character,
+  playerOwnedCard,
   arena,
   isPlayer,
   seasonRecord = { wins: 0, losses: 0 },
   h2hRecord = { wins: 0, losses: 0 }
 }: CardRevealPanelProps) {
-  const totalStats = calculateTotalStats(character.baseStats);
+  const effectiveStats = getEffectiveStats(character, playerOwnedCard);
+  const totalStats = calculateTotalStats(effectiveStats as unknown as BaseStats);
   const arenaFit = calculateArenaFit(character, arena);
   const attrInfo = ATTRIBUTE_INFO[character.attribute];
-  const stats = character.baseStats as unknown as Record<string, number>;
+  const stats = effectiveStats;
 
   return (
     <div
@@ -151,7 +193,7 @@ export function CardRevealPanel({
       {/* 8각형 레이더 차트 */}
       <div className="flex justify-center mb-3">
         <RadarChart
-          stats={character.baseStats}
+          stats={effectiveStats as unknown as BaseStats}
           size="sm"
           showLabels={true}
           showTotal={true}
